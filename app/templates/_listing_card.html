@@ -1,0 +1,23 @@
+<a href="{{ l.url }}" target="_blank" rel="noopener"
+   class="listing-card block rounded-xl border border-slate-200 overflow-hidden hover:border-brand-300 bg-white">
+  {% if l.image_url %}
+    <img src="{{ l.image_url }}" alt="{{ l.title }}" class="w-full h-40 object-cover bg-slate-100">
+  {% else %}
+    <div class="w-full h-40 bg-slate-100 flex items-center justify-center text-4xl">🛍️</div>
+  {% endif %}
+  <div class="p-3">
+    <div class="flex items-center gap-1.5 mb-1.5">
+      <span class="text-xs px-1.5 py-0.5 rounded font-medium
+        {% if l.platform == 'Kleinanzeigen' %}badge-ka
+        {% elif l.platform == 'Shpock' %}badge-sp
+        {% else %}badge-fb{% endif %}">
+        {{ l.platform }}
+      </span>
+      <span class="text-xs text-slate-400 truncate">{{ l.search_term }}</span>
+    </div>
+    <div class="font-semibold text-slate-800 text-sm leading-tight mb-1 line-clamp-2">{{ l.title }}</div>
+    <div class="text-green-700 font-bold">{{ l.price }}</div>
+    <div class="text-xs text-slate-500 mt-1 truncate">📍 {{ l.location }}</div>
+    <div class="text-xs text-slate-400 mt-1">{{ l.found_at | replace('T', ' ') }}</div>
+  </div>
+</a>

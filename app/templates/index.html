@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title_suffix %} – Dashboard{% endblock %}
+
+{% block content %}
+<!-- ── Status-Leiste ─────────────────────────────────────── -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+
+  <div class="bg-white rounded-xl border border-slate-200 p-4">
+    <div class="text-xs text-slate-500 mb-1">Status</div>
+    <div id="status-badge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium
+      {% if stats.crawl_status == 'running' %}badge-run{% else %}badge-idle{% endif %}">
+      {% if stats.crawl_status == 'running' %}
+        <span class="spinner">⟳</span> Läuft…
+      {% else %}
+        ✓ Bereit
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-4">
+    <div class="text-xs text-slate-500 mb-1">Letzter Lauf</div>
+    <div id="last-crawl" class="text-sm font-semibold text-slate-700 truncate">
+      {{ stats.last_crawl | replace('T', ' ') if stats.last_crawl != 'Noch kein Lauf' else 'Noch kein Lauf' }}
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-4">
+    <div class="text-xs text-slate-500 mb-1">Nächster Lauf</div>
+    <div id="next-crawl" class="text-sm font-semibold text-slate-700">{{ stats.next_crawl }}</div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-4">
+    <div class="text-xs text-slate-500 mb-1">Anzeigen gesamt</div>
+    <div id="total-listings" class="text-2xl font-bold text-brand-600">{{ stats.total_listings }}</div>
+  </div>
+
+</div>
+
+<!-- ── Hauptbereich ──────────────────────────────────────── -->
+<div class="flex flex-col lg:flex-row gap-6">
+
+  <!-- Linke Spalte: Suchbegriffe -->
+  <div class="w-full lg:w-80 flex-shrink-0">
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+        <h2 class="font-semibold text-slate-800">🔍 Suchbegriffe</h2>
+        <span class="text-xs text-slate-500">{{ search_terms | length }} gesamt</span>
+      </div>
+
+      <!-- Neuen Begriff hinzufügen -->
+      <form method="POST" action="/terms" class="p-3 border-b border-slate-100">
+        <div class="flex gap-2">
+          <input type="text" name="term" placeholder="z.B. babybadewanne"
+            class="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400"
+            required maxlength="80">
+          <button type="submit"
+            class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+            + Add
+          </button>
+        </div>
+      </form>
+
+      <!-- Liste der Begriffe -->
+      <ul class="divide-y divide-slate-100 max-h-[60vh] overflow-y-auto">
+        {% for t in search_terms %}
+        <li class="flex items-center gap-2 px-3 py-2.5 hover:bg-slate-50 group">
+          <!-- Toggle -->
+          <form method="POST" action="/terms/{{ t.id }}/toggle">
+            <button type="submit" title="{{ 'Deaktivieren' if t.enabled else 'Aktivieren' }}"
+              class="w-9 h-5 rounded-full transition-colors flex-shrink-0 relative
+                {% if t.enabled %}bg-brand-500{% else %}bg-slate-200{% endif %}">
+              <span class="absolute top-0.5 {% if t.enabled %}right-0.5{% else %}left-0.5{% end%}
+                w-4 h-4 bg-white rounded-full shadow transition-all"></span>
+            </button>
+          </form>
+
+          <!-- Begriff -->
+          <span class="flex-1 text-sm {% if not t.enabled %}text-slate-400 line-through{% else %}text-slate-700{% endif %} truncate">
+            {{ t.term }}
+          </span>
+
+          <!-- Filter-Button -->
+          <button onclick="filterListings('{{ t.term }}')"
+            class="opacity-0 group-hover:opacity-100 text-xs text-brand-600 hover:text-brand-800 transition-opacity px-1">
+            ◎
+          </button>
+
+          <!-- Löschen -->
+          <form method="POST" action="/terms/{{ t.id }}/delete"
+            onsubmit="return confirm('\'{{ t.term }}\' wirklich löschen?')">
+            <button type="submit"
+              class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all text-lg leading-none">
+              ×
+            </button>
+          </form>
+        </li>
+        {% else %}
+        <li class="px-4 py-6 text-center text-slate-400 text-sm">
+          Noch keine Suchbegriffe. Füge oben einen hinzu!
+        </li>
+        {% endfor %}
+      </ul>
+
+      <!-- Crawl-Button -->
+      <div class="p-3 border-t border-slate-100">
+        <button id="crawl-btn" onclick="startCrawl()"
+          class="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white
+                 py-2 rounded-lg text-sm font-semibold transition-colors">
+          🚀 Jetzt crawlen
+        </button>
+        <p id="crawl-msg" class="text-xs text-slate-500 text-center mt-1 hidden"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rechte Spalte: Gefundene Anzeigen -->
+  <div class="flex-1 min-w-0">
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100 flex-wrap gap-2">
+        <h2 class="font-semibold text-slate-800">📋 Gefundene Anzeigen</h2>
+        <div class="flex items-center gap-2">
+          <span id="filter-label" class="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full hidden"></span>
+          <button id="filter-clear" onclick="clearFilter()" class="text-xs text-slate-400 hover:text-slate-600 hidden">✕ Filter</button>
+          <!-- Platform Filter -->
+          <select id="platform-filter" onchange="applyPlatformFilter(this.value)"
+            class="text-xs border border-slate-200 rounded-md px-2 py-1 text-slate-600 focus:outline-none">
+            <option value="">Alle Plattformen</option>
+            <option value="Kleinanzeigen">Kleinanzeigen</option>
+            <option value="Shpock">Shpock</option>
+            <option value="Facebook">Facebook</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Anzeigen-Grid -->
+      <div id="listings-grid" class="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[75vh] overflow-y-auto">
+        {% for l in listings %}
+        {% include '_listing_card.html' %}
+        {% else %}
+        <div class="col-span-3 text-center py-16 text-slate-400">
+          <div class="text-5xl mb-3">🔍</div>
+          <p class="text-sm">Noch keine Anzeigen gefunden.<br>Starte einen Crawl-Durchlauf!</p>
+        </div>
+        {% endfor %}
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ── JavaScript ────────────────────────────────────────── -->
+<script>
+let currentTermFilter = null;
+let currentPlatformFilter = null;
+
+// Crawl starten
+async function startCrawl() {
+  const btn = document.getElementById('crawl-btn');
+  const msg = document.getElementById('crawl-msg');
+  btn.disabled = true;
+  btn.textContent = '⟳ Läuft…';
+  msg.textContent = 'Crawl gestartet – das kann einige Minuten dauern.';
+  msg.classList.remove('hidden');
+
+  try {
+    const r = await fetch('/api/crawl', { method: 'POST' });
+    const data = await r.json();
+    if (r.status === 409) {
+      msg.textContent = 'Ein Crawl läuft bereits.';
+    }
+  } catch(e) {
+    msg.textContent = 'Fehler beim Starten.';
+    btn.disabled = false;
+    btn.textContent = '🚀 Jetzt crawlen';
+  }
+  pollStatus();
+}
+
+// Status regelmäßig abfragen
+async function pollStatus() {
+  const r = await fetch('/api/status');
+  const d = await r.json();
+
+  const badge = document.getElementById('status-badge');
+  const btn = document.getElementById('crawl-btn');
+  const msg = document.getElementById('crawl-msg');
+
+  if (d.is_running) {
+    badge.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-run';
+    badge.innerHTML = '<span class="spinner">⟳</span> Läuft…';
+    btn.disabled = true;
+    btn.textContent = '⟳ Läuft…';
+    setTimeout(pollStatus, 3000);
+  } else {
+    badge.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-idle';
+    badge.innerHTML = '✓ Bereit';
+    btn.disabled = false;
+    btn.textContent = '🚀 Jetzt crawlen';
+    if (msg) { msg.textContent = `Fertig! ${d.last_found} neue Anzeige(n) gefunden.`; }
+    document.getElementById('last-crawl').textContent = (d.last_crawl||'').replace('T',' ');
+    document.getElementById('next-crawl').textContent = d.next_crawl;
+    document.getElementById('total-listings').textContent = d.total_listings;
+    // Listings neu laden
+    loadListings(currentTermFilter, currentPlatformFilter);
+  }
+}
+
+// Anzeigen laden (AJAX)
+async function loadListings(term, platform) {
+  let url = '/api/listings?limit=60';
+  if (term) url += '&term=' + encodeURIComponent(term);
+  if (platform) url += '&platform=' + encodeURIComponent(platform);
+  const r = await fetch(url);
+  const listings = await r.json();
+  const grid = document.getElementById('listings-grid');
+  if (!listings.length) {
+    grid.innerHTML = '<div class="col-span-3 text-center py-16 text-slate-400"><div class="text-5xl mb-3">🔍</div><p class="text-sm">Keine Anzeigen für diesen Filter.</p></div>';
+    return;
+  }
+  grid.innerHTML = listings.map(l => `
+    <a href="${l.url}" target="_blank" rel="noopener"
+       class="listing-card block rounded-xl border border-slate-200 overflow-hidden hover:border-brand-300 bg-white">
+      ${l.image_url
+        ? `<img src="${l.image_url}" alt="" class="w-full h-40 object-cover bg-slate-100">`
+        : `<div class="w-full h-40 bg-slate-100 flex items-center justify-center text-4xl">🛍️</div>`}
+      <div class="p-3">
+        <div class="flex items-center gap-1.5 mb-1.5">
+          <span class="text-xs px-1.5 py-0.5 rounded font-medium ${platformClass(l.platform)}">${l.platform}</span>
+          <span class="text-xs text-slate-400 truncate">${l.search_term}</span>
+        </div>
+        <div class="font-semibold text-slate-800 text-sm leading-tight mb-1 line-clamp-2">${l.title}</div>
+        <div class="text-green-700 font-bold">${l.price}</div>
+        <div class="text-xs text-slate-500 mt-1 truncate">📍 ${l.location}</div>
+        <div class="text-xs text-slate-400 mt-1">${(l.found_at||'').replace('T',' ')}</div>
+      </div>
+    </a>`).join('');
+}
+
+function platformClass(p) {
+  if (p==='Kleinanzeigen') return 'badge-ka';
+  if (p==='Shpock') return 'badge-sp';
+  return 'badge-fb';
+}
+
+function filterListings(term) {
+  currentTermFilter = term;
+  document.getElementById('filter-label').textContent = '🔍 ' + term;
+  document.getElementById('filter-label').classList.remove('hidden');
+  document.getElementById('filter-clear').classList.remove('hidden');
+  loadListings(term, currentPlatformFilter);
+}
+
+function clearFilter() {
+  currentTermFilter = null;
+  document.getElementById('filter-label').classList.add('hidden');
+  document.getElementById('filter-clear').classList.add('hidden');
+  document.getElementById('platform-filter').value = '';
+  currentPlatformFilter = null;
+  loadListings(null, null);
+}
+
+function applyPlatformFilter(platform) {
+  currentPlatformFilter = platform || null;
+  loadListings(currentTermFilter, currentPlatformFilter);
+}
+
+// Auto-Poll wenn gerade Crawl läuft
+{% if stats.crawl_status == 'running' %}
+setTimeout(pollStatus, 3000);
+{% endif %}
+</script>
+{% endblock %}

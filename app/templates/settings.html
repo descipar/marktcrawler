@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title_suffix %} – Einstellungen{% endblock %}
+
+{% block content %}
+<form method="POST" action="/settings">
+
+<div class="max-w-2xl mx-auto space-y-6">
+
+  <div class="flex items-center justify-between">
+    <h1 class="text-xl font-bold text-slate-800">⚙️ Einstellungen</h1>
+    <button type="submit"
+      class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 rounded-lg font-semibold text-sm transition-colors">
+      💾 Speichern
+    </button>
+  </div>
+
+  <!-- ── Kleinanzeigen ──────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-5 py-3 bg-green-50 border-b border-slate-200 flex items-center justify-between">
+      <h2 class="font-semibold text-green-800">Kleinanzeigen.de</h2>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <span class="text-sm text-slate-600">Aktiviert</span>
+        <input type="checkbox" name="kleinanzeigen_enabled" value="1"
+          {% if s.kleinanzeigen_enabled == '1' %}checked{% endif %}
+          class="w-4 h-4 accent-green-600">
+      </label>
+    </div>
+    <div class="p-5 grid grid-cols-2 gap-4">
+      {% call field("Max. Preis (€)") %}
+        <input type="number" name="kleinanzeigen_max_price" value="{{ s.kleinanzeigen_max_price }}"
+          min="0" class="input-field">
+      {% endcall %}
+      {% call field("Standort") %}
+        <input type="text" name="kleinanzeigen_location" value="{{ s.kleinanzeigen_location }}"
+          placeholder="z.B. Dortmund" class="input-field">
+      {% endcall %}
+      {% call field("Radius (km)") %}
+        <input type="number" name="kleinanzeigen_radius" value="{{ s.kleinanzeigen_radius }}"
+          min="5" max="200" class="input-field">
+      {% endcall %}
+    </div>
+  </div>
+
+  <!-- ── Shpock ─────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-5 py-3 bg-blue-50 border-b border-slate-200 flex items-center justify-between">
+      <h2 class="font-semibold text-blue-800">Shpock</h2>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <span class="text-sm text-slate-600">Aktiviert</span>
+        <input type="checkbox" name="shpock_enabled" value="1"
+          {% if s.shpock_enabled == '1' %}checked{% endif %}
+          class="w-4 h-4 accent-blue-600">
+      </label>
+    </div>
+    <div class="p-5 grid grid-cols-2 gap-4">
+      {% call field("Max. Preis (€)") %}
+        <input type="number" name="shpock_max_price" value="{{ s.shpock_max_price }}"
+          min="0" class="input-field">
+      {% endcall %}
+      {% call field("Radius (km)") %}
+        <input type="number" name="shpock_radius" value="{{ s.shpock_radius }}"
+          min="5" max="200" class="input-field">
+      {% endcall %}
+      {% call field("Breitengrad (lat)") %}
+        <input type="text" name="shpock_latitude" value="{{ s.shpock_latitude }}"
+          placeholder="51.5136" class="input-field">
+      {% endcall %}
+      {% call field("Längengrad (lon)") %}
+        <input type="text" name="shpock_longitude" value="{{ s.shpock_longitude }}"
+          placeholder="7.4653" class="input-field">
+      {% endcall %}
+    </div>
+    <div class="px-5 pb-4 text-xs text-slate-400">
+      💡 Koordinaten für deinen Standort: <a href="https://www.latlong.net" target="_blank" class="text-blue-500 hover:underline">latlong.net</a>
+    </div>
+  </div>
+
+  <!-- ── Facebook ───────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-5 py-3 bg-indigo-50 border-b border-slate-200 flex items-center justify-between">
+      <h2 class="font-semibold text-indigo-800">Facebook Marketplace</h2>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <span class="text-sm text-slate-600">Aktiviert</span>
+        <input type="checkbox" name="facebook_enabled" value="1"
+          {% if s.facebook_enabled == '1' %}checked{% endif %}
+          class="w-4 h-4 accent-indigo-600">
+      </label>
+    </div>
+    <div class="p-5 grid grid-cols-2 gap-4">
+      {% call field("Max. Preis (€)") %}
+        <input type="number" name="facebook_max_price" value="{{ s.facebook_max_price }}"
+          min="0" class="input-field">
+      {% endcall %}
+      {% call field("Standort") %}
+        <input type="text" name="facebook_location" value="{{ s.facebook_location }}"
+          placeholder="z.B. Dortmund" class="input-field">
+      {% endcall %}
+    </div>
+    <div class="px-5 pb-4 text-xs text-amber-700 bg-amber-50 border-t border-amber-100 py-2">
+      ⚠️ Facebook benötigt einen einmaligen Login. Nach dem Start:
+      <code class="bg-amber-100 px-1 rounded">docker exec -it baby-crawler python -c "from app.scrapers.facebook import FacebookScraper; FacebookScraper({}).interactive_login()"</code>
+    </div>
+  </div>
+
+  <!-- ── E-Mail ──────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-5 py-3 bg-yellow-50 border-b border-slate-200 flex items-center justify-between">
+      <h2 class="font-semibold text-yellow-800">📧 E-Mail-Benachrichtigungen</h2>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <span class="text-sm text-slate-600">Aktiviert</span>
+        <input type="checkbox" name="email_enabled" value="1"
+          {% if s.email_enabled == '1' %}checked{% endif %}
+          class="w-4 h-4 accent-yellow-600">
+      </label>
+    </div>
+    <div class="p-5 grid grid-cols-2 gap-4">
+      {% call field("Empfänger-E-Mail") %}
+        <input type="email" name="email_recipient" value="{{ s.email_recipient }}"
+          placeholder="kai@example.com" class="input-field col-span-2">
+      {% endcall %}
+      {% call field("Absender-E-Mail") %}
+        <input type="email" name="email_sender" value="{{ s.email_sender }}"
+          placeholder="crawler@gmail.com" class="input-field">
+      {% endcall %}
+      {% call field("App-Passwort") %}
+        <input type="password" name="email_password" value="{{ s.email_password }}"
+          placeholder="••••••••" class="input-field" autocomplete="new-password">
+      {% endcall %}
+      {% call field("SMTP-Server") %}
+        <input type="text" name="email_smtp_server" value="{{ s.email_smtp_server }}"
+          class="input-field">
+      {% endcall %}
+      {% call field("SMTP-Port") %}
+        <input type="number" name="email_smtp_port" value="{{ s.email_smtp_port }}"
+          class="input-field">
+      {% endcall %}
+    </div>
+    <div class="px-5 pb-4 text-xs text-slate-400">
+      💡 Gmail: App-Passwort unter <a href="https://myaccount.google.com/apppasswords" target="_blank" class="text-blue-500 hover:underline">myaccount.google.com/apppasswords</a> erstellen.
+    </div>
+  </div>
+
+  <!-- ── Crawler ────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-5 py-3 bg-slate-50 border-b border-slate-200">
+      <h2 class="font-semibold text-slate-700">🤖 Crawler-Einstellungen</h2>
+    </div>
+    <div class="p-5 grid grid-cols-2 gap-4">
+      {% call field("Intervall (Minuten)") %}
+        <input type="number" name="crawler_interval" value="{{ s.crawler_interval }}"
+          min="5" max="1440" class="input-field">
+      {% endcall %}
+      {% call field("Max. Ergebnisse/Suche") %}
+        <input type="number" name="crawler_max_results" value="{{ s.crawler_max_results }}"
+          min="5" max="100" class="input-field">
+      {% endcall %}
+      {% call field("Pause zw. Anfragen (s)") %}
+        <input type="number" name="crawler_delay" value="{{ s.crawler_delay }}"
+          min="0.5" max="10" step="0.5" class="input-field">
+      {% endcall %}
+    </div>
+  </div>
+
+  <!-- Speichern (unten) -->
+  <div class="flex justify-end pb-4">
+    <button type="submit"
+      class="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-lg font-semibold transition-colors">
+      💾 Einstellungen speichern
+    </button>
+  </div>
+
+</div>
+</form>
+
+<!-- Globale Input-Styles -->
+<style>
+  .input-field {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+    outline: none;
+    transition: box-shadow .15s;
+  }
+  .input-field:focus { box-shadow: 0 0 0 2px #a855f7; }
+</style>
+
+{% macro field(label) %}
+<div>
+  <label class="block text-xs font-medium text-slate-500 mb-1">{{ label }}</label>
+  {{ caller() }}
+</div>
+{% endmacro %}
+{% endblock %}

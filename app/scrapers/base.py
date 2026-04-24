@@ -13,3 +13,5 @@ class Listing:
     search_term: str = ""
     description: str = ""
     image_url: str = ""
+    is_free: bool = False
+    distance_km: float = None

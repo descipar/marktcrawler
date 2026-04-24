@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 
 from . import database as db
 from .crawler import run_crawl_async, is_running
-from .scheduler import get_next_run, update_interval
+from .scheduler import get_next_run, update_interval, update_digest_schedule
 
 bp = Blueprint("main", __name__)
 
@@ -14,8 +14,18 @@ bp = Blueprint("main", __name__)
 @bp.route("/")
 def index():
     search_terms = db.get_search_terms()
-    listings = db.get_listings(limit=60)
     settings = db.get_settings()
+
+    max_age = int(settings.get("crawler_max_age_hours", 0) or 0)
+    only_fav = request.args.get("favorites") == "1"
+    only_free = request.args.get("free") == "1"
+
+    listings = db.get_listings(
+        limit=60,
+        only_favorites=only_fav,
+        only_free=only_free,
+        max_age_hours=max_age,
+    )
     stats = {
         "total_listings": db.get_listing_count(),
         "last_crawl": settings.get("last_crawl_end", "") or "Noch kein Lauf",
@@ -23,10 +33,16 @@ def index():
         "crawl_status": settings.get("crawl_status", "idle"),
         "last_found": settings.get("last_crawl_found", "0"),
     }
-    return render_template("index.html",
-                           search_terms=search_terms,
-                           listings=listings,
-                           stats=stats)
+    price_stats = db.get_price_stats()
+    return render_template(
+        "index.html",
+        search_terms=search_terms,
+        listings=listings,
+        stats=stats,
+        price_stats=price_stats,
+        only_fav=only_fav,
+        only_free=only_free,
+    )
 
 
 # ── Suchbegriffe ─────────────────────────────────────────────
@@ -53,6 +69,14 @@ def toggle_term(term_id):
     return redirect(url_for("main.index"))
 
 
+# ── Favoriten ────────────────────────────────────────────────
+
+@bp.route("/listings/<int:listing_id>/favorite", methods=["POST"])
+def toggle_favorite(listing_id):
+    db.toggle_favorite(listing_id)
+    return jsonify({"status": "ok"})
+
+
 # ── Einstellungen ────────────────────────────────────────────
 
 @bp.route("/settings")
@@ -64,16 +88,20 @@ def settings_page():
 @bp.route("/settings", methods=["POST"])
 def save_settings():
     allowed_keys = {
-        "kleinanzeigen_enabled", "kleinanzeigen_max_price", "kleinanzeigen_location", "kleinanzeigen_radius",
-        "shpock_enabled", "shpock_max_price", "shpock_latitude", "shpock_longitude", "shpock_radius",
+        "kleinanzeigen_enabled", "kleinanzeigen_max_price",
+        "kleinanzeigen_location", "kleinanzeigen_radius",
+        "shpock_enabled", "shpock_max_price",
+        "shpock_latitude", "shpock_longitude", "shpock_radius",
         "facebook_enabled", "facebook_max_price", "facebook_location",
         "email_enabled", "email_smtp_server", "email_smtp_port",
         "email_sender", "email_password", "email_recipient",
         "crawler_interval", "crawler_max_results", "crawler_delay",
+        "crawler_blacklist", "crawler_max_age_hours",
+        "digest_enabled", "digest_time",
+        "home_latitude", "home_longitude",
     }
     data = {}
     for key in allowed_keys:
-        # Checkboxen senden nur Wert wenn angehakt → fehlender Key = 0
         if key.endswith("_enabled"):
             data[key] = "1" if request.form.get(key) else "0"
         else:
@@ -83,12 +111,12 @@ def save_settings():
 
     db.save_settings(data)
 
-    # Scheduler-Intervall live aktualisieren
     try:
-        new_interval = int(data.get("crawler_interval", 60))
-        update_interval(new_interval)
+        update_interval(int(data.get("crawler_interval", 60)))
     except (ValueError, TypeError):
         pass
+
+    update_digest_schedule()
 
     flash("Einstellungen gespeichert.", "success")
     return redirect(url_for("main.settings_page"))
@@ -122,5 +150,17 @@ def api_listings():
     term = request.args.get("term")
     platform = request.args.get("platform")
     limit = int(request.args.get("limit", 60))
-    listings = db.get_listings(limit=limit, search_term=term, platform=platform)
+    only_fav = request.args.get("favorites") == "1"
+    only_free = request.args.get("free") == "1"
+    max_age = int(request.args.get("max_age", 0) or 0)
+
+    listings = db.get_listings(
+        limit=limit, search_term=term, platform=platform,
+        only_favorites=only_fav, only_free=only_free, max_age_hours=max_age,
+    )
     return jsonify(listings)
+
+
+@bp.route("/api/stats")
+def api_stats():
+    return jsonify(db.get_price_stats())

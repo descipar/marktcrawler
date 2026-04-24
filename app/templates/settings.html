@@ -114,9 +114,10 @@
       </label>
     </div>
     <div class="p-5 grid grid-cols-2 gap-4">
-      {% call field("Empfänger-E-Mail") %}
-        <input type="email" name="email_recipient" value="{{ s.email_recipient }}"
-          placeholder="kai@example.com" class="input-field col-span-2">
+      {% call field("Empfänger(innen)") %}
+        <input type="text" name="email_recipient" value="{{ s.email_recipient }}"
+          placeholder="kai@example.com, partner@example.com"
+          class="input-field col-span-2">
       {% endcall %}
       {% call field("Absender-E-Mail") %}
         <input type="email" name="email_sender" value="{{ s.email_sender }}"
@@ -140,6 +141,28 @@
     </div>
   </div>
 
+  <!-- ── Tages-Digest ───────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-5 py-3 bg-orange-50 border-b border-slate-200 flex items-center justify-between">
+      <h2 class="font-semibold text-orange-800">📋 Tages-Digest</h2>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <span class="text-sm text-slate-600">Aktiviert</span>
+        <input type="checkbox" name="digest_enabled" value="1"
+          {% if s.digest_enabled == '1' %}checked{% endif %}
+          class="w-4 h-4 accent-orange-600">
+      </label>
+    </div>
+    <div class="p-5 grid grid-cols-2 gap-4">
+      {% call field("Uhrzeit") %}
+        <input type="time" name="digest_time" value="{{ s.digest_time or '19:00' }}"
+          class="input-field">
+      {% endcall %}
+    </div>
+    <div class="px-5 pb-4 text-xs text-slate-400">
+      💡 Zusätzlich zu Sofort-Benachrichtigungen: täglich eine Zusammenfassung aller gefundenen Anzeigen des Tages.
+    </div>
+  </div>
+
   <!-- ── Crawler ────────────────────────────────── -->
   <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
     <div class="px-5 py-3 bg-slate-50 border-b border-slate-200">
@@ -158,6 +181,51 @@
         <input type="number" name="crawler_delay" value="{{ s.crawler_delay }}"
           min="0.5" max="10" step="0.5" class="input-field">
       {% endcall %}
+      {% call field("Max. Alter der Anzeigen (h)") %}
+        <input type="number" name="crawler_max_age_hours" value="{{ s.crawler_max_age_hours or '' }}"
+          min="0" placeholder="0 = unbegrenzt" class="input-field">
+      {% endcall %}
+    </div>
+    <div class="px-5 pb-4 text-xs text-slate-400">
+      💡 Max. Alter: Nur Anzeigen anzeigen, die jünger als X Stunden sind. 0 = alle Anzeigen.
+    </div>
+  </div>
+
+  <!-- ── Blacklist ──────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-5 py-3 bg-red-50 border-b border-slate-200">
+      <h2 class="font-semibold text-red-800">🚫 Blacklist</h2>
+    </div>
+    <div class="p-5">
+      {% call field("Ausgeschlossene Begriffe (einer pro Zeile)") %}
+        <textarea name="crawler_blacklist" rows="5"
+          placeholder="defekt&#10;beschädigt&#10;bastler&#10;ersatzteile"
+          class="input-field font-mono text-sm resize-y">{{ s.crawler_blacklist or '' }}</textarea>
+      {% endcall %}
+    </div>
+    <div class="px-5 pb-4 text-xs text-slate-400">
+      💡 Anzeigen mit diesen Wörtern im Titel oder in der Beschreibung werden automatisch übersprungen. Einen Begriff pro Zeile, Groß-/Kleinschreibung wird ignoriert.
+    </div>
+  </div>
+
+  <!-- ── Heimstandort (Entfernung) ─────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-5 py-3 bg-teal-50 border-b border-slate-200">
+      <h2 class="font-semibold text-teal-800">📍 Heimstandort (Entfernungsberechnung)</h2>
+    </div>
+    <div class="p-5 grid grid-cols-2 gap-4">
+      {% call field("Breitengrad (lat)") %}
+        <input type="text" name="home_latitude" value="{{ s.home_latitude or '' }}"
+          placeholder="51.5136" class="input-field">
+      {% endcall %}
+      {% call field("Längengrad (lon)") %}
+        <input type="text" name="home_longitude" value="{{ s.home_longitude or '' }}"
+          placeholder="7.4653" class="input-field">
+      {% endcall %}
+    </div>
+    <div class="px-5 pb-4 text-xs text-slate-400">
+      💡 Wenn angegeben, wird bei jeder Anzeige die Entfernung zu deinem Zuhause berechnet und angezeigt.
+      Koordinaten ermitteln: <a href="https://www.latlong.net" target="_blank" class="text-blue-500 hover:underline">latlong.net</a>
     </div>
   </div>
 

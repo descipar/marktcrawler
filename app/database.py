@@ -1,5 +1,6 @@
 """SQLite-Datenbankschicht für den Baby-Crawler."""
 
+import os
 import sqlite3
 import logging
 from pathlib import Path
@@ -7,7 +8,8 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path("/data/baby_crawler.db")
+_data_dir = Path(os.environ.get("DATA_DIR", "/data"))
+DB_PATH = _data_dir / "baby_crawler.db"
 
 DEFAULT_SETTINGS: Dict[str, str] = {
     # Kleinanzeigen
@@ -36,6 +38,14 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "crawler_interval": "60",
     "crawler_max_results": "20",
     "crawler_delay": "2",
+    "crawler_blacklist": "defekt\nbastler\nersatzteile\nbeschädigt\nkaputt\nschlachtfest",
+    "crawler_max_age_hours": "0",   # 0 = kein Filter
+    # Tages-Digest
+    "digest_enabled": "0",
+    "digest_time": "19:00",
+    # Heimstandort für Entfernungsberechnung
+    "home_latitude": "51.5136",
+    "home_longitude": "7.4653",
     # Status
     "last_crawl_start": "",
     "last_crawl_end": "",
@@ -57,15 +67,15 @@ def get_db() -> sqlite3.Connection:
 
 
 def init_db():
-    """Initialisiert die Datenbank und füllt Default-Werte."""
+    """Initialisiert die Datenbank, erstellt Tabellen und führt Migrationen durch."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = get_db()
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS search_terms (
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            term      TEXT    NOT NULL UNIQUE,
-            enabled   INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT   DEFAULT (datetime('now'))
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            term       TEXT    NOT NULL UNIQUE,
+            enabled    INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT    DEFAULT (datetime('now'))
         );
         CREATE TABLE IF NOT EXISTS settings (
             key   TEXT PRIMARY KEY,
@@ -84,8 +94,16 @@ def init_db():
             search_term TEXT,
             found_at    TEXT DEFAULT (datetime('now'))
         );
+        CREATE TABLE IF NOT EXISTS geocache (
+            location_text TEXT PRIMARY KEY,
+            lat           REAL,
+            lon           REAL
+        );
     """)
     conn.commit()
+
+    # Spalten-Migration für bestehende Datenbanken
+    _migrate_listings(conn)
 
     # Default-Settings nur eintragen wenn noch nicht vorhanden
     for key, value in DEFAULT_SETTINGS.items():
@@ -104,6 +122,20 @@ def init_db():
     conn.commit()
     conn.close()
     logger.info(f"Datenbank initialisiert: {DB_PATH}")
+
+
+def _migrate_listings(conn: sqlite3.Connection):
+    """Ergänzt neue Spalten falls sie noch nicht existieren (für Updates)."""
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(listings)")}
+    new_cols = [
+        ("is_favorite", "INTEGER DEFAULT 0"),
+        ("is_free",     "INTEGER DEFAULT 0"),
+        ("distance_km", "REAL"),
+    ]
+    for col, definition in new_cols:
+        if col not in existing:
+            conn.execute(f"ALTER TABLE listings ADD COLUMN {col} {definition}")
+    conn.commit()
 
 
 # ── Search Terms ────────────────────────────────────────────
@@ -192,35 +224,67 @@ def save_listing(listing) -> bool:
         conn = get_db()
         conn.execute(
             """INSERT INTO listings
-               (listing_id,platform,title,price,location,url,image_url,description,search_term)
-               VALUES (?,?,?,?,?,?,?,?,?)""",
+               (listing_id,platform,title,price,location,url,image_url,
+                description,search_term,is_free)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
             (listing.listing_id, listing.platform, listing.title, listing.price,
              listing.location, listing.url, listing.image_url, listing.description,
-             listing.search_term),
+             listing.search_term, int(getattr(listing, "is_free", False))),
         )
         conn.commit()
         conn.close()
         return True
     except sqlite3.IntegrityError:
-        return False  # bereits vorhanden
+        return False
+
+
+def update_listing_distance(listing_id: str, distance_km: float):
+    conn = get_db()
+    conn.execute(
+        "UPDATE listings SET distance_km=? WHERE listing_id=?",
+        (round(distance_km, 1), listing_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def toggle_favorite(listing_id: int):
+    conn = get_db()
+    conn.execute(
+        "UPDATE listings SET is_favorite = CASE WHEN is_favorite=1 THEN 0 ELSE 1 END WHERE id=?",
+        (listing_id,),
+    )
+    conn.commit()
+    conn.close()
 
 
 def get_listings(limit: int = 100, search_term: Optional[str] = None,
-                 platform: Optional[str] = None) -> List[Dict]:
+                 platform: Optional[str] = None, only_favorites: bool = False,
+                 only_free: bool = False, max_age_hours: int = 0) -> List[Dict]:
     conn = get_db()
-    query = "SELECT * FROM listings"
+    conditions: List[str] = []
     params: List[Any] = []
-    conditions = []
+
     if search_term:
         conditions.append("search_term = ?")
         params.append(search_term)
     if platform:
         conditions.append("platform = ?")
         params.append(platform)
+    if only_favorites:
+        conditions.append("is_favorite = 1")
+    if only_free:
+        conditions.append("is_free = 1")
+    if max_age_hours and max_age_hours > 0:
+        conditions.append("found_at >= datetime('now', ? || ' hours')")
+        params.append(f"-{max_age_hours}")
+
+    query = "SELECT * FROM listings"
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
-    query += " ORDER BY found_at DESC LIMIT ?"
+    query += " ORDER BY is_favorite DESC, found_at DESC LIMIT ?"
     params.append(limit)
+
     rows = [dict(r) for r in conn.execute(query, params).fetchall()]
     conn.close()
     return rows
@@ -233,11 +297,63 @@ def get_listing_count() -> int:
     return count
 
 
+def get_listings_today() -> List[Dict]:
+    """Alle Anzeigen von heute (für den Tages-Digest)."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM listings WHERE found_at >= date('now') ORDER BY found_at DESC"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_price_stats() -> List[Dict]:
+    """Durchschnittspreis, Min, Max und Anzahl pro Suchbegriff."""
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT
+            search_term,
+            COUNT(*) as count,
+            ROUND(AVG(CAST(REPLACE(REPLACE(price, ' €', ''), ',', '.') AS REAL)), 2) as avg_price,
+            MIN(CAST(REPLACE(REPLACE(price, ' €', ''), ',', '.') AS REAL)) as min_price,
+            MAX(CAST(REPLACE(REPLACE(price, ' €', ''), ',', '.') AS REAL)) as max_price,
+            SUM(is_free) as free_count
+        FROM listings
+        WHERE price NOT IN ('k.A.', 'Preis nicht angegeben', '')
+          AND CAST(REPLACE(REPLACE(price, ' €', ''), ',', '.') AS REAL) > 0
+        GROUP BY search_term
+        ORDER BY count DESC
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def clear_old_listings(days: int = 30):
     conn = get_db()
     conn.execute(
-        "DELETE FROM listings WHERE found_at < datetime('now', ? || ' days')",
+        "DELETE FROM listings WHERE is_favorite = 0 AND found_at < datetime('now', ? || ' days')",
         (f"-{days}",),
+    )
+    conn.commit()
+    conn.close()
+
+
+# ── Geocache ────────────────────────────────────────────────
+
+def get_geocache(location_text: str) -> Optional[tuple]:
+    conn = get_db()
+    row = conn.execute(
+        "SELECT lat, lon FROM geocache WHERE location_text=?", (location_text,)
+    ).fetchone()
+    conn.close()
+    return (row["lat"], row["lon"]) if row else None
+
+
+def save_geocache(location_text: str, lat: float, lon: float):
+    conn = get_db()
+    conn.execute(
+        "INSERT OR REPLACE INTO geocache(location_text, lat, lon) VALUES (?,?,?)",
+        (location_text, lat, lon),
     )
     conn.commit()
     conn.close()

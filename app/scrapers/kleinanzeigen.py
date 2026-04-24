@@ -52,7 +52,9 @@ class KleinanzeigenScraper:
         return results
 
     def _build_url(self, term: str) -> str:
-        slug = term.replace(" ", "-").lower()
+        # Keyword-Suche mit q- Prefix – funktioniert für einzelne Wörter
+        # UND für mehrteilige Beschreibungen wie "babyschale rot maxi-cosi"
+        keyword = term.strip().replace(" ", "+")
         params = []
         if self.max_price:
             params.append(f"maxPrice={self.max_price}")
@@ -60,9 +62,9 @@ class KleinanzeigenScraper:
             params.append(f"radius={self.radius_km}")
         if self.location:
             loc = self.location.replace(" ", "-").lower()
-            url = f"{BASE_URL}/s-{loc}/{slug}/k0"
+            url = f"{BASE_URL}/s-{loc}/q-{keyword}/k0"
         else:
-            url = f"{BASE_URL}/s-{slug}/k0"
+            url = f"{BASE_URL}/s-anzeigen/q-{keyword}/k0"
         return url + ("?" + "&".join(params) if params else "")
 
     def _parse(self, item, term: str) -> Optional[Listing]:

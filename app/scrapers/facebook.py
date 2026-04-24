@@ -5,6 +5,7 @@ Benötigt einmaligen Login: docker exec -it baby-crawler python -c
 """
 
 import logging
+import os
 import re
 import time
 from pathlib import Path
@@ -13,7 +14,7 @@ from typing import List, Optional
 from .base import Listing
 
 logger = logging.getLogger(__name__)
-SESSION_FILE = Path("/data/facebook_session.json")
+SESSION_FILE = Path(os.environ.get("DATA_DIR", "/data")) / "facebook_session.json"
 
 
 class FacebookScraper:

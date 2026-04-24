@@ -23,28 +23,52 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 
 ---
 
-## 🚀 Schnellstart
+## 🚀 Deployment-Optionen
 
-### Voraussetzungen
+### Option A – Raspberry Pi 4 (empfohlen)
 
-- Docker & Docker Compose
-- Linux-Server (z.B. Proxmox VM/LXC, Raspberry Pi, jede Cloud-VM)
-
-### Installation
+Stromsparend (~5 Watt), läuft still 24/7, kein großer Server nötig.
 
 ```bash
-git clone https://github.com/dein-name/baby-crawler.git
-cd baby-crawler
+# 1. Docker auf dem RPi installieren (einmalig)
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker pi
+# Terminal neu starten oder: newgrp docker
+
+# 2. Projekt auf den RPi kopieren (vom eigenen Rechner aus)
+scp -r ~/Documents/ai_coding/baby-crawler-v2 pi@<rpi-ip>:/home/pi/baby-crawler
+
+# 3. Starten
+ssh pi@<rpi-ip>
+cd /home/pi/baby-crawler
 docker compose up -d --build
 ```
 
-Admin-UI aufrufen: **`http://<server-ip>:5000`**
+Admin-UI aufrufen: **`http://<rpi-ip>:5000`**
 
-### Proxmox: Docker schnell einrichten
+---
+
+### Option B – Proxmox (VM oder LXC)
 
 ```bash
+# Docker in Ubuntu/Debian LXC installieren (einmalig)
 apt update && apt install -y docker.io docker-compose-plugin
+
+# Projekt auf den Server kopieren
+scp -r ~/Documents/ai_coding/baby-crawler-v2 root@<proxmox-ip>:/opt/baby-crawler
+
+# Starten
+cd /opt/baby-crawler
+docker compose up -d --build
 ```
+
+Admin-UI aufrufen: **`http://<proxmox-ip>:5000`**
+
+---
+
+### Option C – Lokal (zum Testen)
+
+Kein Docker nötig – direkt mit Python starten, siehe [Lokale Entwicklung](#-lokale-entwicklung).
 
 ---
 
@@ -81,7 +105,7 @@ Verwalte Suchbegriffe und sieh alle gefundenen Anzeigen in einer Kachelansicht.
    - SMTP-Server: `smtp.gmail.com` · Port: `587`
    - Absender: `deine-adresse@gmail.com`
    - App-Passwort: *(das erzeugte App-Passwort)*
-   - Empfänger: *(Ziel-Adresse für Benachrichtigungen)*
+   - Empfänger: *(eine oder mehrere Adressen, kommagetrennt: `kai@example.com, partner@example.com`)*
 
 ### Andere Anbieter
 
@@ -145,15 +169,25 @@ baby-crawler/
 
 ## 🔧 Lokale Entwicklung
 
+Kein Docker nötig – das Projekt läuft direkt mit Python.
+
 ```bash
+# 1. Virtual Environment anlegen & Pakete installieren
+cd baby-crawler
 python -m venv venv
 source venv/bin/activate      # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+
+# 2. Datenordner anlegen
 mkdir -p data
-python run.py                 # → http://localhost:5000
+
+# 3. Starten
+python run.py
 ```
 
-> Hinweis: `database.py` nutzt den Pfad `/data/baby_crawler.db` (Docker-Volume). Für lokale Entwicklung in `database.py` auf `Path("./data/baby_crawler.db")` ändern.
+Admin-UI aufrufen: **`http://localhost:5000`**
+
+Die `.env`-Datei im Projektroot setzt den Datenbankpfad automatisch auf `./data` – es ist keine weitere Konfiguration nötig. Im Docker-Container wird stattdessen das Volume `/data` verwendet, beides funktioniert ohne Anpassungen am Code.
 
 ---
 

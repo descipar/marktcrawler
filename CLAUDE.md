@@ -11,25 +11,28 @@ Web-App zum automatisierten Durchsuchen von Kleinanzeigen-Plattformen (Kleinanze
 - **Backend**: Python 3.12, Flask 3, APScheduler 3
 - **Datenbank**: SQLite (via `sqlite3` Standardbibliothek, kein ORM)
 - **Scraping**: `requests` + `BeautifulSoup`/`lxml` (Kleinanzeigen), GraphQL-API (Shpock), Playwright (Facebook)
+- **Geocoding**: Nominatim (OpenStreetMap), Ergebnisse in `geocache`-Tabelle gecacht, 1 req/s Rate-Limit
 - **Frontend**: Jinja2-Templates, Tailwind CSS (CDN), Vanilla JS (kein Build-Step)
-- **Deployment**: Docker + docker-compose
+- **Deployment**: Docker + docker-compose, Gunicorn 1 Worker
 
 ## Verzeichnisstruktur
 
 ```
 baby-crawler-v2/
-├── run.py                      # Gunicorn-Einstiegspunkt → create_app()
+├── run.py                      # Einstiegspunkt (Flask dev server + load_dotenv)
+├── .env                        # Lokale Entwicklung: DATA_DIR=./data
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
 ├── data/                       # Persistentes Volume (SQLite-DB, FB-Session)
 └── app/
     ├── __init__.py             # Flask App Factory, initialisiert DB + Scheduler
-    ├── database.py             # Gesamte SQLite-Schicht (kein ORM)
+    ├── database.py             # Gesamte SQLite-Schicht (kein ORM), Migration
     ├── routes.py               # Alle Flask-Routen + REST-API (Blueprint "main")
     ├── crawler.py              # Crawl-Orchestrierung, threading.Lock, run_crawl_async()
-    ├── scheduler.py            # APScheduler BackgroundScheduler
-    ├── notifier.py             # SMTP E-Mail-Versand
+    ├── scheduler.py            # APScheduler: IntervalTrigger (Crawl) + CronTrigger (Digest)
+    ├── notifier.py             # SMTP E-Mail: Sofort-Alert + Tages-Digest
+    ├── geo.py                  # Haversine-Formel + Nominatim-Geocoding mit DB-Cache
     ├── scrapers/
     │   ├── base.py             # Listing-Dataclass (gemeinsame Datenstruktur)
     │   ├── kleinanzeigen.py    # requests + BeautifulSoup
@@ -38,31 +41,92 @@ baby-crawler-v2/
     └── templates/
         ├── base.html           # Navbar, Flash-Messages, Tailwind-Setup
         ├── index.html          # Dashboard: Suchbegriffe + Anzeigen-Grid + Live-Status
-        ├── _listing_card.html  # Wiederverwendbares Anzeigen-Kachel-Partial
-        └── settings.html      # Einstellungsformular (alle Plattformen + E-Mail)
+        └── settings.html      # Einstellungsformular (alle Plattformen + Features)
 ```
 
 ## Datenbankschema
 
-Drei Tabellen in `/data/baby_crawler.db`:
+Vier Tabellen in `$DATA_DIR/baby_crawler.db` (Standard: `/data/`):
 
 ```sql
 search_terms (id, term TEXT UNIQUE, enabled INT, created_at)
+
 settings     (key TEXT PRIMARY KEY, value TEXT)
+
 listings     (id, listing_id TEXT UNIQUE, platform, title, price,
-              location, url, image_url, description, search_term, found_at)
+              location, url, image_url, description, search_term,
+              found_at, is_favorite INT DEFAULT 0,
+              is_free INT DEFAULT 0, distance_km REAL)
+
+geocache     (location_text TEXT PRIMARY KEY, lat REAL, lon REAL, cached_at)
 ```
 
-Alle Settings (Plattform-Konfiguration, E-Mail, Crawler-Intervall) werden als Key-Value-Paare in `settings` gespeichert. Default-Werte stehen in `database.DEFAULT_SETTINGS`.
+**Migration**: `database.py._migrate_listings()` ergänzt fehlende Spalten in bestehenden DBs via `PRAGMA table_info` – keine Datenverluste bei Updates.
+
+### Alle Settings-Keys
+
+| Key | Default | Beschreibung |
+|-----|---------|-------------|
+| `kleinanzeigen_enabled` | `1` | Plattform aktiv |
+| `kleinanzeigen_max_price` | `100` | Max. Preis € |
+| `kleinanzeigen_location` | `dortmund` | Standort-Slug |
+| `kleinanzeigen_radius` | `30` | Radius km |
+| `shpock_enabled` | `0` | Plattform aktiv |
+| `shpock_max_price` | `100` | Max. Preis € |
+| `shpock_latitude` | `51.5136` | Standort lat |
+| `shpock_longitude` | `7.4653` | Standort lon |
+| `shpock_radius` | `30` | Radius km |
+| `facebook_enabled` | `0` | Plattform aktiv |
+| `facebook_max_price` | `100` | Max. Preis € |
+| `facebook_location` | `dortmund` | Standort |
+| `email_enabled` | `0` | E-Mail aktiv |
+| `email_smtp_server` | `smtp.gmail.com` | SMTP Host |
+| `email_smtp_port` | `587` | SMTP Port |
+| `email_sender` | `` | Absender |
+| `email_password` | `` | App-Passwort |
+| `email_recipient` | `` | Empfänger (kommagetrennt) |
+| `crawler_interval` | `60` | Crawl-Intervall Minuten |
+| `crawler_max_results` | `20` | Max. Ergebnisse pro Suche |
+| `crawler_delay` | `2` | Pause zwischen Anfragen s |
+| `crawler_blacklist` | `` | Ausschluss-Wörter, je Zeile eins |
+| `crawler_max_age_hours` | `0` | Max. Alter h (0 = alle) |
+| `digest_enabled` | `0` | Tages-Digest aktiv |
+| `digest_time` | `19:00` | Uhrzeit für Digest HH:MM |
+| `home_latitude` | `` | Heimstandort lat (für Distanz) |
+| `home_longitude` | `` | Heimstandort lon (für Distanz) |
+
+## Features
+
+### Blacklist
+`crawler.py._is_blacklisted()` prüft Titel + Beschreibung gegen alle Zeilen aus `crawler_blacklist`. Groß-/Kleinschreibung wird ignoriert. Blacklistete Anzeigen werden still übersprungen (kein Speichern, keine Benachrichtigung).
+
+### Gratis-Erkennung
+`crawler.py._is_free()` erkennt Gratisanzeigen anhand von Preis-Regex (`0\s*€`, `Kostenlos`, `Gratis`) und Keywords im Titel (`zu verschenken`, `gratis`, etc.). Setzt `Listing.is_free = True`. Im Dashboard mit 🎁-Badge gekennzeichnet.
+
+### Entfernungsberechnung
+`geo.py.distance_to_home()` geocodiert den Standort der Anzeige via Nominatim (OSM), berechnet die Distanz zum Heimstandort mit der Haversine-Formel und speichert das Ergebnis in `listings.distance_km`. Geocoding-Ergebnisse werden in der `geocache`-Tabelle gecacht (kein doppelter API-Aufruf). Rate-Limit: 1 req/s.
+
+### Tages-Digest
+Täglich zur konfigurierten Uhrzeit (CronTrigger) sendet `notifier.send_digest()` alle heute gefundenen Anzeigen als HTML-E-Mail. Unabhängig von Sofort-Benachrichtigungen.
+
+### Favoriten
+`POST /listings/<id>/favorite` (AJAX) toggelt `is_favorite`. Favoriten werden beim automatischen `clear_old_listings()` nicht gelöscht. Dashboard-Filter: `?favorites=1`.
+
+### Preisstatistik
+`GET /api/stats` liefert Avg/Min/Max-Preis und Gratis-Zähler pro Suchbegriff. Im Dashboard als aufklappbare Tabelle.
+
+### Max-Alter-Filter
+`crawler_max_age_hours` filtert in `db.get_listings()` ältere Einträge heraus. Auch per Dropdown im Dashboard wählbar (Letzte 3h / 6h / Heute / 48h).
 
 ## Wichtige Konventionen
 
 - **Scraper-Interface**: Jeder Scraper hat `__init__(self, settings: dict)` und `search(self, term: str, max_results: int) -> List[Listing]`. `settings` ist das komplette Dict aus `db.get_settings()`.
-- **Neue Scraper hinzufügen**: Neue Klasse in `app/scrapers/`, in `scrapers/__init__.py` exportieren, in `crawler.py` in der Scraper-Liste eintragen, in `routes.py` und `settings.html` entsprechende Felder ergänzen.
+- **Neuen Scraper hinzufügen**: Neue Klasse in `app/scrapers/`, in `crawler.py` in die Scraper-Liste eintragen, in `routes.py` und `settings.html` entsprechende Felder ergänzen.
 - **Kein ORM**: Alle DB-Zugriffe direkt mit `sqlite3` in `database.py`. Neue Abfragen dort als Funktion anlegen.
-- **Kein JS-Build**: Tailwind via CDN. Kein npm, kein Webpack. JS direkt in den Templates als `<script>`-Blöcke.
-- **Thread-Safety**: `crawler.py` nutzt `threading.Lock` + globales `_running`-Flag. Nie direkt aus anderen Modulen `run_crawl()` ohne `run_crawl_async()` aufrufen.
+- **Kein JS-Build**: Tailwind via CDN. Kein npm. JS direkt in den Templates als `<script>`-Blöcke.
+- **Thread-Safety**: `crawler.py` nutzt `threading.Lock` + globales `_running`-Flag. Nie direkt `run_crawl()` aufrufen – immer `run_crawl_async()`.
 - **Settings-Checkboxen**: In HTML-Forms senden Checkboxen keinen Wert wenn nicht angehakt. `routes.py → save_settings()` behandelt das explizit mit `"1" if request.form.get(key) else "0"`.
+- **Datenbankpfad**: `DATA_DIR`-Umgebungsvariable (Default `/data`). Lokal via `.env`: `DATA_DIR=./data`.
 
 ## Lokale Entwicklung
 
@@ -71,14 +135,9 @@ python -m venv venv
 source venv/bin/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Datenbank-Pfad für lokale Entwicklung überschreiben
-export DB_PATH=./dev_data/baby_crawler.db
-mkdir -p dev_data
-
+# .env bereits vorhanden mit DATA_DIR=./data
 python run.py                     # startet auf http://localhost:5000
 ```
-
-Hinweis: `app/database.py` nutzt hardcodierten Pfad `/data/baby_crawler.db` (Docker-Volume). Für lokale Entwicklung `DB_PATH` in `database.py` auf `Path("./data/baby_crawler.db")` ändern oder eine Umgebungsvariable einbauen.
 
 ## Docker
 
@@ -100,13 +159,16 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 | POST | `/terms/<id>/toggle` | Aktivieren / Deaktivieren |
 | GET | `/settings` | Einstellungsseite |
 | POST | `/settings` | Einstellungen speichern |
-| POST | `/api/crawl` | Crawl manuell starten (JSON-Response) |
+| POST | `/listings/<id>/favorite` | Favorit toggeln (JSON) |
+| POST | `/api/crawl` | Crawl manuell starten (JSON) |
 | GET | `/api/status` | Crawler-Status als JSON |
-| GET | `/api/listings` | Anzeigen als JSON (`?term=`, `?platform=`, `?limit=`) |
+| GET | `/api/listings` | Anzeigen als JSON (`?term=`, `?platform=`, `?limit=`, `?favorites=1`, `?free=1`, `?max_age=`) |
+| GET | `/api/stats` | Preisstatistik pro Suchbegriff (JSON) |
 
 ## Bekannte Einschränkungen
 
 - Kleinanzeigen.de ändert gelegentlich seine HTML-Selektoren → CSS-Selektoren in `kleinanzeigen.py._parse()` ggf. anpassen.
 - Facebook Marketplace benötigt interaktiven einmaligen Login und Playwright (`playwright install chromium`).
 - Shpock GraphQL-Schema kann sich ändern → Query in `shpock.py` ggf. anpassen.
+- Nominatim-Geocoding funktioniert nur wenn der Standorttext in der Anzeige eindeutig genug ist. Bei unklaren Ortsangaben wird kein Treffer zurückgegeben.
 - Gunicorn läuft mit `--workers 1`, da SQLite kein Multi-Process-Writing ohne WAL gut verträgt (WAL ist aktiviert).

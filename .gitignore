@@ -1,17 +1,21 @@
+# Laufzeitdaten
+data/
+*.db
+
 # Python
 __pycache__/
 *.pyc
 *.pyo
-*.pyd
 .venv/
-venv/
 *.egg-info/
 
-# Daten & Secrets
-data/*.db
-data/facebook_session.json
-*.log
+# Pytest-Cache
+.pytest_cache/
+pytest-cache-files-*/
 
-# IDE
-.idea/workspace.xml
-.idea/tasks.xml
+# Umgebungsvariablen (Passwörter!)
+.env
+
+# Editor
+.DS_Store
+*.swp

@@ -5,6 +5,7 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-93%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
@@ -13,11 +14,16 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 
 - **Admin-UI** im Browser – Suchbegriffe per Klick hinzufügen, deaktivieren oder löschen
 - **Mehrere Plattformen** gleichzeitig durchsuchen (Kleinanzeigen, Shpock, Facebook)
-- **E-Mail-Benachrichtigungen** für neue Treffer (SMTP, z.B. Gmail)
+- **E-Mail-Benachrichtigungen** – Sofort-Alert bei neuen Treffern
+- **Tages-Digest** – zusätzliche tägliche Zusammenfassung per E-Mail, zu konfigurierbarer Uhrzeit
 - **Automatischer Scheduler** – kein manueller Cronjob nötig, Intervall frei einstellbar
 - **Manueller Crawl** per Knopfdruck mit Live-Status-Anzeige
-- **Filterbar** nach Suchbegriff oder Plattform
-- **Preisfilter & Standort** pro Plattform konfigurierbar
+- **🎁 Gratis-Erkennung** – Anzeigen mit Preis 0 € / „zu verschenken" werden gesondert gekennzeichnet
+- **⭐ Favoriten** – Anzeigen markieren; Favoriten werden beim automatischen Aufräumen nie gelöscht
+- **📍 Entfernungsanzeige** – Luftlinie vom eigenen Standort zu jeder Anzeige (via OpenStreetMap)
+- **📊 Preisstatistik** – Durchschnitt, Min und Max pro Suchbegriff
+- **🚫 Blacklist** – Stichworte (z.B. „defekt", „bastler") automatisch ausfiltern
+- **Altersfilter** – nur Anzeigen der letzten X Stunden anzeigen
 - **Duplikat-Erkennung** – jede Anzeige wird nur einmal gemeldet
 - **Docker-ready** – läuft auf jedem Linux-Server (Proxmox, Raspberry Pi, Cloud-VM)
 
@@ -36,7 +42,7 @@ sudo usermod -aG docker pi
 # Terminal neu starten oder: newgrp docker
 
 # 2. Projekt auf den RPi kopieren (vom eigenen Rechner aus)
-scp -r ~/Documents/ai_coding/baby-crawler-v2 pi@<rpi-ip>:/home/pi/baby-crawler
+scp -r baby-crawler-v2 pi@<rpi-ip>:/home/pi/baby-crawler
 
 # 3. Starten
 ssh pi@<rpi-ip>
@@ -55,7 +61,7 @@ Admin-UI aufrufen: **`http://<rpi-ip>:5000`**
 apt update && apt install -y docker.io docker-compose-plugin
 
 # Projekt auf den Server kopieren
-scp -r ~/Documents/ai_coding/baby-crawler-v2 root@<proxmox-ip>:/opt/baby-crawler
+scp -r baby-crawler-v2 root@<proxmox-ip>:/opt/baby-crawler
 
 # Starten
 cd /opt/baby-crawler
@@ -81,8 +87,10 @@ Verwalte Suchbegriffe und sieh alle gefundenen Anzeigen in einer Kachelansicht.
 - **Suchbegriff hinzufügen**: In das Eingabefeld tippen → "+ Add"
 - **Aktivieren / Deaktivieren**: Toggle-Schalter neben dem Begriff
 - **Löschen**: `×` erscheint beim Überfahren mit der Maus
-- **Filtern**: `◎` zeigt nur Anzeigen für diesen Begriff
-- **Manueller Crawl**: Schaltfläche "🚀 Jetzt crawlen" – Status aktualisiert sich live
+- **Favorit markieren**: ★-Button auf jeder Anzeigekarte (AJAX, kein Seitenneulade)
+- **Filter kombinieren**: Nur Favoriten · Nur Gratis · Letzte 3 h / 6 h / Heute / 48 h
+- **Preisstatistik**: Aufklappbare Tabelle mit Avg/Min/Max pro Suchbegriff
+- **Manueller Crawl**: Schaltfläche „🚀 Jetzt crawlen" – Status aktualisiert sich live
 
 ### Einstellungen (`/settings`)
 
@@ -91,8 +99,11 @@ Verwalte Suchbegriffe und sieh alle gefundenen Anzeigen in einer Kachelansicht.
 | Kleinanzeigen.de | Aktiviert, Max. Preis, Standort, Radius |
 | Shpock | Aktiviert, Max. Preis, Koordinaten, Radius |
 | Facebook Marketplace | Aktiviert, Max. Preis, Standort |
-| E-Mail | SMTP-Server, Absender, Empfänger, App-Passwort |
-| Crawler | Intervall (Minuten), Max. Ergebnisse, Pause zwischen Anfragen |
+| E-Mail | SMTP-Server, Absender, Empfänger (kommagetrennt), App-Passwort |
+| Tages-Digest | Aktiviert, Uhrzeit (z.B. `19:00`) |
+| Crawler | Intervall (Minuten), Max. Ergebnisse, Pause zw. Anfragen, Max. Alter (Stunden) |
+| Blacklist | Ausgeschlossene Begriffe – einer pro Zeile |
+| Heimstandort | Breitengrad + Längengrad für Entfernungsberechnung |
 
 ---
 
@@ -106,6 +117,10 @@ Verwalte Suchbegriffe und sieh alle gefundenen Anzeigen in einer Kachelansicht.
    - Absender: `deine-adresse@gmail.com`
    - App-Passwort: *(das erzeugte App-Passwort)*
    - Empfänger: *(eine oder mehrere Adressen, kommagetrennt: `kai@example.com, partner@example.com`)*
+
+### Tages-Digest
+
+Zusätzlich zum Sofort-Alert kann täglich eine Zusammenfassung aller Anzeigen des Tages verschickt werden. Aktivierung und Uhrzeit unter **Einstellungen → Tages-Digest**.
 
 ### Andere Anbieter
 
@@ -140,15 +155,23 @@ baby-crawler/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
-├── run.py                  # Einstiegspunkt (Gunicorn)
+├── pytest.ini
+├── run.py                  # Einstiegspunkt (Flask / Gunicorn)
 ├── data/                   # Persistentes Volume (SQLite-DB, FB-Session)
+├── tests/                  # Unit-Tests (pytest, 93 Tests)
+│   ├── conftest.py
+│   ├── test_crawler.py
+│   ├── test_database.py
+│   ├── test_geo.py
+│   └── test_notifier.py
 └── app/
     ├── __init__.py         # Flask App Factory
-    ├── database.py         # SQLite-Datenbankschicht
+    ├── database.py         # SQLite-Datenbankschicht (inkl. Migration)
     ├── routes.py           # Web-Routen & REST-API
     ├── crawler.py          # Crawl-Orchestrierung (Thread-safe)
-    ├── scheduler.py        # APScheduler (Background)
-    ├── notifier.py         # E-Mail-Versand (SMTP)
+    ├── scheduler.py        # APScheduler: Crawl-Intervall + Digest-Cron
+    ├── notifier.py         # E-Mail-Versand (Sofort + Digest)
+    ├── geo.py              # Geocoding (Nominatim/OSM) + Haversine
     ├── scrapers/
     │   ├── base.py         # Listing-Datenklasse
     │   ├── kleinanzeigen.py
@@ -160,10 +183,12 @@ baby-crawler/
 ### Tech-Stack
 
 - **Backend**: Python 3.12, Flask 3, APScheduler 3
-- **Datenbank**: SQLite (kein ORM, kein extra Container)
+- **Datenbank**: SQLite (kein ORM, kein extra Container), automatische Migration bei Updates
 - **Scraping**: `requests` + `BeautifulSoup` / GraphQL-API / Playwright
+- **Geocoding**: Nominatim (OpenStreetMap), Ergebnisse werden in der DB gecacht
 - **Frontend**: Jinja2, Tailwind CSS via CDN, Vanilla JS
 - **Deployment**: Docker + docker-compose, Gunicorn
+- **Tests**: pytest, 93 Unit-Tests, keine externen Abhängigkeiten (Mocks für HTTP und DB)
 
 ---
 
@@ -178,16 +203,19 @@ python -m venv venv
 source venv/bin/activate      # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# 2. Datenordner anlegen
-mkdir -p data
-
-# 3. Starten
+# 2. Starten
 python run.py
 ```
 
 Admin-UI aufrufen: **`http://localhost:5000`**
 
-Die `.env`-Datei im Projektroot setzt den Datenbankpfad automatisch auf `./data` – es ist keine weitere Konfiguration nötig. Im Docker-Container wird stattdessen das Volume `/data` verwendet, beides funktioniert ohne Anpassungen am Code.
+Die `.env`-Datei im Projektroot setzt den Datenbankpfad automatisch auf `./data` – es ist keine weitere Konfiguration nötig. Im Docker-Container wird stattdessen das Volume `/data` verwendet.
+
+### Tests ausführen
+
+```bash
+DATA_DIR=/tmp PYTHONPATH=. python -m pytest tests/ -v
+```
 
 ---
 
@@ -197,6 +225,8 @@ Die `.env`-Datei im Projektroot setzt den Datenbankpfad automatisch auf `./data`
 git pull
 docker compose up -d --build
 ```
+
+Bestehende Datenbanken werden automatisch migriert – keine Daten gehen verloren.
 
 ## 📋 Logs
 
@@ -212,7 +242,7 @@ Die gesamte Datenbank ist eine einzelne Datei:
 cp ./data/baby_crawler.db ./backup_$(date +%Y%m%d).db
 ```
 
-Alte Anzeigen (älter als 30 Tage) werden automatisch bereinigt.
+Alte Anzeigen (älter als 30 Tage) werden automatisch bereinigt. **Favoriten werden dabei nie gelöscht.**
 
 ---
 

@@ -10,6 +10,7 @@ from .base import Listing, _float
 logger = logging.getLogger(__name__)
 
 API_URL = "https://www.vinted.de/api/v2/catalog/items"
+BASE_URL = "https://www.vinted.de"
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -18,6 +19,7 @@ HEADERS = {
     ),
     "Accept": "application/json, text/plain, */*",
     "Accept-Language": "de-DE,de;q=0.9",
+    "Referer": "https://www.vinted.de/",
 }
 
 
@@ -26,6 +28,14 @@ class VintedScraper:
         self.max_price: Optional[float] = _float(settings.get("vinted_max_price"))
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
+        self._authenticate()
+
+    def _authenticate(self) -> None:
+        """Holt anonym ausgestellte JWT-Cookies (access_token_web) von der Startseite."""
+        try:
+            self.session.get(BASE_URL, timeout=15)
+        except Exception as e:
+            logger.warning(f"[Vinted] Authentifizierung fehlgeschlagen: {e}")
 
     def search(self, term: str, max_results: int = 20) -> List[Listing]:
         logger.info(f"[Vinted] '{term}'")
@@ -38,6 +48,10 @@ class VintedScraper:
             params["price_to"] = self.max_price
         try:
             r = self.session.get(API_URL, params=params, timeout=15)
+            if r.status_code == 401:
+                logger.info("[Vinted] 401 – hole neuen Session-Cookie...")
+                self._authenticate()
+                r = self.session.get(API_URL, params=params, timeout=15)
             r.raise_for_status()
             items = r.json().get("items", [])
         except Exception as e:
@@ -53,9 +67,14 @@ class VintedScraper:
             item_id = str(item.get("id", ""))
 
             raw_price = item.get("price")
+            if isinstance(raw_price, dict):
+                raw_price = raw_price.get("amount")
             if raw_price is None:
                 raw_price = (item.get("total_item_price") or {}).get("amount")
-            price_str = f"{raw_price} €" if raw_price not in (None, "") else "k.A."
+            try:
+                price_str = f"{float(raw_price):.2f} €" if raw_price not in (None, "") else "k.A."
+            except (ValueError, TypeError):
+                price_str = "k.A."
 
             user = item.get("user") or {}
             location = user.get("city", "")

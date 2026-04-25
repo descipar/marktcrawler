@@ -113,4 +113,9 @@
 
 ---
 
-*Letzte Aktualisierung: 2026-04-25 (Phase 8 abgeschlossen)*
+### Phase 9 – Pagination, Mobile-UI & E-Mail manuell
+- [x] **Pagination** – `db.get_listings()` hat `offset`-Parameter; `/api/listings` liefert 30 Einträge pro Seite; „Mehr laden"-Button im Dashboard; server-seitige erste Seite + JS-nachgeladene Seiten nahtlos kombiniert
+- [x] **Mobile-UI** – Suchbegriff-Sidebar auf kleinen Bildschirmen ein-/ausklappbar; Filter-Leiste scrollt horizontal (`overflow-x-auto`, `flex-shrink-0`); kein festes `max-h` mehr am Listings-Grid
+- [x] **E-Mail bei manuellem Crawl** – `/api/crawl` startet `run_crawl_async(manual=True)`; `notify(force=True)` überspringt Rate-Limit; automatische Crawls behalten Rate-Limit
+
+*Letzte Aktualisierung: 2026-04-25 (Phase 9 abgeschlossen)*

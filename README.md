@@ -17,13 +17,15 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 - **E-Mail-Benachrichtigungen** – Sofort-Alert bei neuen Treffern
 - **Tages-Digest** – zusätzliche tägliche Zusammenfassung per E-Mail, zu konfigurierbarer Uhrzeit
 - **Automatischer Scheduler** – kein manueller Cronjob nötig, Intervall frei einstellbar
-- **Manueller Crawl** per Knopfdruck mit Live-Status-Anzeige
+- **Manueller Crawl** per Knopfdruck mit Live-Status-Anzeige und E-Mail-Benachrichtigung bei neuen Treffern
 - **🎁 Gratis-Erkennung** – Anzeigen mit Preis 0 € / „zu verschenken" werden gesondert gekennzeichnet
 - **⭐ Favoriten** – Anzeigen markieren; Favoriten werden beim automatischen Aufräumen nie gelöscht
 - **📍 Entfernungsanzeige** – Luftlinie vom eigenen Standort zu jeder Anzeige (via OpenStreetMap)
 - **📊 Preisstatistik** – Durchschnitt, Min und Max pro Suchbegriff
 - **🚫 Blacklist** – Stichworte (z.B. „defekt", „bastler") automatisch ausfiltern
 - **Altersfilter** – nur Anzeigen der letzten X Stunden anzeigen
+- **Pagination** – Anzeigen werden seitenweise geladen (30 pro Seite), „Mehr laden"-Button
+- **📱 Mobil-optimiert** – responsive Layout, kollabierbare Sidebar, horizontal scrollbare Filter
 - **Duplikat-Erkennung** – jede Anzeige wird nur einmal gemeldet
 - **Docker-ready** – läuft auf jedem Linux-Server (Proxmox, Raspberry Pi, Cloud-VM)
 

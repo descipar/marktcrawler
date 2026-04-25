@@ -129,6 +129,12 @@ Täglich zur konfigurierten Uhrzeit (CronTrigger) sendet `notifier.send_digest()
 ### Max-Alter-Filter
 `crawler_max_age_hours` filtert in `db.get_listings()` ältere Einträge heraus. Auch per Dropdown im Dashboard wählbar (Letzte 3h / 6h / Heute / 48h).
 
+### Pagination
+`db.get_listings()` akzeptiert `limit` und `offset`. `/api/listings` liefert standardmäßig 30 Einträge. Das Dashboard lädt weitere Seiten per „Mehr laden"-Button (`loadMore()` in `index.html`). Server-seitig gerenderte Karten + JS-geladene Seiten fügen sich nahtlos zusammen.
+
+### E-Mail bei manuellem Crawl
+`run_crawl_async(manual=True)` wird vom `/api/crawl`-Endpoint aufgerufen. `run_crawl(manual=True)` reicht `force=True` an `notify()` weiter, das dann das Rate-Limit überspringt. Automatische Crawls übergeben `force=False` (Standard) — das Rate-Limit gilt weiterhin.
+
 ## Wichtige Konventionen
 
 - **Scraper-Interface**: Jeder Scraper hat `__init__(self, settings: dict)` und `search(self, term: str, max_results: int) -> List[Listing]`. `settings` ist das komplette Dict aus `db.get_settings()`.
@@ -173,7 +179,7 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 | POST | `/listings/<id>/favorite` | Favorit toggeln (JSON) |
 | POST | `/api/crawl` | Crawl manuell starten (JSON) |
 | GET | `/api/status` | Crawler-Status als JSON |
-| GET | `/api/listings` | Anzeigen als JSON (`?term=`, `?platform=`, `?limit=`, `?favorites=1`, `?free=1`, `?max_age=`) |
+| GET | `/api/listings` | Anzeigen als JSON (`?term=`, `?platform=`, `?limit=30`, `?offset=0`, `?favorites=1`, `?free=1`, `?max_age=`, `?max_distance=`) |
 | GET | `/api/stats` | Preisstatistik pro Suchbegriff (JSON) |
 
 ## Bekannte Einschränkungen

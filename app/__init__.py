@@ -36,8 +36,9 @@ def create_app() -> Flask:
     from .routes import bp
     app.register_blueprint(bp)
 
-    # Scheduler starten (nur einmal, nicht im Werkzeug-Reloader-Child)
-    if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+    # Scheduler im Reloader-Child starten (der beantwortet Requests);
+    # in Produktion (kein Reloader) immer starten.
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
         from .scheduler import init_scheduler
         init_scheduler(app)
 

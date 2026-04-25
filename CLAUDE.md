@@ -71,21 +71,32 @@ geocache     (location_text TEXT PRIMARY KEY, lat REAL, lon REAL, cached_at)
 | `kleinanzeigen_max_price` | `100` | Max. Preis € |
 | `kleinanzeigen_location` | `dortmund` | Standort-Slug |
 | `kleinanzeigen_radius` | `30` | Radius km |
-| `shpock_enabled` | `0` | Plattform aktiv |
-| `shpock_max_price` | `100` | Max. Preis € |
-| `shpock_latitude` | `51.5136` | Standort lat |
-| `shpock_longitude` | `7.4653` | Standort lon |
-| `shpock_radius` | `30` | Radius km |
+| `shpock_enabled` | `1` | Plattform aktiv |
+| `shpock_max_price` | `80` | Max. Preis € |
+| `shpock_location` | `München` | Stadtname für Geocoding |
+| `shpock_latitude` | `48.1351` | Standort lat (Fallback) |
+| `shpock_longitude` | `11.5820` | Standort lon (Fallback) |
+| `shpock_radius` | `30` | Radius km (client-seitig gefiltert) |
 | `facebook_enabled` | `0` | Plattform aktiv |
-| `facebook_max_price` | `100` | Max. Preis € |
-| `facebook_location` | `dortmund` | Standort |
+| `facebook_max_price` | `80` | Max. Preis € |
+| `facebook_location` | `München` | Standort |
+| `vinted_enabled` | `0` | Plattform aktiv |
+| `vinted_max_price` | `80` | Max. Preis € |
+| `vinted_location` | `München` | Stadtname für Geocoding |
+| `vinted_radius` | `30` | Radius km (client-seitig gefiltert) |
+| `ebay_enabled` | `0` | Plattform aktiv |
+| `ebay_max_price` | `80` | Max. Preis € |
+| `ebay_location` | `München` | PLZ oder Stadtname (`_stpos`) |
+| `ebay_radius` | `30` | Radius km (`_sadis`) |
 | `email_enabled` | `0` | E-Mail aktiv |
+| `email_subject_alert` | `🍼 Baby-Crawler: {n} neue Anzeige(n) gefunden!` | Betreff Sofort-Alert (`{n}` = Anzahl) |
+| `email_subject_digest` | `🍼 Baby-Crawler Tages-Digest: {n} Anzeige(n) heute` | Betreff Digest (`{n}` = Anzahl) |
 | `email_smtp_server` | `smtp.gmail.com` | SMTP Host |
 | `email_smtp_port` | `587` | SMTP Port |
 | `email_sender` | `` | Absender |
 | `email_password` | `` | App-Passwort |
 | `email_recipient` | `` | Empfänger (kommagetrennt) |
-| `crawler_interval` | `60` | Crawl-Intervall Minuten |
+| `crawler_interval` | `15` | Crawl-Intervall Minuten |
 | `crawler_max_results` | `20` | Max. Ergebnisse pro Suche |
 | `crawler_delay` | `2` | Pause zwischen Anfragen s |
 | `crawler_blacklist` | `` | Ausschluss-Wörter, je Zeile eins |
@@ -101,7 +112,7 @@ geocache     (location_text TEXT PRIMARY KEY, lat REAL, lon REAL, cached_at)
 `crawler.py._is_blacklisted()` prüft Titel + Beschreibung gegen alle Zeilen aus `crawler_blacklist`. Groß-/Kleinschreibung wird ignoriert. Blacklistete Anzeigen werden still übersprungen (kein Speichern, keine Benachrichtigung).
 
 ### Gratis-Erkennung
-`crawler.py._is_free()` erkennt Gratisanzeigen anhand von Preis-Regex (`0\s*€`, `Kostenlos`, `Gratis`) und Keywords im Titel (`zu verschenken`, `gratis`, etc.). Setzt `Listing.is_free = True`. Im Dashboard mit 🎁-Badge gekennzeichnet.
+`crawler.py._is_free()` erkennt Gratisanzeigen anhand von Preis-Regex (`0\s*€`, `Kostenlos`, `Gratis`) und Keywords im Titel (`zu verschenken`, `gratis`, etc.). Ein echter Preis > 0 hat immer Vorrang – Text-Keywords in der Beschreibung (z.B. „gratis Zubehör dabei") führen dann nicht zu einem False-Positive. Setzt `Listing.is_free = True`. Im Dashboard mit 🎁-Badge gekennzeichnet.
 
 ### Entfernungsberechnung
 `geo.py.distance_to_home()` geocodiert den Standort der Anzeige via Nominatim (OSM), berechnet die Distanz zum Heimstandort mit der Haversine-Formel und speichert das Ergebnis in `listings.distance_km`. Geocoding-Ergebnisse werden in der `geocache`-Tabelle gecacht (kein doppelter API-Aufruf). Rate-Limit: 1 req/s.
@@ -169,6 +180,7 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 
 - Kleinanzeigen.de ändert gelegentlich seine HTML-Selektoren → CSS-Selektoren in `kleinanzeigen.py._parse()` ggf. anpassen.
 - Facebook Marketplace benötigt interaktiven einmaligen Login und Playwright (`playwright install chromium`).
-- Shpock GraphQL-Schema kann sich ändern → Query in `shpock.py` ggf. anpassen.
+- Shpock GraphQL-Schema kann sich ändern → Query in `shpock.py` ggf. anpassen. Shpock ignoriert den Location-Filter ohne Session – Radius-Filterung erfolgt client-seitig via Geocoding.
+- Vinted benötigt beim Start einen anonymen Session-Cookie (wird automatisch via `_authenticate()` geholt). Bei 401 erfolgt ein automatischer Retry.
 - Nominatim-Geocoding funktioniert nur wenn der Standorttext in der Anzeige eindeutig genug ist. Bei unklaren Ortsangaben wird kein Treffer zurückgegeben.
 - Gunicorn läuft mit `--workers 1`, da SQLite kein Multi-Process-Writing ohne WAL gut verträgt (WAL ist aktiviert).

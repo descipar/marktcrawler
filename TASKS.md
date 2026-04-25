@@ -72,6 +72,13 @@
 - [x] **Vinted 401 gefixt** – Vinted setzt `access_token_web`-JWT-Cookie erst beim Startseiten-Besuch; `_authenticate()` holt Cookie einmalig im `__init__`, bei erneutem 401 automatischer Retry; Preis-Parsing auf neues API-Format `{"amount": "...", "currency_code": "..."}` umgestellt
 - [x] **Tests nachgezogen** – 14 neue Tests für alle Änderungen dieser Phase: `_is_free`-Grenzfälle (echter Preis vs. Text, VB-Preis), Shpock `_parse`/Radius/Preis/Auth-Filter, Vinted Auth-Init und 401-Retry; bestehende Tests an neue Formate angepasst (130 Tests gesamt)
 
+### Phase 7 – Standort/Radius + Konfigurierbarkeit
+- [x] **Standort + Radius für Vinted** – `vinted_location` (Stadtname) + `vinted_radius`; client-seitiger Geo-Filter via Nominatim + Haversine; 7 neue Tests (137 gesamt)
+- [x] **Standort + Radius für eBay** – `ebay_location` (PLZ oder Stadtname) + `ebay_radius`; URL-Parameter `_stpos`/`_sadis`; kein Filter wenn Feld leer
+- [x] **Crawler-Intervall-Default** – 60 → 15 Minuten
+- [x] **Scheduler-Bug gefixt** – `next_crawl` zeigte immer „–"; Scheduler lief im Werkzeug-Parent-Prozess, Requests werden im Child beantwortet; Bedingung auf `WERKZEUG_RUN_MAIN == "true" or not app.debug` korrigiert
+- [x] **E-Mail-Betreff konfigurierbar** – `email_subject_alert` + `email_subject_digest`; `{n}` wird durch Anzahl ersetzt; Felder in `settings.html` ergänzt
+
 ---
 
 ## 🔜 Geplant
@@ -96,4 +103,4 @@
 
 ---
 
-*Letzte Aktualisierung: 2026-04-25 (Vinted-Auth-Fix + Preis-Parsing)*
+*Letzte Aktualisierung: 2026-04-25 (Phase 7 abgeschlossen)*

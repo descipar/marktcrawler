@@ -5,7 +5,7 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-130%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-137%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
@@ -96,11 +96,11 @@ Verwalte Suchbegriffe und sieh alle gefundenen Anzeigen in einer Kachelansicht.
 | Bereich | Konfigurierbar |
 |---------|---------------|
 | Kleinanzeigen.de | Aktiviert, Max. Preis, Standort, Radius |
-| Shpock | Aktiviert, Max. Preis, Koordinaten (lat/lon), Radius |
-| Vinted | Aktiviert, Max. Preis |
-| eBay | Aktiviert, Max. Preis |
+| Shpock | Aktiviert, Max. Preis, Standort, Radius |
+| Vinted | Aktiviert, Max. Preis, Standort, Radius |
+| eBay | Aktiviert, Max. Preis, Standort (PLZ oder Stadt), Radius |
 | Facebook Marketplace | Aktiviert, Max. Preis, Standort |
-| E-Mail | SMTP-Server, Absender, Empfänger (kommagetrennt), App-Passwort |
+| E-Mail | SMTP-Server, Absender, Empfänger (kommagetrennt), App-Passwort, Betreff (Alert + Digest) |
 | Tages-Digest | Aktiviert, Uhrzeit (z.B. `19:00`) |
 | Crawler | Intervall (Minuten), Max. Ergebnisse, Pause zw. Anfragen, Max. Alter (Stunden) |
 | Blacklist | Ausgeschlossene Begriffe – einer pro Zeile |
@@ -192,7 +192,7 @@ baby-crawler/
 - **Geocoding**: Nominatim (OpenStreetMap), Ergebnisse werden in der DB gecacht
 - **Frontend**: Jinja2, Tailwind CSS via CDN, Vanilla JS
 - **Deployment**: Docker + docker-compose, Gunicorn
-- **Tests**: pytest, 130 Unit-Tests, keine externen Abhängigkeiten (Mocks für HTTP und DB)
+- **Tests**: pytest, 137 Unit-Tests, keine externen Abhängigkeiten (Mocks für HTTP und DB)
 
 ---
 

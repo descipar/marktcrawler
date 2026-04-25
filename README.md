@@ -5,7 +5,7 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-115%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-130%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
@@ -192,7 +192,7 @@ baby-crawler/
 - **Geocoding**: Nominatim (OpenStreetMap), Ergebnisse werden in der DB gecacht
 - **Frontend**: Jinja2, Tailwind CSS via CDN, Vanilla JS
 - **Deployment**: Docker + docker-compose, Gunicorn
-- **Tests**: pytest, 115 Unit-Tests, keine externen Abhängigkeiten (Mocks für HTTP und DB)
+- **Tests**: pytest, 130 Unit-Tests, keine externen Abhängigkeiten (Mocks für HTTP und DB)
 
 ---
 

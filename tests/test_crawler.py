@@ -82,8 +82,9 @@ class TestIsFree:
         assert _is_free(listing) is True
 
     def test_beschreibung_zu_verschenken(self):
+        # Echter Preis schlägt Text: 5 € → nicht gratis
         listing = make_listing(price="5 €", description="Wir geben es lieber zu verschenken")
-        assert _is_free(listing) is True
+        assert _is_free(listing) is False
 
     # --- Kein False Positive ---
 
@@ -94,6 +95,16 @@ class TestIsFree:
             description="Wenig benutzt, guter Zustand",
         )
         assert _is_free(listing) is False
+
+    def test_preis_mit_gratis_in_beschreibung_nicht_frei(self):
+        """44 € + 'gratis Zubehör dabei' in Beschreibung → nicht gratis (Original-Bug)."""
+        listing = make_listing(price="44.00 €", description="Inkl. gratis Zubehör dabei")
+        assert _is_free(listing) is False
+
+    def test_vb_preis_mit_kostenlos_in_beschreibung_ist_frei(self):
+        """VB ist kein echter Preis → Beschreibung 'kostenlos' zählt."""
+        listing = make_listing(price="VB", description="Ist kostenlos, einfach abholen")
+        assert _is_free(listing) is True
 
     def test_leerer_preis_kein_fehler(self):
         """Leerer Preis darf keinen Exception werfen."""

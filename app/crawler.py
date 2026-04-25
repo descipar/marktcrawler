@@ -27,6 +27,8 @@ _FREE_TEXT_RE = re.compile(
     r"\b(zu\s+verschenken|verschenke|kostenlos|gratis|umsonst|zu\s+vergeben)\b",
     re.IGNORECASE,
 )
+# Matches a real positive price like "5 €", "44.00 €", "1,50 €"
+_POSITIVE_PRICE_RE = re.compile(r"\b[1-9]\d*([.,]\d+)?\s*€")
 
 
 def is_running() -> bool:
@@ -37,9 +39,9 @@ def is_running() -> bool:
 def _is_free(listing: Listing) -> bool:
     if _FREE_PRICE_RE.match(listing.price or ""):
         return True
-    # Real non-zero price takes precedence over any text keyword
-    price = listing.price or ""
-    if price and price != "k.A.":
+    # Real positive numeric price takes precedence – text keywords are then incidental
+    # ("gratis Zubehör dabei", "kostenloser Versand", etc.)
+    if _POSITIVE_PRICE_RE.search(listing.price or ""):
         return False
     if _FREE_TEXT_RE.search(listing.title or ""):
         return True

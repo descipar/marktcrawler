@@ -1,4 +1,4 @@
-"""Tests für VintedScraper und EbayScraper."""
+"""Tests für VintedScraper, ShpockScraper und EbayScraper."""
 
 from unittest.mock import MagicMock, patch
 
@@ -6,6 +6,7 @@ import pytest
 
 from app.scrapers.base import Listing
 from app.scrapers.ebay import EbayScraper
+from app.scrapers.shpock import ShpockScraper
 from app.scrapers.vinted import VintedScraper
 
 
@@ -27,7 +28,7 @@ def _ebay_page(items_html: str) -> str:
 VINTED_ITEM = {
     "id": 99,
     "title": "Babywanne Hauck",
-    "price": "15",
+    "price": {"amount": "15.0", "currency_code": "EUR"},
     "url": "https://www.vinted.de/items/99-babywanne",
     "description": "Top Zustand",
     "user": {"city": "Berlin"},
@@ -62,7 +63,7 @@ class TestVintedScraper:
         listing = scraper._parse(VINTED_ITEM, "babywanne")
         assert listing.platform == "Vinted"
         assert listing.listing_id == "vt_99"
-        assert listing.price == "15 €"
+        assert listing.price == "15.00 €"
         assert listing.location == "Berlin"
         assert listing.url == "https://www.vinted.de/items/99-babywanne"
         assert listing.image_url == "https://cdn.vinted.de/img/99.jpg"
@@ -84,7 +85,7 @@ class TestVintedScraper:
         scraper = self._scraper()
         item = {**VINTED_ITEM, "price": None, "total_item_price": {"amount": "20"}}
         listing = scraper._parse(item, "test")
-        assert listing.price == "20 €"
+        assert listing.price == "20.00 €"
 
     def test_parse_kein_preis_ergibt_ka(self):
         scraper = self._scraper()
@@ -105,6 +106,126 @@ class TestVintedScraper:
             scraper.search("babywanne")
         params = mock_get.call_args[1]["params"]
         assert params["price_to"] == 25.0
+
+    def test_authenticate_wird_im_init_aufgerufen(self):
+        with patch.object(VintedScraper, "_authenticate") as mock_auth:
+            VintedScraper({})
+        mock_auth.assert_called_once()
+
+    def test_401_loest_reauth_und_retry_aus(self):
+        scraper = VintedScraper({})
+        response_401 = _mock_response(status=401)
+        response_401.raise_for_status.side_effect = Exception("401")
+        response_ok = _mock_response({"items": []})
+        with patch.object(scraper.session, "get", side_effect=[response_401, response_ok, response_ok]) as mock_get:
+            scraper.search("babywanne")
+        # Erster Call: API (401), zweiter: _authenticate (Homepage), dritter: API-Retry
+        assert mock_get.call_count == 3
+
+    def test_parse_preis_als_dict(self):
+        scraper = VintedScraper({})
+        item = {**VINTED_ITEM, "price": {"amount": "9.5", "currency_code": "EUR"}}
+        listing = scraper._parse(item, "test")
+        assert listing.price == "9.50 €"
+
+
+# ── Shpock ────────────────────────────────────────────────────────────────────
+
+SHPOCK_ITEM = {
+    "__typename": "ItemSummary",
+    "id": "abc123",
+    "title": "Babytrage Ergobaby",
+    "description": "Wenig benutzt",
+    "price": 45,
+    "isFree": False,
+    "isSold": False,
+    "locality": "44135 Dortmund",
+    "distance": None,
+    "distanceUnit": None,
+    "path": "/de-de/i/abc123/babytrage",
+    "media": [{"id": "deadbeef01234567890abcde"}],
+}
+
+
+class TestShpockScraper:
+
+    def _scraper(self, settings=None):
+        return ShpockScraper(settings or {
+            "shpock_max_price": "100",
+            "shpock_radius": "30",
+            "shpock_latitude": "51.5136",
+            "shpock_longitude": "7.4653",
+        })
+
+    def _api_response(self, items):
+        return {"data": {"itemSearch": {"itemResults": [{"items": items}]}}}
+
+    def test_parse_felder(self):
+        scraper = self._scraper()
+        listing = scraper._parse(SHPOCK_ITEM, "babytrage")
+        assert listing.platform == "Shpock"
+        assert listing.listing_id == "sp_abc123"
+        assert listing.title == "Babytrage Ergobaby"
+        assert listing.price == "45.00 €"
+        assert listing.location == "44135 Dortmund"
+        assert listing.url == "https://www.shpock.com/de-de/i/abc123/babytrage"
+        assert listing.image_url == "https://m1.secondhandapp.at/full/deadbeef01234567890abcde"
+        assert listing.search_term == "babytrage"
+
+    def test_parse_is_free(self):
+        scraper = self._scraper()
+        item = {**SHPOCK_ITEM, "isFree": True, "price": 0}
+        listing = scraper._parse(item, "test")
+        assert listing.price == "0 €"
+
+    def test_parse_ohne_media(self):
+        scraper = self._scraper()
+        listing = scraper._parse({**SHPOCK_ITEM, "media": []}, "test")
+        assert listing.image_url == ""
+
+    def test_search_filtert_verkaufte_items(self):
+        scraper = self._scraper()
+        sold = {**SHPOCK_ITEM, "isSold": True}
+        with patch.object(scraper.session, "post", return_value=_mock_response(self._api_response([sold]))):
+            with patch("app.scrapers.shpock.geocode", return_value=(51.5136, 7.4653)):
+                results = scraper.search("babytrage")
+        assert results == []
+
+    def test_search_filtert_nach_max_price(self):
+        scraper = self._scraper({"shpock_max_price": "30", "shpock_radius": "200",
+                                  "shpock_latitude": "51.5136", "shpock_longitude": "7.4653"})
+        teuer = {**SHPOCK_ITEM, "price": 50}
+        with patch.object(scraper.session, "post", return_value=_mock_response(self._api_response([teuer]))):
+            with patch("app.scrapers.shpock.geocode", return_value=(51.5136, 7.4653)):
+                results = scraper.search("babytrage")
+        assert results == []
+
+    def test_search_filtert_nach_radius(self):
+        scraper = self._scraper()  # radius=30 km, Dortmund
+        with patch.object(scraper.session, "post", return_value=_mock_response(self._api_response([SHPOCK_ITEM]))):
+            # München liegt ~470 km entfernt
+            with patch("app.scrapers.shpock.geocode", return_value=(48.1372, 11.5755)):
+                results = scraper.search("babytrage")
+        assert results == []
+
+    def test_search_gibt_treffer_im_radius_zurueck(self):
+        scraper = self._scraper()
+        with patch.object(scraper.session, "post", return_value=_mock_response(self._api_response([SHPOCK_ITEM]))):
+            # Dortmund-Mitte: innerhalb 30 km
+            with patch("app.scrapers.shpock.geocode", return_value=(51.5200, 7.4800)):
+                results = scraper.search("babytrage")
+        assert len(results) == 1
+        assert results[0].title == "Babytrage Ergobaby"
+
+    def test_search_bei_api_fehler(self):
+        scraper = self._scraper()
+        with patch.object(scraper.session, "post", side_effect=Exception("Timeout")):
+            assert scraper.search("babytrage") == []
+
+    def test_search_bei_graphql_fehler(self):
+        scraper = self._scraper()
+        with patch.object(scraper.session, "post", return_value=_mock_response({"errors": [{"message": "oops"}]})):
+            assert scraper.search("babytrage") == []
 
 
 # ── eBay ──────────────────────────────────────────────────────────────────────

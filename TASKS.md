@@ -69,6 +69,8 @@
 - [x] **Shpock Entfernungsfilter** – API liefert `distance: null` ohne Session; client-seitiger Geo-Filter via Nominatim-Geocoding + Haversine; API-Request auf `3×max_results` erhöht um mehr Kandidaten zu filtern; Log-Warnung wenn 0 Treffer im Radius
 - [x] **`_is_free()`-Bug** – Preis hat jetzt Vorrang vor Text-Keywords: ein Listing mit echtem Preis > 0 wird nie als gratis markiert, auch wenn Beschreibung Wörter wie „gratis Zubehör" enthält
 - [x] **Shpock-Warnung in `settings.html` entfernt** – veralteter Hinweis auf defekte API
+- [x] **Vinted 401 gefixt** – Vinted setzt `access_token_web`-JWT-Cookie erst beim Startseiten-Besuch; `_authenticate()` holt Cookie einmalig im `__init__`, bei erneutem 401 automatischer Retry; Preis-Parsing auf neues API-Format `{"amount": "...", "currency_code": "..."}` umgestellt
+- [x] **Tests nachgezogen** – 14 neue Tests für alle Änderungen dieser Phase: `_is_free`-Grenzfälle (echter Preis vs. Text, VB-Preis), Shpock `_parse`/Radius/Preis/Auth-Filter, Vinted Auth-Init und 401-Retry; bestehende Tests an neue Formate angepasst (130 Tests gesamt)
 
 ---
 
@@ -94,4 +96,4 @@
 
 ---
 
-*Letzte Aktualisierung: 2026-04-25 (Shpock-Reaktivierung + _is_free-Bugfix)*
+*Letzte Aktualisierung: 2026-04-25 (Vinted-Auth-Fix + Preis-Parsing)*

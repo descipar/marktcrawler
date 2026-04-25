@@ -2,6 +2,13 @@
 {% block title_suffix %} – Einstellungen{% endblock %}
 
 {% block content %}
+{% macro field(label) %}
+<div>
+  <label class="block text-xs font-medium text-slate-500 mb-1">{{ label }}</label>
+  {{ caller() }}
+</div>
+{% endmacro %}
+
 <form method="POST" action="/settings">
 
 <div class="max-w-2xl mx-auto space-y-6">
@@ -292,10 +299,4 @@
   .input-field:focus { box-shadow: 0 0 0 2px #a855f7; }
 </style>
 
-{% macro field(label) %}
-<div>
-  <label class="block text-xs font-medium text-slate-500 mb-1">{{ label }}</label>
-  {{ caller() }}
-</div>
-{% endmacro %}
 {% endblock %}

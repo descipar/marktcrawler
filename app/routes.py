@@ -167,6 +167,7 @@ def api_listings():
     sort_by = request.args.get("sort", "date_desc")
     if sort_by not in _VALID_SORTS:
         sort_by = "date_desc"
+    exclude_text = request.args.get("exclude", "").strip() or None
     try:
         limit = int(request.args.get("limit", 30))
         offset = int(request.args.get("offset", 0))
@@ -181,7 +182,7 @@ def api_listings():
     listings = db.get_listings(
         limit=limit, offset=offset, search_term=term, platform=platform,
         only_favorites=only_fav, only_free=only_free, max_age_hours=max_age,
-        max_distance_km=max_distance, sort_by=sort_by,
+        max_distance_km=max_distance, sort_by=sort_by, exclude_text=exclude_text,
     )
     return jsonify(listings)
 

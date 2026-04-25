@@ -141,6 +141,15 @@ Täglich zur konfigurierten Uhrzeit (CronTrigger) sendet `notifier.send_digest()
 ### E-Mail bei manuellem Crawl
 `run_crawl_async(manual=True)` wird vom `/api/crawl`-Endpoint aufgerufen. `run_crawl(manual=True)` reicht `force=True` an `notify()` weiter, das dann das Rate-Limit überspringt. Automatische Crawls übergeben `force=False` (Standard) — das Rate-Limit gilt weiterhin.
 
+### Radius 0 = kein Filter (Vinted & Shpock)
+Beide Scraper lesen `vinted_radius` / `shpock_radius` via `_int()`; ist der Wert `0`, wird der Entfernungsfilter vollständig deaktiviert (kein Geocoding-Aufruf). Muster: `raw = _int(settings.get(..., "30")); self.radius_km = 30 if raw is None else raw`, Filter-Block: `if self._home and self.radius_km > 0:`.
+
+### Suchbegriff-Filter im Dashboard
+Jeder Suchbegriff in der linken Sidebar ist ein klickbarer `<button>`. Ein Klick setzt `activeTerm` und filtert die Anzeigenliste via `/api/listings?term=...`. `clearFilter()` setzt `activeTerm` zurück.
+
+### Exclude-Filter (Live-Textfilter)
+Eingabefeld „Begriffe ausschließen" in der Filter-Leiste. Eingaben werden mit 400 ms Debounce als `?exclude=...` an `/api/listings` übergeben. `db.get_listings(exclude_text=...)` filtert Anzeigen heraus, deren Titel **oder** Beschreibung den Begriff enthalten (`title NOT LIKE ? AND COALESCE(description,'') NOT LIKE ?`). Ein ×-Button leert das Feld und entfernt den Filter.
+
 ## Wichtige Konventionen
 
 - **Scraper-Interface**: Jeder Scraper hat `__init__(self, settings: dict)` und `search(self, term: str, max_results: int) -> List[Listing]`. `settings` ist das komplette Dict aus `db.get_settings()`.
@@ -185,7 +194,7 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 | POST | `/listings/<id>/favorite` | Favorit toggeln (JSON) |
 | POST | `/api/crawl` | Crawl manuell starten (JSON) |
 | GET | `/api/status` | Crawler-Status als JSON |
-| GET | `/api/listings` | Anzeigen als JSON (`?term=`, `?platform=`, `?limit=30`, `?offset=0`, `?favorites=1`, `?free=1`, `?max_age=`, `?max_distance=`) |
+| GET | `/api/listings` | Anzeigen als JSON (`?term=`, `?platform=`, `?limit=30`, `?offset=0`, `?favorites=1`, `?free=1`, `?max_age=`, `?max_distance=`, `?sort=date_desc`, `?exclude=`) |
 | GET | `/api/stats` | Preisstatistik pro Suchbegriff (JSON) |
 
 ## Bekannte Einschränkungen

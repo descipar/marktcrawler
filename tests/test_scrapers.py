@@ -128,6 +128,28 @@ class TestVintedScraper:
         listing = scraper._parse(item, "test")
         assert listing.price == "9.50 €"
 
+    def test_radius_null_deaktiviert_filter(self):
+        """radius_km=0 → Entfernungsfilter komplett deaktiviert."""
+        settings = {"vinted_radius": "0", "vinted_location": "München"}
+        with patch("app.scrapers.vinted.geocode", return_value=(48.1351, 11.5820)):
+            scraper = VintedScraper(settings)
+        far_item = {**VINTED_ITEM, "user": {"city": "Hamburg"}}
+        response = _mock_response({"items": [far_item]})
+        with patch.object(scraper.session, "get", return_value=response):
+            with patch("app.scrapers.vinted.geocode", return_value=(53.5753, 10.0153)):
+                results = scraper.search("babywanne")
+        assert len(results) == 1
+
+    def test_radius_null_kein_geocode_fuer_item(self):
+        """Bei radius_km=0 wird geocode() für die Artikel-Standorte nicht aufgerufen."""
+        settings = {"vinted_radius": "0", "vinted_location": ""}
+        scraper = VintedScraper(settings)
+        response = _mock_response({"items": [VINTED_ITEM]})
+        with patch.object(scraper.session, "get", return_value=response):
+            with patch("app.scrapers.vinted.geocode") as mock_geocode:
+                scraper.search("babywanne")
+        mock_geocode.assert_not_called()
+
 
 # ── Shpock ────────────────────────────────────────────────────────────────────
 
@@ -226,6 +248,33 @@ class TestShpockScraper:
         scraper = self._scraper()
         with patch.object(scraper.session, "post", return_value=_mock_response({"errors": [{"message": "oops"}]})):
             assert scraper.search("babytrage") == []
+
+    def test_radius_null_deaktiviert_filter(self):
+        """radius_km=0 → Entfernungsfilter komplett deaktiviert."""
+        scraper = self._scraper({
+            "shpock_max_price": "200",
+            "shpock_radius": "0",
+            "shpock_latitude": "51.5136",
+            "shpock_longitude": "7.4653",
+        })
+        far_item = {**SHPOCK_ITEM, "locality": "München"}
+        with patch.object(scraper.session, "post", return_value=_mock_response(self._api_response([far_item]))):
+            with patch("app.scrapers.shpock.geocode", return_value=(48.1372, 11.5755)):
+                results = scraper.search("babytrage")
+        assert len(results) == 1
+
+    def test_radius_null_kein_geocode_aufruf(self):
+        """Bei radius_km=0 wird geocode() nicht aufgerufen."""
+        scraper = self._scraper({
+            "shpock_max_price": "200",
+            "shpock_radius": "0",
+            "shpock_latitude": "51.5136",
+            "shpock_longitude": "7.4653",
+        })
+        with patch.object(scraper.session, "post", return_value=_mock_response(self._api_response([SHPOCK_ITEM]))):
+            with patch("app.scrapers.shpock.geocode") as mock_geocode:
+                scraper.search("babytrage")
+        mock_geocode.assert_not_called()
 
 
 # ── eBay ──────────────────────────────────────────────────────────────────────

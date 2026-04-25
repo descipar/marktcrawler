@@ -104,9 +104,9 @@
                 <span class="absolute top-0.5 {% if t.enabled %}right-0.5{% else %}left-0.5{% endif %} w-4 h-4 bg-white rounded-full shadow transition-all"></span>
               </button>
             </form>
-            <span class="flex-1 text-sm {% if not t.enabled %}text-slate-400 line-through{% else %}text-slate-700{% endif %} truncate">{{ t.term }}</span>
             <button onclick="filterListings('{{ t.term }}')"
-              class="opacity-0 group-hover:opacity-100 text-xs text-brand-600 hover:text-brand-800 transition-opacity px-1" title="Filtern">◎</button>
+              class="flex-1 text-sm text-left {% if not t.enabled %}text-slate-400 line-through{% else %}text-slate-700 hover:text-brand-600{% endif %} truncate transition-colors"
+              title="Nach '{{ t.term }}' filtern">{{ t.term }}</button>
             <form method="POST" action="/terms/{{ t.id }}/delete" onsubmit="return confirm('\'{{ t.term }}\' wirklich löschen?')">
               <button type="submit" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all text-lg leading-none">×</button>
             </form>
@@ -177,6 +177,13 @@
             class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 hover:bg-yellow-50 hover:border-yellow-300 hover:text-yellow-700 transition-colors whitespace-nowrap">
             ★ Favoriten
           </button>
+          <div class="w-px h-4 bg-slate-200 flex-shrink-0"></div>
+          <div class="flex-shrink-0 flex items-center gap-1">
+            <input id="exclude-input" type="text" placeholder="🚫 Ausblenden…"
+              oninput="scheduleExclude(this.value)"
+              class="text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none focus:border-red-300 w-32 bg-white">
+            <button id="exclude-clear" onclick="clearExclude()" class="text-slate-300 hover:text-red-400 hidden text-base leading-none" title="Ausblend-Filter löschen">✕</button>
+          </div>
         </div>
       </div>
 
@@ -220,8 +227,9 @@
 <!-- ── JavaScript ────────────────────────────────────────── -->
 <script>
 const PAGE_SIZE = 30;
-let termFilter=null, platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false, distanceFilter=null, sortBy='date_desc';
+let termFilter=null, platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false, distanceFilter=null, sortBy='date_desc', excludeText=null;
 let currentOffset=0, allLoaded=false, totalCount=0;
+let _excludeTimer=null;
 
 // Suchbegriff-Sidebar auf Mobile kollabierbar
 function toggleTerms() {
@@ -285,10 +293,27 @@ async function fetchListings(offset) {
   if(freeFilter)     url+='&free=1';
   if(favFilter)      url+='&favorites=1';
   if(distanceFilter) url+='&max_distance='+distanceFilter;
+  if(excludeText)    url+='&exclude='+encodeURIComponent(excludeText);
   return await(await fetch(url)).json();
 }
 
 function applySort(v){sortBy=v;loadListings();}
+
+function scheduleExclude(v) {
+  clearTimeout(_excludeTimer);
+  _excludeTimer = setTimeout(() => {
+    excludeText = v.trim() || null;
+    document.getElementById('exclude-clear').classList.toggle('hidden', !excludeText);
+    loadListings();
+  }, 400);
+}
+
+function clearExclude() {
+  excludeText = null;
+  document.getElementById('exclude-input').value = '';
+  document.getElementById('exclude-clear').classList.add('hidden');
+  loadListings();
+}
 
 function cardHtml(l) {
   const pc=l.platform==='Kleinanzeigen'?'badge-ka':l.platform==='Shpock'?'badge-sp':'badge-fb';
@@ -333,13 +358,15 @@ function filterListings(term) {
 }
 
 function clearFilter() {
-  termFilter=null; platformFilter=null; ageFilter=0; freeFilter=false; favFilter=false; distanceFilter=null; sortBy='date_desc';
+  termFilter=null; platformFilter=null; ageFilter=0; freeFilter=false; favFilter=false; distanceFilter=null; sortBy='date_desc'; excludeText=null;
   document.getElementById('filter-label').classList.add('hidden');
   document.getElementById('filter-clear').classList.add('hidden');
   document.getElementById('platform-filter').value='';
   document.getElementById('age-filter').value='0';
   document.getElementById('distance-filter').value='';
   document.getElementById('sort-select').value='date_desc';
+  document.getElementById('exclude-input').value='';
+  document.getElementById('exclude-clear').classList.add('hidden');
   setBtn('free-btn',false,'green'); setBtn('fav-btn',false,'yellow');
   loadListings();
 }

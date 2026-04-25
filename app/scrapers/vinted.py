@@ -27,7 +27,8 @@ HEADERS = {
 class VintedScraper:
     def __init__(self, settings: dict):
         self.max_price: Optional[float] = _float(settings.get("vinted_max_price"))
-        self.radius_km: int = _int(settings.get("vinted_radius", 30)) or 30
+        raw = _int(settings.get("vinted_radius", "30"))
+        self.radius_km: int = 30 if raw is None else raw
         self._home: Optional[tuple] = self._resolve_location(settings)
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
@@ -76,7 +77,7 @@ class VintedScraper:
             listing = self._parse(item, term)
             if not listing:
                 continue
-            if self._home:
+            if self._home and self.radius_km > 0:
                 city = (item.get("user") or {}).get("city", "")
                 if city:
                     coords = geocode(city)

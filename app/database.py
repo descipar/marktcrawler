@@ -323,7 +323,7 @@ def get_listings(limit: int = 100, offset: int = 0, search_term: Optional[str] =
                  platform: Optional[str] = None, only_favorites: bool = False,
                  only_free: bool = False, max_age_hours: int = 0,
                  max_distance_km: Optional[float] = None,
-                 sort_by: str = "date_desc") -> List[Dict]:
+                 sort_by: str = "date_desc", exclude_text: Optional[str] = None) -> List[Dict]:
     conditions: List[str] = []
     params: List[Any] = []
 
@@ -343,6 +343,10 @@ def get_listings(limit: int = 100, offset: int = 0, search_term: Optional[str] =
     if max_distance_km is not None:
         conditions.append("(distance_km IS NULL OR distance_km <= ?)")
         params.append(max_distance_km)
+    if exclude_text:
+        like = f"%{exclude_text}%"
+        conditions.append("title NOT LIKE ? AND COALESCE(description,'') NOT LIKE ?")
+        params.extend([like, like])
 
     order = _SORT_MAP.get(sort_by, _SORT_MAP["date_desc"])
     query = "SELECT * FROM listings"

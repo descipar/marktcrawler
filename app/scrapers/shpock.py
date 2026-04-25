@@ -54,7 +54,8 @@ query ItemSearch($serializedFilters: String, $pagination: Pagination, $trackingS
 class ShpockScraper:
     def __init__(self, settings: dict):
         self.max_price: Optional[int] = _int(settings.get("shpock_max_price"))
-        self.radius_km: int = _int(settings.get("shpock_radius", 30)) or 30
+        raw = _int(settings.get("shpock_radius", "30"))
+        self.radius_km: int = 30 if raw is None else raw
         self.lat = float(settings.get("shpock_latitude") or 51.5136)
         self.lon = float(settings.get("shpock_longitude") or 7.4653)
         self.session = requests.Session()
@@ -107,13 +108,14 @@ class ShpockScraper:
                     continue
                 if item.get("isSold"):
                     continue
-                locality = item.get("locality", "")
-                if locality:
-                    coords = geocode(locality)
-                    if coords:
-                        dist_km = haversine(self.lat, self.lon, coords[0], coords[1])
-                        if dist_km > self.radius_km:
-                            continue
+                if self.radius_km > 0:
+                    locality = item.get("locality", "")
+                    if locality:
+                        coords = geocode(locality)
+                        if coords:
+                            dist_km = haversine(self.lat, self.lon, coords[0], coords[1])
+                            if dist_km > self.radius_km:
+                                continue
                 listing = self._parse(item, term)
                 if listing is None:
                     continue
@@ -128,7 +130,7 @@ class ShpockScraper:
                 if len(results) >= max_results:
                     return results
 
-        if not results:
+        if not results and self.radius_km > 0:
             logger.warning(
                 f"[Shpock] '{term}': API hat Ergebnisse geliefert, aber keine liegt im "
                 f"{self.radius_km}-km-Radius um ({self.lat}, {self.lon}). "

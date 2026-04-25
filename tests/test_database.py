@@ -308,7 +308,49 @@ class TestGeocache:
         assert lat == pytest.approx(11.0)
 
 
-# ── Migration ─────────────────────────────────────────────────
+# ── ExcludeFilter ─────────────────────────────────────────────
+
+class TestExcludeFilter:
+
+    def _make(self, temp_db, lid, title, description=""):
+        from app.scrapers.base import Listing
+        l = Listing(
+            platform="Test", title=title, price="10 €",
+            location="München", url=f"https://example.com/{lid}",
+            listing_id=lid, search_term="test", description=description,
+        )
+        temp_db.save_listing(l)
+
+    def test_exclude_filtert_aus_titel(self, temp_db):
+        self._make(temp_db, "a", "Schöner Kinderwagen")
+        self._make(temp_db, "b", "Kinderwagen defekt")
+        result = temp_db.get_listings(exclude_text="defekt")
+        ids = [l["listing_id"] for l in result]
+        assert "a" in ids
+        assert "b" not in ids
+
+    def test_exclude_filtert_aus_beschreibung(self, temp_db):
+        self._make(temp_db, "c", "Hochstuhl", description="Leider defekt")
+        self._make(temp_db, "d", "Hochstuhl NEU", description="Neuwertig")
+        result = temp_db.get_listings(exclude_text="defekt")
+        ids = [l["listing_id"] for l in result]
+        assert "d" in ids
+        assert "c" not in ids
+
+    def test_exclude_none_gibt_alle_zurueck(self, temp_db):
+        self._make(temp_db, "e", "Babybett")
+        self._make(temp_db, "f", "Babybett defekt")
+        result = temp_db.get_listings(exclude_text=None)
+        ids = [l["listing_id"] for l in result]
+        assert "e" in ids
+        assert "f" in ids
+
+    def test_exclude_leerstring_gibt_alle_zurueck(self, temp_db):
+        self._make(temp_db, "g", "Laufstall")
+        result = temp_db.get_listings(exclude_text="")
+        ids = [l["listing_id"] for l in result]
+        assert "g" in ids
+
 
 class TestMigration:
 

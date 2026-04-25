@@ -133,4 +133,11 @@
 - [x] **`POST /api/availability-check`** – manueller Start als Background-Thread
 - [x] **12 neue Tests** in `test_checker.py`; 200 Tests gesamt
 
-*Letzte Aktualisierung: 2026-04-25 (Phase 11 abgeschlossen)*
+### Phase 12 – Radius-0-Option, Suchbegriff-Filter & Exclude-Filter
+- [x] **Radius=0 deaktiviert Entfernungsfilter (Vinted & Shpock)** – `radius_km=0` überspringt Geo-Filter vollständig; kein Geocoding-Aufruf; Muster `30 if raw is None else raw` statt `or 30`
+- [x] **Suchbegriff-Filter im Dashboard** – Klick auf einen Suchbegriff in der Sidebar filtert Anzeigen via `?term=`; ganzes Term-Element ist klickbarer `<button>`
+- [x] **Exclude-Filter** – Eingabefeld „Begriffe ausschließen"; 400 ms Debounce; `db.get_listings(exclude_text=...)` filtert via `title NOT LIKE ? AND COALESCE(description,'') NOT LIKE ?`; ×-Button zum Zurücksetzen
+- [x] **8 neue Tests**: 4 × `TestExcludeFilter` in `test_database.py`, 2 × Vinted-Radius-0 + 2 × Shpock-Radius-0 in `test_scrapers.py`
+- [x] **Testanzahl: 208**
+
+*Letzte Aktualisierung: 2026-04-25 (Phase 12 abgeschlossen)*

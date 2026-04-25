@@ -64,6 +64,12 @@
 - [x] **Notifier-Duplikat** – `_html_from_objects` / `_text_from_objects` entfernt; `_send()` nutzt `dataclasses.asdict()` + gemeinsame Dict-Builder
 - [x] **SQLite-Timeout erhöht** – `timeout=30` in `get_db()` behebt `database is locked`-Fehler bei gleichzeitigem Crawler-Write und Flask-API-Polling
 
+### Phase 6 – Shpock-Reaktivierung & Bugfixes
+- [x] **Shpock-Scraper komplett überarbeitet** – neue GraphQL-Query-Struktur (`ItemSearch` mit `serializedFilters`, Key `"q"` statt `"keyword"`), Preise direkt in Euro (kein `/100` mehr), Bild-URLs via `secondhandapp.at`
+- [x] **Shpock Entfernungsfilter** – API liefert `distance: null` ohne Session; client-seitiger Geo-Filter via Nominatim-Geocoding + Haversine; API-Request auf `3×max_results` erhöht um mehr Kandidaten zu filtern; Log-Warnung wenn 0 Treffer im Radius
+- [x] **`_is_free()`-Bug** – Preis hat jetzt Vorrang vor Text-Keywords: ein Listing mit echtem Preis > 0 wird nie als gratis markiert, auch wenn Beschreibung Wörter wie „gratis Zubehör" enthält
+- [x] **Shpock-Warnung in `settings.html` entfernt** – veralteter Hinweis auf defekte API
+
 ---
 
 ## 🔜 Geplant
@@ -88,4 +94,4 @@
 
 ---
 
-*Letzte Aktualisierung: 2026-04-25 (SQLite-Timeout-Fix)*
+*Letzte Aktualisierung: 2026-04-25 (Shpock-Reaktivierung + _is_free-Bugfix)*

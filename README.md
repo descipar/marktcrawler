@@ -96,7 +96,7 @@ Verwalte Suchbegriffe und sieh alle gefundenen Anzeigen in einer Kachelansicht.
 | Bereich | Konfigurierbar |
 |---------|---------------|
 | Kleinanzeigen.de | Aktiviert, Max. Preis, Standort, Radius |
-| Shpock | Aktiviert, Max. Preis, Koordinaten, Radius |
+| Shpock | Aktiviert, Max. Preis, Koordinaten (lat/lon), Radius |
 | Vinted | Aktiviert, Max. Preis |
 | eBay | Aktiviert, Max. Preis |
 | Facebook Marketplace | Aktiviert, Max. Preis, Standort |

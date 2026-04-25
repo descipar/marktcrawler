@@ -37,6 +37,10 @@ def is_running() -> bool:
 def _is_free(listing: Listing) -> bool:
     if _FREE_PRICE_RE.match(listing.price or ""):
         return True
+    # Real non-zero price takes precedence over any text keyword
+    price = listing.price or ""
+    if price and price != "k.A.":
+        return False
     if _FREE_TEXT_RE.search(listing.title or ""):
         return True
     if _FREE_TEXT_RE.search(listing.description or ""):

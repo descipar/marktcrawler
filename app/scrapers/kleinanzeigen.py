@@ -1,4 +1,9 @@
-"""Scraper für Kleinanzeigen.de (requests + BeautifulSoup)."""
+"""Scraper für Kleinanzeigen.de (requests + BeautifulSoup).
+
+Die korrekte URL für ortsbasierte Suche lautet:
+  /s-{city-slug}/{keyword}/k0l{locationId}r{radius}?maxPrice=N
+Die locationId wird einmalig pro Crawl-Lauf via Formular-Submit ermittelt.
+"""
 
 import logging
 import re
@@ -30,6 +35,37 @@ class KleinanzeigenScraper:
         self.radius_km: int = _int(settings.get("kleinanzeigen_radius", 30)) or 30
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
+        # Einmalig beim Start: locationId via Formular-Submit ermitteln
+        self._location_id: Optional[int] = self._resolve_location_id()
+
+    def _resolve_location_id(self) -> Optional[int]:
+        """Ermittelt Kleinanzeigen-interne locationId für den konfigurierten Ort.
+
+        Kleinanzeigen verwendet interne IDs statt Orts-Slugs für echte
+        Umkreissuche. Diese werden über einen Formular-Submit abgefragt,
+        der die korrekte URL mit l{id}r{radius} zurückliefert.
+        """
+        if not self.location:
+            return None
+        try:
+            r = self.session.get(
+                f"{BASE_URL}/s-suchanfrage.html",
+                params={
+                    "categoryId": "", "locationId": "",
+                    "keywords": "test", "locationStr": self.location,
+                    "radius": str(self.radius_km),
+                },
+                timeout=15, allow_redirects=True,
+            )
+            m = re.search(r"/k0l(\d+)r", r.url)
+            if m:
+                lid = int(m.group(1))
+                logger.info(f"[Kleinanzeigen] locationId für '{self.location}': {lid}")
+                return lid
+            logger.warning(f"[Kleinanzeigen] locationId für '{self.location}' nicht gefunden (URL: {r.url})")
+        except Exception as e:
+            logger.warning(f"[Kleinanzeigen] locationId-Lookup fehlgeschlagen: {e}")
+        return None
 
     def search(self, term: str, max_results: int = 20) -> List[Listing]:
         url = self._build_url(term)
@@ -52,18 +88,29 @@ class KleinanzeigenScraper:
         return results
 
     def _build_url(self, term: str) -> str:
-        keyword = term.strip().replace(" ", "+")
-        params = []
-        if self.max_price:
-            params.append(f"maxPrice={self.max_price}")
-        if self.radius_km:
-            params.append(f"radius={self.radius_km}")
-        if self.location:
-            loc = _ascii_slug(self.location)
-            url = f"{BASE_URL}/s-{loc}/q-{keyword}/k0"
+        # Keyword als URL-Slug (Leerzeichen → Bindestrich, Umlaute → ASCII)
+        keyword = _ascii_slug(term.strip())
+
+        if self.location and self._location_id:
+            # Korrekte Umkreissuche mit locationId
+            city_slug = _ascii_slug(self.location)
+            url = (
+                f"{BASE_URL}/s-{city_slug}/{keyword}"
+                f"/k0l{self._location_id}r{self.radius_km}"
+            )
+            if self.max_price:
+                url += f"?maxPrice={self.max_price}"
         else:
-            url = f"{BASE_URL}/s-anzeigen/q-{keyword}/k0"
-        return url + ("?" + "&".join(params) if params else "")
+            # Fallback: bundesweite Suche (wenn kein Ort konfiguriert)
+            keyword_q = term.strip().replace(" ", "+")
+            url = f"{BASE_URL}/s-anzeigen/q-{keyword_q}/k0"
+            params = []
+            if self.max_price:
+                params.append(f"maxPrice={self.max_price}")
+            if self.radius_km:
+                params.append(f"radius={self.radius_km}")
+            url += ("?" + "&".join(params) if params else "")
+        return url
 
     def _parse(self, item, term: str) -> Optional[Listing]:
         try:
@@ -88,7 +135,7 @@ class KleinanzeigenScraper:
             price = price_el.get_text(strip=True) if price_el else "k.A."
 
             loc_el = item.select_one("div.aditem-main--top--left") or item.select_one(".aditem-addon")
-            location = loc_el.get_text(strip=True) if loc_el else ""
+            location = " ".join(loc_el.get_text().split()) if loc_el else ""
 
             desc_el = item.select_one("p.aditem-main--middle--description")
             description = desc_el.get_text(strip=True) if desc_el else ""
@@ -120,9 +167,10 @@ class KleinanzeigenScraper:
         return price_within_limit(l.price, self.max_price)
 
 
-def _ascii_slug(location: str) -> str:
-    """Konvertiert Stadtname in Kleinanzeigen-URL-Slug (Umlaute → ASCII)."""
-    slug = location.lower()
+def _ascii_slug(text: str) -> str:
+    """Konvertiert Text in Kleinanzeigen-URL-Slug (Umlaute → ASCII, Leerzeichen → Bindestrich)."""
+    slug = text.lower()
     for umlaut, ascii_ in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):
         slug = slug.replace(umlaut, ascii_)
-    return slug.replace(" ", "-")
+    slug = re.sub(r"\s+", "-", slug)
+    return slug

@@ -33,7 +33,6 @@ def create_app() -> Flask:
     app.register_blueprint(bp)
 
     # Scheduler starten (nur einmal, nicht im Werkzeug-Reloader-Child)
-    import os
     if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
         from .scheduler import init_scheduler
         init_scheduler(app)

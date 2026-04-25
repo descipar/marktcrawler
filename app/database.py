@@ -37,7 +37,7 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     # eBay
     "ebay_enabled": "0",
     "ebay_max_price": "80",
-    "ebay_location": "",
+    "ebay_location": "München",
     "ebay_radius": "30",
     # E-Mail
     "email_enabled": "0",

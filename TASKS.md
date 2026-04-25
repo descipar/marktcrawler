@@ -62,6 +62,7 @@
 - [x] **`geocache`-Spalte `cached_at`** im Schema und Migration ergänzt (war in CLAUDE.md dokumentiert, fehlte in DB)
 - [x] **`is_running()` und `finally`** in `crawler.py` nutzen jetzt den `_lock`
 - [x] **Notifier-Duplikat** – `_html_from_objects` / `_text_from_objects` entfernt; `_send()` nutzt `dataclasses.asdict()` + gemeinsame Dict-Builder
+- [x] **SQLite-Timeout erhöht** – `timeout=30` in `get_db()` behebt `database is locked`-Fehler bei gleichzeitigem Crawler-Write und Flask-API-Polling
 
 ---
 
@@ -87,4 +88,4 @@
 
 ---
 
-*Letzte Aktualisierung: 2026-04-25*
+*Letzte Aktualisierung: 2026-04-25 (SQLite-Timeout-Fix)*

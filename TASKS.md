@@ -140,4 +140,11 @@
 - [x] **8 neue Tests**: 4 × `TestExcludeFilter` in `test_database.py`, 2 × Vinted-Radius-0 + 2 × Shpock-Radius-0 in `test_scrapers.py`
 - [x] **Testanzahl: 208**
 
-*Letzte Aktualisierung: 2026-04-25 (Phase 12 abgeschlossen)*
+### Phase 13 – Dismiss & Term-Delete mit Anzeigen
+- [x] **Anzeige dauerhaft ausblenden** – `dismissed_listings`-Tabelle; `db.dismiss_listing(db_id)` trägt `listing_id` ein und löscht das Listing; `db.save_listing()` prüft `is_dismissed()` vor INSERT; `POST /listings/<id>/dismiss` (AJAX); ✕-Button oben links auf jeder Karte
+- [x] **Suchbegriff-Löschen löscht Anzeigen** – `delete_search_term()` löscht zuerst alle zugehörigen Listings, dann den Term; Bestätigungsdialog im Frontend aktualisiert
+- [x] **`_listing_card.html` auf Stand gebracht** – Server-seitige Karten haben jetzt Favorit-Stern, Gratis-Badge, Distanz-Badge und Dismiss-Button (war bisher veraltet)
+- [x] **13 neue Tests**: 5 × TestDismiss + 2 × TestDeleteTermWithListings in `test_database.py`, 3 × TestDismissRoute in `test_routes.py`; 218 Tests gesamt
+- [x] **README vollständig überarbeitet** – neue Struktur: Schnellstart, Features nach Kategorien, vollständige Settings-Tabelle, aktualisierte Architektur/Tests
+
+*Letzte Aktualisierung: 2026-04-25 (Phase 13 abgeschlossen)*

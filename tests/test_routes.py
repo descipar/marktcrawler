@@ -119,6 +119,56 @@ class TestFavoriteRoute:
         assert json.loads(resp.data)["status"] == "ok"
 
 
+# ── Dismiss ──────────────────────────────────────────────────
+
+class TestDismissRoute:
+
+    def _save_and_get_id(self, app, lid="dismiss-route-1"):
+        from app.scrapers.base import Listing
+        import app.database as db
+        listing = Listing(
+            platform="Test", title="D", price="5 €", location="München",
+            url=f"https://example.com/{lid}", listing_id=lid,
+        )
+        with app.app_context():
+            db.save_listing(listing)
+            listings = db.get_listings(limit=10)
+            return next(l["id"] for l in listings if l["listing_id"] == lid)
+
+    def test_dismiss_gibt_ok_zurueck(self, client, app):
+        lid = self._save_and_get_id(app)
+        resp = client.post(f"/listings/{lid}/dismiss")
+        assert resp.status_code == 200
+        assert json.loads(resp.data)["status"] == "ok"
+
+    def test_dismiss_unbekannte_id_kein_fehler(self, client):
+        resp = client.post("/listings/9999/dismiss")
+        assert resp.status_code == 200
+        assert json.loads(resp.data)["status"] == "ok"
+
+    def test_dismiss_listing_erscheint_nicht_wieder(self, client, app):
+        from app.scrapers.base import Listing
+        import app.database as db
+        listing = Listing(
+            platform="Test", title="N", price="5 €", location="München",
+            url="https://example.com/dismiss-never", listing_id="dismiss-never",
+        )
+        with app.app_context():
+            db.save_listing(listing)
+            listings = db.get_listings(limit=10)
+            lid = next(l["id"] for l in listings if l["listing_id"] == "dismiss-never")
+
+        client.post(f"/listings/{lid}/dismiss")
+
+        with app.app_context():
+            again = Listing(
+                platform="Test", title="N2", price="5 €", location="München",
+                url="https://example.com/dismiss-never", listing_id="dismiss-never",
+            )
+            result = db.save_listing(again)
+            assert result is False
+
+
 # ── Einstellungen ─────────────────────────────────────────────
 
 class TestSettingsRoutes:

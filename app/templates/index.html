@@ -107,7 +107,7 @@
             <button onclick="filterListings('{{ t.term }}')"
               class="flex-1 text-sm text-left {% if not t.enabled %}text-slate-400 line-through{% else %}text-slate-700 hover:text-brand-600{% endif %} truncate transition-colors"
               title="Nach '{{ t.term }}' filtern">{{ t.term }}</button>
-            <form method="POST" action="/terms/{{ t.id }}/delete" onsubmit="return confirm('\'{{ t.term }}\' wirklich löschen?')">
+            <form method="POST" action="/terms/{{ t.id }}/delete" onsubmit="return confirm('\'{{ t.term }}\' und alle {{ t.term }}-Anzeigen löschen?')">
               <button type="submit" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all text-lg leading-none">×</button>
             </form>
           </li>
@@ -324,6 +324,7 @@ function cardHtml(l) {
   const distBadge=l.distance_km!=null?`<span class="text-xs text-slate-400">${Math.round(l.distance_km)} km</span>`:'';
   const favCls=l.is_favorite?'text-yellow-400':'text-slate-200 hover:text-yellow-300';
   return `<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative">
+    <button onclick="dismissListing(${l.id},this)" class="absolute top-2 left-2 z-10 text-base leading-none text-slate-200 hover:text-red-400 transition-colors" title="Ausblenden">✕</button>
     <button onclick="toggleFav(${l.id},this)" class="absolute top-2 right-2 z-10 text-xl leading-none ${favCls}">★</button>
     <a href="${l.url}" target="_blank" rel="noopener" class="block">
       ${img}
@@ -341,6 +342,12 @@ function cardHtml(l) {
       </div>
     </a>
   </div>`;
+}
+
+async function dismissListing(id, btn) {
+  await fetch(`/listings/${id}/dismiss`,{method:'POST'});
+  const card=btn.closest('.listing-card');
+  if(card){ card.remove(); currentOffset=Math.max(0,currentOffset-1); updateLoadMore(0); }
 }
 
 async function toggleFav(id, btn) {

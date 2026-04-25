@@ -129,6 +129,10 @@ def init_db():
             lon           REAL,
             cached_at     TEXT DEFAULT (datetime('now'))
         );
+        CREATE TABLE IF NOT EXISTS dismissed_listings (
+            listing_id   TEXT PRIMARY KEY,
+            dismissed_at TEXT DEFAULT (datetime('now'))
+        );
     """)
     conn.commit()
 
@@ -217,7 +221,10 @@ def add_search_term(term: str) -> bool:
 
 def delete_search_term(term_id: int):
     with _db() as conn:
-        conn.execute("DELETE FROM search_terms WHERE id = ?", (term_id,))
+        row = conn.execute("SELECT term FROM search_terms WHERE id=?", (term_id,)).fetchone()
+        if row:
+            conn.execute("DELETE FROM listings WHERE search_term=?", (row["term"],))
+        conn.execute("DELETE FROM search_terms WHERE id=?", (term_id,))
         conn.commit()
 
 
@@ -265,8 +272,30 @@ def save_settings(data: Dict[str, str]):
 
 # ── Listings ────────────────────────────────────────────────
 
+def is_dismissed(listing_id: str) -> bool:
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM dismissed_listings WHERE listing_id=?", (listing_id,)
+        ).fetchone()
+    return row is not None
+
+
+def dismiss_listing(db_id: int):
+    """Löscht eine Anzeige und merkt ihre listing_id dauerhaft als ausgeblendet."""
+    with _db() as conn:
+        row = conn.execute("SELECT listing_id FROM listings WHERE id=?", (db_id,)).fetchone()
+        if row:
+            conn.execute(
+                "INSERT OR IGNORE INTO dismissed_listings(listing_id) VALUES(?)", (row["listing_id"],)
+            )
+            conn.execute("DELETE FROM listings WHERE id=?", (db_id,))
+            conn.commit()
+
+
 def save_listing(listing: "Listing") -> bool:
     """Gibt True zurück wenn die Anzeige neu war."""
+    if is_dismissed(listing.listing_id):
+        return False
     try:
         with _db() as conn:
             conn.execute(

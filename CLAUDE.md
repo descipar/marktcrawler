@@ -150,6 +150,12 @@ Jeder Suchbegriff in der linken Sidebar ist ein klickbarer `<button>`. Ein Klick
 ### Exclude-Filter (Live-Textfilter)
 Eingabefeld „Begriffe ausschließen" in der Filter-Leiste. Eingaben werden mit 400 ms Debounce als `?exclude=...` an `/api/listings` übergeben. `db.get_listings(exclude_text=...)` filtert Anzeigen heraus, deren Titel **oder** Beschreibung den Begriff enthalten (`title NOT LIKE ? AND COALESCE(description,'') NOT LIKE ?`). Ein ×-Button leert das Feld und entfernt den Filter.
 
+### Anzeige dauerhaft ausblenden (Dismiss)
+`POST /listings/<id>/dismiss` ruft `db.dismiss_listing(db_id)` auf: liest `listing_id`-String, trägt ihn in `dismissed_listings`-Tabelle ein, löscht das Listing. `db.save_listing()` prüft via `is_dismissed(listing_id)` vor dem INSERT – schlägt fehl (return `False`) wenn bereits dismissed. Damit taucht eine ausgeblendete Anzeige beim nächsten Crawl nie wieder auf. Im Frontend: ✕-Button oben links auf jeder Karte (AJAX, entfernt Karte aus DOM).
+
+### Suchbegriff-Löschen löscht auch Anzeigen
+`db.delete_search_term(term_id)` holt zuerst den Text des Suchbegriffs, löscht dann alle `listings` mit `search_term = <text>`, danach den Suchbegriff selbst – alles in einer Transaktion.
+
 ## Wichtige Konventionen
 
 - **Scraper-Interface**: Jeder Scraper hat `__init__(self, settings: dict)` und `search(self, term: str, max_results: int) -> List[Listing]`. `settings` ist das komplette Dict aus `db.get_settings()`.
@@ -196,6 +202,7 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 | GET | `/api/status` | Crawler-Status als JSON |
 | GET | `/api/listings` | Anzeigen als JSON (`?term=`, `?platform=`, `?limit=30`, `?offset=0`, `?favorites=1`, `?free=1`, `?max_age=`, `?max_distance=`, `?sort=date_desc`, `?exclude=`) |
 | GET | `/api/stats` | Preisstatistik pro Suchbegriff (JSON) |
+| POST | `/listings/<id>/dismiss` | Anzeige dauerhaft ausblenden (JSON) |
 
 ## Bekannte Einschränkungen
 

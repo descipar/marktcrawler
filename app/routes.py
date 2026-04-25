@@ -81,6 +81,12 @@ def toggle_favorite(listing_id):
     return jsonify({"status": "ok"})
 
 
+@bp.route("/listings/<int:listing_id>/dismiss", methods=["POST"])
+def dismiss_listing(listing_id):
+    db.dismiss_listing(listing_id)
+    return jsonify({"status": "ok"})
+
+
 # ── Einstellungen ────────────────────────────────────────────
 
 @bp.route("/settings")

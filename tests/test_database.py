@@ -308,6 +308,86 @@ class TestGeocache:
         assert lat == pytest.approx(11.0)
 
 
+# ── Dismiss ──────────────────────────────────────────────────
+
+class TestDismiss:
+
+    def _save(self, temp_db, lid, term="test"):
+        from app.scrapers.base import Listing
+        l = Listing(
+            platform="Test", title=lid, price="10 €",
+            location="München", url=f"https://example.com/{lid}",
+            listing_id=lid, search_term=term,
+        )
+        temp_db.save_listing(l)
+        return next(l["id"] for l in temp_db.get_listings() if l["listing_id"] == lid)
+
+    def test_dismiss_entfernt_listing(self, temp_db):
+        db_id = self._save(temp_db, "dismiss-1")
+        temp_db.dismiss_listing(db_id)
+        ids = [l["listing_id"] for l in temp_db.get_listings()]
+        assert "dismiss-1" not in ids
+
+    def test_dismiss_merkt_listing_id(self, temp_db):
+        db_id = self._save(temp_db, "dismiss-2")
+        temp_db.dismiss_listing(db_id)
+        assert temp_db.is_dismissed("dismiss-2") is True
+
+    def test_undismissed_ist_nicht_geblockt(self, temp_db):
+        assert temp_db.is_dismissed("nicht-vorhanden") is False
+
+    def test_save_dismissed_listing_wird_abgelehnt(self, temp_db):
+        from app.scrapers.base import Listing
+        db_id = self._save(temp_db, "dismiss-3")
+        temp_db.dismiss_listing(db_id)
+        l = Listing(
+            platform="Test", title="wieder", price="5 €",
+            location="München", url="https://example.com/dismiss-3",
+            listing_id="dismiss-3", search_term="test",
+        )
+        result = temp_db.save_listing(l)
+        assert result is False
+        ids = [x["listing_id"] for x in temp_db.get_listings()]
+        assert "dismiss-3" not in ids
+
+    def test_dismiss_unbekannte_id_kein_fehler(self, temp_db):
+        temp_db.dismiss_listing(9999)
+
+
+class TestDeleteTermWithListings:
+
+    def test_loeschen_entfernt_zugehoerige_anzeigen(self, temp_db):
+        from app.scrapers.base import Listing
+        temp_db.add_search_term("wegtest")
+        l = Listing(
+            platform="Test", title="X", price="5 €",
+            location="München", url="https://example.com/x",
+            listing_id="weg-1", search_term="wegtest",
+        )
+        temp_db.save_listing(l)
+        terms = temp_db.get_search_terms()
+        tid = next(t["id"] for t in terms if t["term"] == "wegtest")
+        temp_db.delete_search_term(tid)
+        ids = [x["listing_id"] for x in temp_db.get_listings()]
+        assert "weg-1" not in ids
+
+    def test_loeschen_belaesst_andere_anzeigen(self, temp_db):
+        from app.scrapers.base import Listing
+        temp_db.add_search_term("behalten")
+        l = Listing(
+            platform="Test", title="Y", price="5 €",
+            location="München", url="https://example.com/y",
+            listing_id="keep-1", search_term="behalten",
+        )
+        temp_db.save_listing(l)
+        terms = temp_db.get_search_terms()
+        # Löschen eines anderen Terms
+        other_tid = next(t["id"] for t in terms if t["term"] == "kinderwagen")
+        temp_db.delete_search_term(other_tid)
+        ids = [x["listing_id"] for x in temp_db.get_listings()]
+        assert "keep-1" in ids
+
+
 # ── ExcludeFilter ─────────────────────────────────────────────
 
 class TestExcludeFilter:

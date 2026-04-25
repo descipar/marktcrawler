@@ -5,79 +5,93 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-200%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-218%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-MIT-green)
+
+---
+
+## Schnellstart (Docker)
+
+```bash
+git clone https://github.com/descipar/baby-crawler.git
+cd baby-crawler
+docker compose up -d --build
+```
+
+Admin-UI aufrufen: **`http://localhost:5000`**
 
 ---
 
 ## ✨ Features
 
-- **Admin-UI** im Browser – Suchbegriffe per Klick hinzufügen, deaktivieren oder löschen
-- **Mehrere Plattformen** gleichzeitig durchsuchen (Kleinanzeigen, Shpock, Vinted, eBay, Facebook)
-- **E-Mail-Benachrichtigungen** – Sofort-Alert bei neuen Treffern
-- **Tages-Digest** – zusätzliche tägliche Zusammenfassung per E-Mail, zu konfigurierbarer Uhrzeit
-- **Automatischer Scheduler** – kein manueller Cronjob nötig, Intervall frei einstellbar
-- **Manueller Crawl** per Knopfdruck mit Live-Status-Anzeige und E-Mail-Benachrichtigung bei neuen Treffern
-- **🎁 Gratis-Erkennung** – Anzeigen mit Preis 0 € / „zu verschenken" werden gesondert gekennzeichnet
+### Suche & Filterung
+- **5 Plattformen** gleichzeitig: Kleinanzeigen.de, Shpock, Vinted, eBay, Facebook Marketplace (optional)
+- **Suchbegriffe** per Klick hinzufügen, aktivieren/deaktivieren, löschen (Anzeigen werden mitgelöscht)
+- **Blacklist** – Stichworte wie „defekt" oder „bastler" automatisch ausfiltern
+- **Entfernungsfilter** – Radius pro Plattform konfigurierbar; Radius 0 = kein Filter
+- **Altersfilter** – nur Anzeigen der letzten 3h / 6h / 24h / 48h anzeigen
+- **Plattform-Filter** – nur eine Plattform anzeigen
+- **Suchbegriff-Filter** – Klick auf einen Suchbegriff filtert die Anzeigenliste
+- **Exclude-Filter** – Begriffe live ausblenden (400 ms Debounce, ×-Button zum Zurücksetzen)
+- **Duplikat-Erkennung** – jede Anzeige wird nur einmal gespeichert
+
+### Anzeigen-Verwaltung
 - **⭐ Favoriten** – Anzeigen markieren; Favoriten werden beim automatischen Aufräumen nie gelöscht
+- **✕ Ausblenden** – einzelne Anzeigen dauerhaft verstecken; beim nächsten Crawl nicht wieder angezeigt
+- **🎁 Gratis-Erkennung** – Anzeigen mit Preis 0 € / „zu verschenken" werden gesondert gekennzeichnet
 - **📍 Entfernungsanzeige** – Luftlinie vom eigenen Standort zu jeder Anzeige (via OpenStreetMap)
-- **📊 Preisstatistik** – Durchschnitt, Min und Max pro Suchbegriff
-- **🚫 Blacklist** – Stichworte (z.B. „defekt", „bastler") automatisch ausfiltern
-- **Altersfilter** – nur Anzeigen der letzten X Stunden anzeigen
-- **Sortierung** – Anzeigen nach Datum, Preis (auf-/absteigend) oder Entfernung sortieren
-- **Pagination** – Anzeigen werden seitenweise geladen (30 pro Seite), „Mehr laden"-Button
-- **📱 Mobil-optimiert** – responsive Layout, kollabierbare Sidebar, horizontal scrollbare Filter
-- **🔍 Verfügbarkeits-Check** – prüft periodisch ob Anzeigen noch online sind, löscht automatisch nicht erreichbare Einträge (inkl. Favoriten)
-- **Duplikat-Erkennung** – jede Anzeige wird nur einmal gemeldet
+- **Sortierung** – nach Datum, Preis (auf-/absteigend) oder Entfernung
+- **Pagination** – 30 Anzeigen pro Seite, „Mehr laden"-Button
+
+### Benachrichtigungen & Automatisierung
+- **E-Mail-Alert** – Sofort-Benachrichtigung bei neuen Treffern (konfigurierbar)
+- **Tages-Digest** – täglich zur konfigurierten Uhrzeit, unabhängig vom Sofort-Alert
+- **Manueller Crawl** – per Knopfdruck mit Live-Log-Terminal und E-Mail bei neuen Treffern
+- **Automatischer Scheduler** – konfigurierbares Intervall, kein Cronjob nötig
+- **🔍 Verfügbarkeits-Check** – prüft periodisch ob Anzeigen noch online sind (HTTP 404/410 → automatisch löschen, inkl. Favoriten)
+
+### Sonstiges
+- **📊 Preisstatistik** – Durchschnitt, Min, Max und Gratis-Zähler pro Suchbegriff
+- **📱 Mobil-optimiert** – responsive Layout, kollabierbare Sidebar, scrollbare Filter-Leiste
 - **Docker-ready** – läuft auf jedem Linux-Server (Proxmox, Raspberry Pi, Cloud-VM)
 
 ---
 
-## 🚀 Deployment-Optionen
+## 🚀 Deployment
 
-### Option A – Raspberry Pi 4 (empfohlen)
-
-Stromsparend (~5 Watt), läuft still 24/7, kein großer Server nötig.
+### Docker (empfohlen)
 
 ```bash
-# 1. Docker auf dem RPi installieren (einmalig)
+docker compose up -d --build   # Starten
+docker compose logs -f          # Logs ansehen
+docker compose down             # Stoppen
+git pull && docker compose up -d --build  # Update
+```
+
+Bestehende Datenbanken werden automatisch migriert – keine Daten gehen verloren.
+
+### Raspberry Pi 4
+
+Stromsparend (~5 Watt), läuft still 24/7:
+
+```bash
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker pi
-# Terminal neu starten oder: newgrp docker
-
-# 2. Repo klonen (einmalig)
 git clone https://github.com/descipar/baby-crawler.git /home/pi/baby-crawler
-
-# 3. Starten
 cd /home/pi/baby-crawler
 docker compose up -d --build
 ```
 
-Admin-UI aufrufen: **`http://<rpi-ip>:5000`**
-
----
-
-### Option B – Proxmox (VM oder LXC)
+### Lokal (ohne Docker)
 
 ```bash
-# Docker in Ubuntu/Debian LXC installieren (einmalig)
-apt update && apt install -y docker.io docker-compose-plugin git
-
-# Repo klonen (einmalig)
-git clone https://github.com/descipar/baby-crawler.git /opt/baby-crawler
-
-# Starten
-cd /opt/baby-crawler
-docker compose up -d --build
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python run.py                   # http://localhost:5000
 ```
 
-Admin-UI aufrufen: **`http://<proxmox-ip>:5000`**
-
----
-
-### Option C – Lokal (zum Testen)
-
-Kein Docker nötig – direkt mit Python starten, siehe [Lokale Entwicklung](#-lokale-entwicklung).
+Die `.env`-Datei setzt `DATA_DIR=./data`. Optional: `SECRET_KEY=<langer-string>` für stabile Sessions.
 
 ---
 
@@ -85,53 +99,47 @@ Kein Docker nötig – direkt mit Python starten, siehe [Lokale Entwicklung](#-l
 
 ### Dashboard
 
-Verwalte Suchbegriffe und sieh alle gefundenen Anzeigen in einer Kachelansicht.
-
-- **Suchbegriff hinzufügen**: In das Eingabefeld tippen → "+ Add"
-- **Aktivieren / Deaktivieren**: Toggle-Schalter neben dem Begriff
-- **Löschen**: `×` erscheint beim Überfahren mit der Maus
-- **Favorit markieren**: ★-Button auf jeder Anzeigekarte (AJAX, kein Seitenneulade)
-- **Filter kombinieren**: Nur Favoriten · Nur Gratis · Letzte 3 h / 6 h / Heute / 48 h
-- **Preisstatistik**: Aufklappbare Tabelle mit Avg/Min/Max pro Suchbegriff
-- **Manueller Crawl**: Schaltfläche „🚀 Jetzt crawlen" – Status aktualisiert sich live
+| Element | Funktion |
+|---------|----------|
+| Suchbegriff-Sidebar | Hinzufügen, aktivieren/deaktivieren, löschen (inkl. Anzeigen), als Filter-Klick |
+| Filter-Leiste | Sortierung, Altersfilter, Plattform, Entfernung, Gratis, Favoriten, Exclude-Freitext |
+| Anzeigen-Karte | Link zur Anzeige, ★ Favorit (AJAX), ✕ dauerhaft ausblenden (AJAX) |
+| Status-Leiste | Crawl-Status, letzter/nächster Lauf, Gesamtzahl |
+| 🚀 Jetzt crawlen | Startet manuellen Crawl mit Live-Log; E-Mail bei neuen Treffern |
+| 📊 Preisstatistik | Aufklappbare Tabelle mit Avg/Min/Max pro Suchbegriff |
 
 ### Einstellungen (`/settings`)
 
 | Bereich | Konfigurierbar |
 |---------|---------------|
 | Kleinanzeigen.de | Aktiviert, Max. Preis, Standort, Radius |
-| Shpock | Aktiviert, Max. Preis, Standort, Radius |
-| Vinted | Aktiviert, Max. Preis, Standort, Radius |
+| Shpock | Aktiviert, Max. Preis, Standort, Radius (0 = kein Filter) |
+| Vinted | Aktiviert, Max. Preis, Standort, Radius (0 = kein Filter) |
 | eBay | Aktiviert, Max. Preis, Standort (PLZ oder Stadt), Radius |
 | Facebook Marketplace | Aktiviert, Max. Preis, Standort |
-| E-Mail | SMTP-Server, Absender, Empfänger (kommagetrennt), App-Passwort, Betreff (Alert + Digest) |
+| E-Mail | SMTP-Server/-Port, Absender, Empfänger (kommagetrennt), App-Passwort, Betreff |
 | Tages-Digest | Aktiviert, Uhrzeit (z.B. `19:00`) |
-| Crawler | Intervall (Minuten), Max. Ergebnisse, Pause zw. Anfragen, Max. Alter (Stunden) |
-| Blacklist | Ausgeschlossene Begriffe – einer pro Zeile |
-| Heimstandort | Breitengrad + Längengrad für Entfernungsberechnung |
+| Crawler | Intervall (Min.), Max. Ergebnisse, Pause zw. Anfragen, Blacklist, Max. Alter |
+| Verfügbarkeits-Check | Aktiviert, Intervall (Stunden), „Jetzt prüfen"-Button |
+| Heimstandort | Stadt für Entfernungsberechnung |
 
 ---
 
-## 📧 E-Mail-Benachrichtigungen
+## 📧 E-Mail einrichten
 
-### Gmail einrichten
+### Gmail
 
 1. [App-Passwort erstellen](https://myaccount.google.com/apppasswords) (2FA muss aktiv sein)
-2. In der Admin-UI unter **Einstellungen → E-Mail** eintragen:
+2. In **Einstellungen → E-Mail** eintragen:
    - SMTP-Server: `smtp.gmail.com` · Port: `587`
    - Absender: `deine-adresse@gmail.com`
    - App-Passwort: *(das erzeugte App-Passwort)*
-   - Empfänger: *(eine oder mehrere Adressen, kommagetrennt: `kai@example.com, partner@example.com`)*
+   - Empfänger: `kai@example.com, partner@example.com` (kommagetrennt)
 
-### Tages-Digest
-
-Zusätzlich zum Sofort-Alert kann täglich eine Zusammenfassung aller Anzeigen des Tages verschickt werden. Aktivierung und Uhrzeit unter **Einstellungen → Tages-Digest**.
-
-### Andere Anbieter
+### Weitere Anbieter
 
 | Anbieter | SMTP-Server | Port |
 |----------|-------------|------|
-| Gmail | smtp.gmail.com | 587 |
 | GMX | mail.gmx.net | 587 |
 | Web.de | smtp.web.de | 587 |
 | Outlook | smtp.office365.com | 587 |
@@ -140,16 +148,16 @@ Zusätzlich zum Sofort-Alert kann täglich eine Zusammenfassung aller Anzeigen d
 
 ## 📘 Facebook Marketplace (optional)
 
-Facebook erfordert einen einmaligen interaktiven Login:
+Einmaliger interaktiver Login nötig:
 
 ```bash
 docker exec -it baby-crawler python -c \
   "from app.scrapers.facebook import FacebookScraper; FacebookScraper({}).interactive_login()"
 ```
 
-Danach Facebook in der Admin-UI unter Einstellungen aktivieren.
+Danach Facebook in den Einstellungen aktivieren.
 
-> ⚠️ **Hinweis:** Das automatische Auslesen von Facebook widerspricht den Nutzungsbedingungen. Dieses Feature ist ausschließlich für den privaten Gebrauch gedacht.
+> ⚠️ Das automatische Auslesen von Facebook widerspricht den Nutzungsbedingungen. Nur für den privaten Gebrauch.
 
 ---
 
@@ -157,29 +165,30 @@ Danach Facebook in der Admin-UI unter Einstellungen aktivieren.
 
 ```
 baby-crawler/
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-├── pytest.ini
-├── run.py                  # Einstiegspunkt (Flask / Gunicorn)
-├── data/                   # Persistentes Volume (SQLite-DB, FB-Session)
-├── tests/                  # Unit-Tests (pytest, 115 Tests)
+├── Dockerfile / docker-compose.yml
+├── requirements.txt / pytest.ini
+├── run.py                  # Einstiegspunkt
+├── data/                   # SQLite-DB (persistentes Volume)
+├── tests/                  # 218 Unit-Tests
 │   ├── conftest.py
-│   ├── test_crawler.py
-│   ├── test_database.py
-│   ├── test_geo.py
-│   ├── test_notifier.py
-│   └── test_scrapers.py
+│   ├── test_crawler.py     # _is_free(), _is_blacklisted(), run_crawl()
+│   ├── test_database.py    # CRUD, Migration, Dismiss, Sortierung
+│   ├── test_geo.py         # Haversine, Geocoding-Cache
+│   ├── test_notifier.py    # E-Mail-Builder, Badges
+│   ├── test_routes.py      # Alle Flask-Routen und REST-API
+│   ├── test_scrapers.py    # Vinted, Shpock, eBay
+│   └── test_checker.py     # Verfügbarkeits-Check
 └── app/
     ├── __init__.py         # Flask App Factory
-    ├── database.py         # SQLite-Datenbankschicht (inkl. Migration)
+    ├── database.py         # SQLite-Schicht (kein ORM, inkl. Migration)
     ├── routes.py           # Web-Routen & REST-API
     ├── crawler.py          # Crawl-Orchestrierung (Thread-safe)
-    ├── scheduler.py        # APScheduler: Crawl-Intervall + Digest-Cron
-    ├── notifier.py         # E-Mail-Versand (Sofort + Digest)
-    ├── geo.py              # Geocoding (Nominatim/OSM) + Haversine
+    ├── checker.py          # Verfügbarkeits-Check (HEAD-Requests)
+    ├── scheduler.py        # APScheduler: Crawl + Digest + Checker
+    ├── notifier.py         # E-Mail (Sofort-Alert + Tages-Digest)
+    ├── geo.py              # Nominatim-Geocoding + Haversine
     ├── scrapers/
-    │   ├── base.py         # Listing-Datenklasse + gemeinsame Hilfsfunktionen
+    │   ├── base.py         # Listing-Datenklasse + Hilfsfunktionen
     │   ├── kleinanzeigen.py
     │   ├── shpock.py
     │   ├── vinted.py
@@ -188,76 +197,35 @@ baby-crawler/
     └── templates/          # Jinja2 + Tailwind CSS (CDN, kein Build-Step)
 ```
 
-### Tech-Stack
-
-- **Backend**: Python 3.12, Flask 3, APScheduler 3
-- **Datenbank**: SQLite (kein ORM, kein extra Container), automatische Migration bei Updates
-- **Scraping**: `requests` + `BeautifulSoup` / GraphQL-API / Playwright
-- **Geocoding**: Nominatim (OpenStreetMap), Ergebnisse werden in der DB gecacht
-- **Frontend**: Jinja2, Tailwind CSS via CDN, Vanilla JS
-- **Deployment**: Docker + docker-compose, Gunicorn
-- **Tests**: pytest, 137 Unit-Tests, keine externen Abhängigkeiten (Mocks für HTTP und DB)
+**Tech-Stack**: Python 3.12 · Flask 3 · APScheduler 3 · SQLite (kein ORM) · Tailwind CSS via CDN · Docker + Gunicorn
 
 ---
 
-## 🔧 Lokale Entwicklung
-
-Kein Docker nötig – das Projekt läuft direkt mit Python.
+## 🔧 Entwicklung & Tests
 
 ```bash
-# 1. Virtual Environment anlegen & Pakete installieren
-cd baby-crawler
-python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+# Tests ausführen
+python -m pytest tests/ -v
 
-# 2. Starten
-python run.py
+# Einzelne Testdatei
+python -m pytest tests/test_database.py -v
 ```
 
-Admin-UI aufrufen: **`http://localhost:5000`**
-
-Die `.env`-Datei im Projektroot setzt den Datenbankpfad automatisch auf `./data`. Für persistente Sessions empfiehlt es sich, zusätzlich einen stabilen `SECRET_KEY` zu setzen:
-
-```
-DATA_DIR=./data
-SECRET_KEY=<langer-zufaelliger-string>
-```
-
-Im Docker-Container wird das Volume `/data` verwendet und `SECRET_KEY` als Umgebungsvariable in `docker-compose.yml` oder per `--env-file` übergeben.
-
-### Tests ausführen
-
-```bash
-DATA_DIR=/tmp PYTHONPATH=. python -m pytest tests/ -v
-```
+Alle Tests laufen ohne externe Abhängigkeiten (HTTP und DB werden gemockt).
 
 ---
 
-## 🔄 Updates
+## 💾 Backup & Wartung
 
 ```bash
-git pull
-docker compose up -d --build
-```
+# Datenbank sichern
+cp ./data/baby_crawler.db ./backup_$(date +%Y%m%d).db
 
-Bestehende Datenbanken werden automatisch migriert – keine Daten gehen verloren.
-
-## 📋 Logs
-
-```bash
+# Logs ansehen
 docker compose logs -f baby-crawler
 ```
 
-## 💾 Backup
-
-Die gesamte Datenbank ist eine einzelne Datei:
-
-```bash
-cp ./data/baby_crawler.db ./backup_$(date +%Y%m%d).db
-```
-
-Alte Anzeigen (älter als 30 Tage) werden automatisch bereinigt. **Favoriten werden dabei nie gelöscht.**
+Anzeigen älter als 30 Tage werden automatisch bereinigt. **Favoriten werden dabei nie gelöscht.**
 
 ---
 
@@ -267,4 +235,4 @@ MIT – frei verwendbar für private und kommerzielle Zwecke.
 
 ---
 
-*Herzlichen Glückwunsch zur Schwangerschaft und viel Erfolg bei der Schnäppchenjagd! 🍼*
+*Viel Erfolg bei der Schnäppchenjagd! 🍼*

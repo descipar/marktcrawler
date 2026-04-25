@@ -1,23 +1,31 @@
-<a href="{{ l.url }}" target="_blank" rel="noopener"
-   class="listing-card block rounded-xl border border-slate-200 overflow-hidden hover:border-brand-300 bg-white">
-  {% if l.image_url %}
-    <img src="{{ l.image_url }}" alt="{{ l.title }}" class="w-full h-40 object-cover bg-slate-100">
-  {% else %}
-    <div class="w-full h-40 bg-slate-100 flex items-center justify-center text-4xl">🛍️</div>
-  {% endif %}
-  <div class="p-3">
-    <div class="flex items-center gap-1.5 mb-1.5">
-      <span class="text-xs px-1.5 py-0.5 rounded font-medium
-        {% if l.platform == 'Kleinanzeigen' %}badge-ka
-        {% elif l.platform == 'Shpock' %}badge-sp
-        {% else %}badge-fb{% endif %}">
-        {{ l.platform }}
-      </span>
-      <span class="text-xs text-slate-400 truncate">{{ l.search_term }}</span>
+<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative">
+  <button onclick="dismissListing({{ l.id }}, this)"
+    class="absolute top-2 left-2 z-10 text-base leading-none text-slate-200 hover:text-red-400 transition-colors"
+    title="Ausblenden">✕</button>
+  <button onclick="toggleFav({{ l.id }}, this)"
+    class="absolute top-2 right-2 z-10 text-xl leading-none {% if l.is_favorite %}text-yellow-400{% else %}text-slate-200 hover:text-yellow-300{% endif %}">★</button>
+  <a href="{{ l.url }}" target="_blank" rel="noopener" class="block">
+    {% if l.image_url %}
+      <img src="{{ l.image_url }}" alt="" referrerpolicy="no-referrer" class="w-full h-40 object-cover bg-slate-100">
+    {% else %}
+      <div class="w-full h-40 bg-slate-100 flex items-center justify-center text-4xl">🛍️</div>
+    {% endif %}
+    <div class="p-3">
+      <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
+        <span class="text-xs px-1.5 py-0.5 rounded font-medium
+          {% if l.platform == 'Kleinanzeigen' %}badge-ka
+          {% elif l.platform == 'Shpock' %}badge-sp
+          {% else %}badge-fb{% endif %}">{{ l.platform }}</span>
+        <span class="text-xs text-slate-400 truncate">{{ l.search_term }}</span>
+      </div>
+      <div class="font-semibold text-slate-800 text-sm leading-tight mb-1 pr-5">{{ l.title }}</div>
+      <div class="flex items-center flex-wrap gap-1 mb-1">
+        <span class="text-green-700 font-bold">{{ l.price }}</span>
+        {% if l.is_free %}<span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">🎁 Gratis</span>{% endif %}
+        {% if l.distance_km is not none %}<span class="text-xs text-slate-400">{{ l.distance_km | round | int }} km</span>{% endif %}
+      </div>
+      <div class="text-xs text-slate-500 truncate">📍 {{ l.location }}</div>
+      <div class="text-xs text-slate-400 mt-1">{{ l.found_at | replace('T', ' ') }}</div>
     </div>
-    <div class="font-semibold text-slate-800 text-sm leading-tight mb-1 line-clamp-2">{{ l.title }}</div>
-    <div class="text-green-700 font-bold">{{ l.price }}</div>
-    <div class="text-xs text-slate-500 mt-1 truncate">📍 {{ l.location }}</div>
-    <div class="text-xs text-slate-400 mt-1">{{ l.found_at | replace('T', ' ') }}</div>
-  </div>
-</a>
+  </a>
+</div>

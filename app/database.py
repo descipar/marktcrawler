@@ -294,7 +294,8 @@ def toggle_favorite(listing_id: int):
 
 def get_listings(limit: int = 100, search_term: Optional[str] = None,
                  platform: Optional[str] = None, only_favorites: bool = False,
-                 only_free: bool = False, max_age_hours: int = 0) -> List[Dict]:
+                 only_free: bool = False, max_age_hours: int = 0,
+                 max_distance_km: Optional[float] = None) -> List[Dict]:
     conn = get_db()
     conditions: List[str] = []
     params: List[Any] = []
@@ -312,11 +313,15 @@ def get_listings(limit: int = 100, search_term: Optional[str] = None,
     if max_age_hours and max_age_hours > 0:
         conditions.append("found_at >= datetime('now', ? || ' hours')")
         params.append(f"-{max_age_hours}")
+    if max_distance_km is not None:
+        # Anzeigen ohne berechnete Distanz werden nicht ausgefiltert
+        conditions.append("(distance_km IS NULL OR distance_km <= ?)")
+        params.append(max_distance_km)
 
     query = "SELECT * FROM listings"
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
-    query += " ORDER BY is_favorite DESC, found_at DESC LIMIT ?"
+    query += " ORDER BY is_favorite DESC, is_free DESC, found_at DESC LIMIT ?"
     params.append(limit)
 
     rows = [dict(r) for r in conn.execute(query, params).fetchall()]

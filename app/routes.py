@@ -154,14 +154,17 @@ def api_listings():
     try:
         limit = int(request.args.get("limit", 60))
         max_age = int(request.args.get("max_age", 0) or 0)
+        max_dist_raw = request.args.get("max_distance", "")
+        max_distance = float(max_dist_raw) if max_dist_raw else None
     except ValueError:
-        return jsonify({"error": "limit und max_age müssen Ganzzahlen sein."}), 400
+        return jsonify({"error": "Ungültiger Parameter."}), 400
     only_fav = request.args.get("favorites") == "1"
     only_free = request.args.get("free") == "1"
 
     listings = db.get_listings(
         limit=limit, search_term=term, platform=platform,
         only_favorites=only_fav, only_free=only_free, max_age_hours=max_age,
+        max_distance_km=max_distance,
     )
     return jsonify(listings)
 

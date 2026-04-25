@@ -52,8 +52,6 @@ class KleinanzeigenScraper:
         return results
 
     def _build_url(self, term: str) -> str:
-        # Keyword-Suche mit q- Prefix – funktioniert für einzelne Wörter
-        # UND für mehrteilige Beschreibungen wie "babyschale rot maxi-cosi"
         keyword = term.strip().replace(" ", "+")
         params = []
         if self.max_price:
@@ -61,7 +59,7 @@ class KleinanzeigenScraper:
         if self.radius_km:
             params.append(f"radius={self.radius_km}")
         if self.location:
-            loc = self.location.replace(" ", "-").lower()
+            loc = _ascii_slug(self.location)
             url = f"{BASE_URL}/s-{loc}/q-{keyword}/k0"
         else:
             url = f"{BASE_URL}/s-anzeigen/q-{keyword}/k0"
@@ -95,10 +93,18 @@ class KleinanzeigenScraper:
             desc_el = item.select_one("p.aditem-main--middle--description")
             description = desc_el.get_text(strip=True) if desc_el else ""
 
-            img_el = item.select_one("img.aditem-image")
+            img_el = (
+                item.select_one("img.aditem-image")
+                or item.select_one("img[data-imgsrc]")
+                or item.select_one(".aditem-image img")
+                or item.select_one("img[src*='img.kleinanzeigen']")
+                or item.select_one("img[src*='i.ebayimg']")
+                or item.select_one("img")
+            )
             image_url = ""
             if img_el:
-                image_url = img_el.get("src") or img_el.get("data-src") or ""
+                image_url = (img_el.get("src") or img_el.get("data-src")
+                             or img_el.get("data-imgsrc") or "")
 
             return Listing(
                 platform="Kleinanzeigen",
@@ -112,3 +118,11 @@ class KleinanzeigenScraper:
 
     def _price_ok(self, l: Listing) -> bool:
         return price_within_limit(l.price, self.max_price)
+
+
+def _ascii_slug(location: str) -> str:
+    """Konvertiert Stadtname in Kleinanzeigen-URL-Slug (Umlaute → ASCII)."""
+    slug = location.lower()
+    for umlaut, ascii_ in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):
+        slug = slug.replace(umlaut, ascii_)
+    return slug.replace(" ", "-")

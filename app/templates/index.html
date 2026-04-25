@@ -135,7 +135,17 @@
             <option value="">Alle Plattformen</option>
             <option value="Kleinanzeigen">Kleinanzeigen</option>
             <option value="Shpock">Shpock</option>
+            <option value="Vinted">Vinted</option>
+            <option value="eBay">eBay</option>
             <option value="Facebook">Facebook</option>
+          </select>
+          <select id="distance-filter" onchange="applyDistanceFilter(this.value)"
+            class="text-xs border border-slate-200 rounded-md px-2 py-1 text-slate-600 focus:outline-none">
+            <option value="">Alle Entfernungen</option>
+            <option value="10">≤ 10 km</option>
+            <option value="25">≤ 25 km</option>
+            <option value="50">≤ 50 km</option>
+            <option value="100">≤ 100 km</option>
           </select>
           <button id="free-btn" onclick="toggleFreeFilter()"
             class="text-xs border border-slate-200 rounded-md px-2 py-1 text-slate-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors">
@@ -179,7 +189,7 @@
 
 <!-- ── JavaScript ────────────────────────────────────────── -->
 <script>
-let termFilter=null, platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false;
+let termFilter=null, platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false, distanceFilter=null;
 
 async function startCrawl() {
   const btn=document.getElementById('crawl-btn-top'), msg=document.getElementById('crawl-msg');
@@ -197,6 +207,7 @@ async function loadListings() {
   if(ageFilter)      url+='&max_age='+ageFilter;
   if(freeFilter)     url+='&free=1';
   if(favFilter)      url+='&favorites=1';
+  if(distanceFilter) url+='&max_distance='+distanceFilter;
   const listings=await(await fetch(url)).json();
   const grid=document.getElementById('listings-grid');
   if(!listings.length){
@@ -209,9 +220,9 @@ async function loadListings() {
 function cardHtml(l) {
   const pc=l.platform==='Kleinanzeigen'?'badge-ka':l.platform==='Shpock'?'badge-sp':'badge-fb';
   const img=l.image_url
-    ?`<img src="${l.image_url}" alt="" class="w-full h-40 object-cover bg-slate-100">`
+    ?`<img src="${l.image_url}" alt="" referrerpolicy="no-referrer" class="w-full h-40 object-cover bg-slate-100">`
     :`<div class="w-full h-40 bg-slate-100 flex items-center justify-center text-4xl">🛍️</div>`;
-  const freeBadge=l.is_free?`<span class="text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full font-semibold">🎁 Gratis</span>`:'';
+  const freeBadge=l.is_free?`<span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">🎁 Gratis</span>`:'';
   const distBadge=l.distance_km!=null?`<span class="text-xs text-slate-400">${Math.round(l.distance_km)} km</span>`:'';
   const favCls=l.is_favorite?'text-yellow-400':'text-slate-200 hover:text-yellow-300';
   return `<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative">
@@ -249,17 +260,19 @@ function filterListings(term) {
 }
 
 function clearFilter() {
-  termFilter=null; platformFilter=null; ageFilter=0; freeFilter=false; favFilter=false;
+  termFilter=null; platformFilter=null; ageFilter=0; freeFilter=false; favFilter=false; distanceFilter=null;
   document.getElementById('filter-label').classList.add('hidden');
   document.getElementById('filter-clear').classList.add('hidden');
   document.getElementById('platform-filter').value='';
   document.getElementById('age-filter').value='0';
+  document.getElementById('distance-filter').value='';
   setBtn('free-btn',false,'green'); setBtn('fav-btn',false,'yellow');
   loadListings();
 }
 
 function applyPlatformFilter(v){platformFilter=v||null;loadListings();}
 function applyAgeFilter(v){ageFilter=parseInt(v)||0;loadListings();}
+function applyDistanceFilter(v){distanceFilter=v||null;loadListings();}
 
 function toggleFreeFilter(){freeFilter=!freeFilter;setBtn('free-btn',freeFilter,'green');loadListings();}
 function toggleFavFilter(){favFilter=!favFilter;setBtn('fav-btn',favFilter,'yellow');loadListings();}

@@ -70,7 +70,8 @@
       {% endcall %}
       {% call field("Radius (km)") %}
         <input type="number" name="shpock_radius" value="{{ s.shpock_radius }}"
-          min="5" max="200" class="input-field">
+          min="0" max="200" class="input-field">
+        <p class="text-xs text-slate-400 mt-1">0 = kein Entfernungsfilter</p>
       {% endcall %}
     </div>
 
@@ -125,7 +126,8 @@
       {% endcall %}
       {% call field("Radius (km)") %}
         <input type="number" name="vinted_radius" value="{{ s.vinted_radius }}"
-          min="5" max="200" class="input-field">
+          min="0" max="200" class="input-field">
+        <p class="text-xs text-slate-400 mt-1">0 = kein Entfernungsfilter</p>
       {% endcall %}
     </div>
   </div>

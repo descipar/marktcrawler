@@ -75,7 +75,7 @@ class TestSettings:
     def test_defaults_wurden_geladen(self, temp_db):
         s = temp_db.get_settings()
         assert "crawler_interval" in s
-        assert s["crawler_interval"] == "60"
+        assert s["crawler_interval"] == "15"
 
     def test_setting_speichern_und_lesen(self, temp_db):
         temp_db.set_setting("test_key", "test_value")

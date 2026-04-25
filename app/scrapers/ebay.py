@@ -7,7 +7,7 @@ from typing import List, Optional
 import requests
 from bs4 import BeautifulSoup
 
-from .base import Listing, _float, price_within_limit
+from .base import Listing, _float, _int, price_within_limit
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,8 @@ HEADERS = {
 class EbayScraper:
     def __init__(self, settings: dict):
         self.max_price: Optional[float] = _float(settings.get("ebay_max_price"))
+        self.location: str = settings.get("ebay_location", "").strip()
+        self.radius_km: int = _int(settings.get("ebay_radius", 30)) or 30
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
 
@@ -50,8 +52,10 @@ class EbayScraper:
 
     def _build_url(self, term: str, max_results: int) -> str:
         keyword = term.strip().replace(" ", "+")
-        # _sop=10: nach Neuheit sortieren; _ipg: Ergebnisse pro Seite
-        return f"{BASE_URL}/sch/i.html?_nkw={keyword}&_sop=10&_ipg={min(max_results, 50)}"
+        url = f"{BASE_URL}/sch/i.html?_nkw={keyword}&_sop=10&_ipg={min(max_results, 50)}"
+        if self.location:
+            url += f"&_stpos={self.location.replace(' ', '+')}&_sadis={self.radius_km}"
+        return url
 
     def _parse(self, item, term: str) -> Optional[Listing]:
         try:

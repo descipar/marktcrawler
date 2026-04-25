@@ -49,9 +49,9 @@
   </div>
 
   <!-- ── Shpock ─────────────────────────────────── -->
-  <div class="bg-white rounded-xl border border-amber-300 overflow-hidden">
-    <div class="px-5 py-3 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
-      <h2 class="font-semibold text-amber-800">Shpock <span class="text-xs font-normal bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full ml-1">API geändert</span></h2>
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-5 py-3 bg-orange-50 border-b border-slate-200 flex items-center justify-between">
+      <h2 class="font-semibold text-orange-800">Shpock</h2>
       <label class="flex items-center gap-2 cursor-pointer">
         <span class="text-sm text-slate-600">Aktiviert</span>
         <input type="checkbox" name="shpock_enabled" value="1"
@@ -119,6 +119,14 @@
         <input type="number" name="vinted_max_price" value="{{ s.vinted_max_price }}"
           min="0" class="input-field">
       {% endcall %}
+      {% call field("Standort") %}
+        <input type="text" name="vinted_location" value="{{ s.vinted_location }}"
+          placeholder="z.B. München" class="input-field">
+      {% endcall %}
+      {% call field("Radius (km)") %}
+        <input type="number" name="vinted_radius" value="{{ s.vinted_radius }}"
+          min="5" max="200" class="input-field">
+      {% endcall %}
     </div>
   </div>
 
@@ -137,6 +145,14 @@
       {% call field("Max. Preis (€)") %}
         <input type="number" name="ebay_max_price" value="{{ s.ebay_max_price }}"
           min="0" class="input-field">
+      {% endcall %}
+      {% call field("Standort (PLZ oder Stadt)") %}
+        <input type="text" name="ebay_location" value="{{ s.ebay_location }}"
+          placeholder="z.B. 80331 oder München" class="input-field">
+      {% endcall %}
+      {% call field("Radius (km)") %}
+        <input type="number" name="ebay_radius" value="{{ s.ebay_radius }}"
+          min="5" max="200" class="input-field">
       {% endcall %}
     </div>
   </div>

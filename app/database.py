@@ -32,9 +32,13 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     # Vinted
     "vinted_enabled": "0",
     "vinted_max_price": "80",
+    "vinted_location": "München",
+    "vinted_radius": "30",
     # eBay
     "ebay_enabled": "0",
     "ebay_max_price": "80",
+    "ebay_location": "",
+    "ebay_radius": "30",
     # E-Mail
     "email_enabled": "0",
     "email_smtp_server": "smtp.gmail.com",
@@ -43,7 +47,7 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "email_password": "",
     "email_recipient": "",
     # Crawler
-    "crawler_interval": "60",
+    "crawler_interval": "15",
     "crawler_max_results": "20",
     "crawler_delay": "2",
     "crawler_blacklist": "defekt\nbastler\nersatzteile\nbeschädigt\nkaputt\nschlachtfest",

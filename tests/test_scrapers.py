@@ -314,3 +314,63 @@ class TestEbayScraper:
     def test_max_price_ungueltig_wird_ignoriert(self):
         scraper = EbayScraper({"ebay_max_price": "abc"})
         assert scraper.max_price is None
+
+    def test_build_url_mit_standort(self):
+        scraper = EbayScraper({"ebay_location": "44135", "ebay_radius": "25"})
+        url = scraper._build_url("kinderwagen", 20)
+        assert "_stpos=44135" in url
+        assert "_sadis=25" in url
+
+    def test_build_url_ohne_standort_kein_stpos(self):
+        scraper = EbayScraper({})
+        url = scraper._build_url("kinderwagen", 20)
+        assert "_stpos" not in url
+        assert "_sadis" not in url
+
+    def test_standort_stadtname_wird_enkodiert(self):
+        scraper = EbayScraper({"ebay_location": "Bad Homburg", "ebay_radius": "30"})
+        url = scraper._build_url("test", 20)
+        assert "_stpos=Bad+Homburg" in url
+
+
+class TestVintedScraperStandort:
+
+    def _scraper(self, settings=None):
+        with patch("app.scrapers.vinted.VintedScraper._authenticate"):
+            with patch("app.scrapers.vinted.geocode", return_value=(48.1351, 11.5820)):
+                return VintedScraper(settings or {
+                    "vinted_location": "München",
+                    "vinted_radius": "30",
+                })
+
+    def test_resolve_location_gibt_koordinaten_zurueck(self):
+        with patch("app.scrapers.vinted.geocode", return_value=(48.1351, 11.5820)):
+            with patch("app.scrapers.vinted.VintedScraper._authenticate"):
+                scraper = VintedScraper({"vinted_location": "München", "vinted_radius": "30"})
+        assert scraper._home == (48.1351, 11.5820)
+        assert scraper.radius_km == 30
+
+    def test_kein_standort_kein_filter(self):
+        with patch("app.scrapers.vinted.VintedScraper._authenticate"):
+            scraper = VintedScraper({})
+        assert scraper._home is None
+
+    def test_search_filtert_nach_radius(self):
+        scraper = self._scraper()
+        item_hamburg = {**VINTED_ITEM, "user": {"city": "Hamburg"}}
+        mock_resp = _mock_response({"items": [item_hamburg]})
+        with patch.object(scraper.session, "get", return_value=mock_resp):
+            # Hamburg liegt ~610 km von München
+            with patch("app.scrapers.vinted.geocode", return_value=(53.5511, 10.0)):
+                results = scraper.search("babywanne")
+        assert results == []
+
+    def test_search_gibt_treffer_im_radius_zurueck(self):
+        scraper = self._scraper()
+        item_nahe = {**VINTED_ITEM, "user": {"city": "Dachau"}}
+        mock_resp = _mock_response({"items": [item_nahe]})
+        with patch.object(scraper.session, "get", return_value=mock_resp):
+            # Dachau liegt ~20 km von München
+            with patch("app.scrapers.vinted.geocode", return_value=(48.2601, 11.4338)):
+                results = scraper.search("babywanne")
+        assert len(results) == 1

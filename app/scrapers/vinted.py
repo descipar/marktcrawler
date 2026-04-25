@@ -5,7 +5,8 @@ from typing import List, Optional
 
 import requests
 
-from .base import Listing, _float
+from .base import Listing, _float, _int
+from ..geo import geocode, haversine
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +27,21 @@ HEADERS = {
 class VintedScraper:
     def __init__(self, settings: dict):
         self.max_price: Optional[float] = _float(settings.get("vinted_max_price"))
+        self.radius_km: int = _int(settings.get("vinted_radius", 30)) or 30
+        self._home: Optional[tuple] = self._resolve_location(settings)
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
         self._authenticate()
+
+    @staticmethod
+    def _resolve_location(settings: dict) -> Optional[tuple]:
+        city = settings.get("vinted_location", "").strip()
+        if city:
+            coords = geocode(city)
+            if coords:
+                return coords
+            logger.warning(f"[Vinted] Stadtname '{city}' konnte nicht geocodiert werden.")
+        return None
 
     def _authenticate(self) -> None:
         """Holt anonym ausgestellte JWT-Cookies (access_token_web) von der Startseite."""
@@ -58,7 +71,18 @@ class VintedScraper:
             logger.error(f"[Vinted] Fehler bei '{term}': {e}")
             return []
 
-        results = [x for x in (self._parse(i, term) for i in items) if x]
+        results = []
+        for item in items:
+            listing = self._parse(item, term)
+            if not listing:
+                continue
+            if self._home:
+                city = (item.get("user") or {}).get("city", "")
+                if city:
+                    coords = geocode(city)
+                    if coords and haversine(self._home[0], self._home[1], coords[0], coords[1]) > self.radius_km:
+                        continue
+            results.append(listing)
         logger.info(f"[Vinted] {len(results)} Treffer für '{term}'.")
         return results
 

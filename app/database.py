@@ -20,9 +20,11 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     # Shpock
     "shpock_enabled": "1",
     "shpock_max_price": "80",
+    "shpock_location": "Dortmund",
+    "shpock_radius": "30",
+    # Fallback-Koordinaten für bestehende Installationen ohne shpock_location
     "shpock_latitude": "51.5136",
     "shpock_longitude": "7.4653",
-    "shpock_radius": "30",
     # Facebook
     "facebook_enabled": "0",
     "facebook_max_price": "80",

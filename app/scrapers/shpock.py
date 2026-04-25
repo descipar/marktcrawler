@@ -4,6 +4,7 @@ import logging
 from typing import List, Optional
 import requests
 from .base import Listing, _int
+from ..geo import geocode
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +26,24 @@ query Search($q:String!,$lat:Float,$lon:Float,$radius:Int,$maxPrice:Int,$limit:I
 class ShpockScraper:
     def __init__(self, settings: dict):
         self.max_price: Optional[int] = _int(settings.get("shpock_max_price"))
-        self.lat: float = float(settings.get("shpock_latitude") or 51.5136)
-        self.lon: float = float(settings.get("shpock_longitude") or 7.4653)
         self.radius_km: int = _int(settings.get("shpock_radius", 30)) or 30
+        self.lat, self.lon = self._resolve_location(settings)
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
+
+    @staticmethod
+    def _resolve_location(settings: dict):
+        """Gibt (lat, lon) zurück – per Geocoding aus Stadtname oder direkt aus Koordinaten."""
+        city = settings.get("shpock_location", "").strip()
+        if city:
+            coords = geocode(city)
+            if coords:
+                return coords
+            logger.warning(f"[Shpock] Stadtname '{city}' konnte nicht geocodiert werden – Fallback auf Koordinaten.")
+        # Fallback: gespeicherte Koordinaten (Rückwärtskompatibilität)
+        lat = float(settings.get("shpock_latitude") or 51.5136)
+        lon = float(settings.get("shpock_longitude") or 7.4653)
+        return lat, lon
 
     def search(self, term: str, max_results: int = 20) -> List[Listing]:
         logger.info(f"[Shpock] '{term}'")

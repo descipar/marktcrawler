@@ -91,7 +91,7 @@ def save_settings():
         "kleinanzeigen_enabled", "kleinanzeigen_max_price",
         "kleinanzeigen_location", "kleinanzeigen_radius",
         "shpock_enabled", "shpock_max_price",
-        "shpock_latitude", "shpock_longitude", "shpock_radius",
+        "shpock_location", "shpock_radius",
         "facebook_enabled", "facebook_max_price", "facebook_location",
         "vinted_enabled", "vinted_max_price",
         "ebay_enabled", "ebay_max_price",

@@ -1,4 +1,9 @@
-"""Scraper für Shpock via GraphQL-API."""
+"""Scraper für Shpock via GraphQL-API.
+
+HINWEIS: Die Shpock GraphQL-API wurde umgebaut. Die alten Felder
+(query, location, price, items) existieren nicht mehr. Der Scraper
+gibt daher aktuell keine Ergebnisse zurück und ist deaktiviert.
+"""
 
 import logging
 from typing import List, Optional
@@ -14,13 +19,8 @@ HEADERS = {
     "Content-Type": "application/json",
     "x-shpock-device-id": "baby-crawler",
 }
-QUERY = """
-query Search($q:String!,$lat:Float,$lon:Float,$radius:Int,$maxPrice:Int,$limit:Int){
-  itemSearch(query:$q,location:{latitude:$lat,longitude:$lon,radius:$radius},
-             price:{max:$maxPrice},limit:$limit){
-    items{id title description price media{images{url}}
-          location{city country} path}}}
-"""
+
+_API_WARNING_SHOWN = False
 
 
 class ShpockScraper:
@@ -40,30 +40,20 @@ class ShpockScraper:
             if coords:
                 return coords
             logger.warning(f"[Shpock] Stadtname '{city}' konnte nicht geocodiert werden – Fallback auf Koordinaten.")
-        # Fallback: gespeicherte Koordinaten (Rückwärtskompatibilität)
         lat = float(settings.get("shpock_latitude") or 51.5136)
         lon = float(settings.get("shpock_longitude") or 7.4653)
         return lat, lon
 
     def search(self, term: str, max_results: int = 20) -> List[Listing]:
-        logger.info(f"[Shpock] '{term}'")
-        variables = {
-            "q": term, "lat": self.lat, "lon": self.lon,
-            "radius": self.radius_km * 1000, "limit": max_results,
-        }
-        if self.max_price:
-            variables["maxPrice"] = self.max_price * 100
-        try:
-            r = self.session.post(API_URL, json={"query": QUERY, "variables": variables}, timeout=15)
-            r.raise_for_status()
-            items = r.json().get("data", {}).get("itemSearch", {}).get("items", [])
-        except Exception as e:
-            logger.error(f"[Shpock] Fehler bei '{term}': {e}")
-            return []
-
-        results = [x for x in (self._parse(i, term) for i in items) if x]
-        logger.info(f"[Shpock] {len(results)} Treffer für '{term}'.")
-        return results
+        global _API_WARNING_SHOWN
+        if not _API_WARNING_SHOWN:
+            logger.warning(
+                "[Shpock] API nicht verfügbar: Die Shpock GraphQL-API wurde umgebaut "
+                "und unterstützt keine Keyword-Suche mehr. Shpock liefert keine Ergebnisse. "
+                "Bitte deaktiviere Shpock in den Einstellungen."
+            )
+            _API_WARNING_SHOWN = True
+        return []
 
     def _parse(self, item: dict, term: str) -> Optional[Listing]:
         try:

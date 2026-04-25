@@ -49,9 +49,9 @@
   </div>
 
   <!-- ── Shpock ─────────────────────────────────── -->
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-5 py-3 bg-blue-50 border-b border-slate-200 flex items-center justify-between">
-      <h2 class="font-semibold text-blue-800">Shpock</h2>
+  <div class="bg-white rounded-xl border border-amber-300 overflow-hidden">
+    <div class="px-5 py-3 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
+      <h2 class="font-semibold text-amber-800">Shpock <span class="text-xs font-normal bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full ml-1">API geändert</span></h2>
       <label class="flex items-center gap-2 cursor-pointer">
         <span class="text-sm text-slate-600">Aktiviert</span>
         <input type="checkbox" name="shpock_enabled" value="1"
@@ -72,6 +72,9 @@
         <input type="number" name="shpock_radius" value="{{ s.shpock_radius }}"
           min="5" max="200" class="input-field">
       {% endcall %}
+    </div>
+    <div class="px-5 pb-4 text-xs text-amber-700 bg-amber-50 border-t border-amber-100 py-2">
+      ⚠️ Die Shpock GraphQL-API wurde umgebaut und unterstützt keine Keyword-Suche mehr. Shpock liefert aktuell keine Ergebnisse. Bitte deaktiviere es bis zur weiteren Klärung.
     </div>
   </div>
 
@@ -272,6 +275,42 @@
 
 </div>
 </form>
+
+<!-- Datenverwaltung (außerhalb des Settings-Formulars) -->
+<div class="max-w-2xl mx-auto mt-2 mb-8">
+  <div class="bg-white rounded-xl border border-red-200 overflow-hidden">
+    <div class="px-5 py-3 bg-red-50 border-b border-red-200">
+      <h2 class="font-semibold text-red-800">🗑️ Datenverwaltung</h2>
+    </div>
+    <div class="p-5 flex items-center justify-between gap-4">
+      <div>
+        <p class="text-sm text-slate-700 font-medium">Alle Suchergebnisse löschen</p>
+        <p class="text-xs text-slate-400 mt-0.5">Löscht alle gespeicherten Anzeigen und den Geocache. Einstellungen und Suchbegriffe bleiben erhalten. Favoriten werden nicht gelöscht.</p>
+      </div>
+      <button id="clearListingsBtn" onclick="clearAllListings()"
+        class="shrink-0 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
+        Löschen
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+function clearAllListings() {
+  if (!confirm('Wirklich alle Anzeigen löschen? (Favoriten bleiben erhalten)')) return;
+  const btn = document.getElementById('clearListingsBtn');
+  btn.disabled = true;
+  btn.textContent = 'Lädt...';
+  fetch('/api/clear-listings', {method: 'POST'})
+    .then(r => r.json())
+    .then(d => {
+      btn.textContent = '✓ Gelöscht';
+      btn.classList.replace('bg-red-600', 'bg-green-600');
+      setTimeout(() => { btn.disabled = false; btn.textContent = 'Löschen'; btn.classList.replace('bg-green-600', 'bg-red-600'); }, 3000);
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = 'Fehler'; });
+}
+</script>
 
 <!-- Globale Input-Styles -->
 <style>

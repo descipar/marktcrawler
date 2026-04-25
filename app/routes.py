@@ -178,3 +178,9 @@ def api_stats():
 def api_log():
     from .logbuffer import get_lines
     return jsonify(get_lines())
+
+
+@bp.route("/api/clear-listings", methods=["POST"])
+def api_clear_listings():
+    db.clear_all_listings()
+    return jsonify({"status": "ok", "message": "Alle Anzeigen gelöscht (Favoriten behalten)."})

@@ -377,6 +377,15 @@ def clear_old_listings(days: int = 30):
     conn.close()
 
 
+def clear_all_listings():
+    """Löscht alle Anzeigen (außer Favoriten) und leert den Geocache."""
+    conn = get_db()
+    conn.execute("DELETE FROM listings WHERE is_favorite = 0")
+    conn.execute("DELETE FROM geocache")
+    conn.commit()
+    conn.close()
+
+
 # ── Geocache ────────────────────────────────────────────────
 
 def get_geocache(location_text: str) -> Optional[tuple]:

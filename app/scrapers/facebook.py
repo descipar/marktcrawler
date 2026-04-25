@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 from typing import List, Optional
 
-from .base import Listing
+from .base import Listing, _int
 
 logger = logging.getLogger(__name__)
 SESSION_FILE = Path(os.environ.get("DATA_DIR", "/data")) / "facebook_session.json"
@@ -120,8 +120,3 @@ class FacebookScraper:
         return True
 
 
-def _int(v) -> Optional[int]:
-    try:
-        return int(v)
-    except (TypeError, ValueError):
-        return None

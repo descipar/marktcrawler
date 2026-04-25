@@ -135,8 +135,8 @@ def run_crawl() -> dict:
                                     if dist is not None:
                                         db.update_listing_distance(listing.listing_id, dist)
                                         listing.distance_km = round(dist, 1)
-                                except Exception:
-                                    pass
+                                except Exception as e:
+                                    logger.warning(f"Entfernungsberechnung für '{listing.location}' fehlgeschlagen: {e}")
 
                 except Exception as e:
                     logger.error(f"Fehler bei {scraper.__class__.__name__} / '{term}': {e}")

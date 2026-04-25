@@ -50,10 +50,14 @@ def index():
 @bp.route("/terms", methods=["POST"])
 def add_term():
     term = request.form.get("term", "").strip()
-    if term:
-        ok = db.add_search_term(term)
-        if not ok:
-            flash(f'"{term}" ist bereits vorhanden.', "warning")
+    if not term:
+        return redirect(url_for("main.index"))
+    if len(term) > 200:
+        flash("Suchbegriff zu lang (max. 200 Zeichen).", "error")
+        return redirect(url_for("main.index"))
+    ok = db.add_search_term(term)
+    if not ok:
+        flash(f'"{term}" ist bereits vorhanden.', "warning")
     return redirect(url_for("main.index"))
 
 
@@ -115,9 +119,12 @@ def save_settings():
     db.save_settings(data)
 
     try:
-        update_interval(int(data.get("crawler_interval", 60)))
+        interval = int(data.get("crawler_interval", 15))
+        if not 1 <= interval <= 1440:
+            raise ValueError
+        update_interval(interval)
     except (ValueError, TypeError):
-        pass
+        flash("Ungültiges Crawl-Intervall (1–1440 Minuten).", "warning")
 
     update_digest_schedule()
 

@@ -3,8 +3,9 @@
 import os
 import sqlite3
 import logging
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,16 @@ def get_db() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
+
+
+@contextmanager
+def _db() -> Generator[sqlite3.Connection, None, None]:
+    """Context Manager für sichere DB-Verbindungen (auto-close auch bei Exceptions)."""
+    conn = get_db()
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def init_db():
@@ -193,116 +204,105 @@ def get_search_terms(enabled_only: bool = False) -> List[Dict]:
 
 def add_search_term(term: str) -> bool:
     try:
-        conn = get_db()
-        conn.execute("INSERT INTO search_terms(term) VALUES (?)", (term.strip(),))
-        conn.commit()
-        conn.close()
+        with _db() as conn:
+            conn.execute("INSERT INTO search_terms(term) VALUES (?)", (term.strip(),))
+            conn.commit()
         return True
     except sqlite3.IntegrityError:
         return False
 
 
 def delete_search_term(term_id: int):
-    conn = get_db()
-    conn.execute("DELETE FROM search_terms WHERE id = ?", (term_id,))
-    conn.commit()
-    conn.close()
+    with _db() as conn:
+        conn.execute("DELETE FROM search_terms WHERE id = ?", (term_id,))
+        conn.commit()
 
 
 def toggle_search_term(term_id: int):
-    conn = get_db()
-    conn.execute(
-        "UPDATE search_terms SET enabled = CASE WHEN enabled=1 THEN 0 ELSE 1 END WHERE id = ?",
-        (term_id,),
-    )
-    conn.commit()
-    conn.close()
+    with _db() as conn:
+        conn.execute(
+            "UPDATE search_terms SET enabled = CASE WHEN enabled=1 THEN 0 ELSE 1 END WHERE id = ?",
+            (term_id,),
+        )
+        conn.commit()
 
 
 # ── Settings ────────────────────────────────────────────────
 
 def get_settings() -> Dict[str, str]:
-    conn = get_db()
-    rows = conn.execute("SELECT key, value FROM settings").fetchall()
-    conn.close()
+    with _db() as conn:
+        rows = conn.execute("SELECT key, value FROM settings").fetchall()
     return {r["key"]: r["value"] for r in rows}
 
 
 def get_setting(key: str, default: str = "") -> str:
-    conn = get_db()
-    row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
-    conn.close()
+    with _db() as conn:
+        row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
     return row["value"] if row else default
 
 
 def set_setting(key: str, value: str):
-    conn = get_db()
-    conn.execute(
-        "INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-        (key, value),
-    )
-    conn.commit()
-    conn.close()
-
-
-def save_settings(data: Dict[str, str]):
-    conn = get_db()
-    for key, value in data.items():
+    with _db() as conn:
         conn.execute(
             "INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (key, value),
         )
-    conn.commit()
-    conn.close()
+        conn.commit()
+
+
+def save_settings(data: Dict[str, str]):
+    with _db() as conn:
+        for key, value in data.items():
+            conn.execute(
+                "INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (key, value),
+            )
+        conn.commit()
 
 
 # ── Listings ────────────────────────────────────────────────
 
-def save_listing(listing) -> bool:
+def save_listing(listing: "Listing") -> bool:
     """Gibt True zurück wenn die Anzeige neu war."""
     try:
-        conn = get_db()
-        conn.execute(
-            """INSERT INTO listings
-               (listing_id,platform,title,price,location,url,image_url,
-                description,search_term,is_free)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
-            (listing.listing_id, listing.platform, listing.title, listing.price,
-             listing.location, listing.url, listing.image_url, listing.description,
-             listing.search_term, int(getattr(listing, "is_free", False))),
-        )
-        conn.commit()
-        conn.close()
+        with _db() as conn:
+            conn.execute(
+                """INSERT INTO listings
+                   (listing_id,platform,title,price,location,url,image_url,
+                    description,search_term,is_free)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                (listing.listing_id, listing.platform, listing.title, listing.price,
+                 listing.location, listing.url, listing.image_url, listing.description,
+                 listing.search_term, int(getattr(listing, "is_free", False))),
+            )
+            conn.commit()
         return True
     except sqlite3.IntegrityError:
         return False
 
 
 def update_listing_distance(listing_id: str, distance_km: float):
-    conn = get_db()
-    conn.execute(
-        "UPDATE listings SET distance_km=? WHERE listing_id=?",
-        (round(distance_km, 1), listing_id),
-    )
-    conn.commit()
-    conn.close()
+    with _db() as conn:
+        conn.execute(
+            "UPDATE listings SET distance_km=? WHERE listing_id=?",
+            (round(distance_km, 1), listing_id),
+        )
+        conn.commit()
 
 
 def toggle_favorite(listing_id: int):
-    conn = get_db()
-    conn.execute(
-        "UPDATE listings SET is_favorite = CASE WHEN is_favorite=1 THEN 0 ELSE 1 END WHERE id=?",
-        (listing_id,),
-    )
-    conn.commit()
-    conn.close()
+    with _db() as conn:
+        conn.execute(
+            "UPDATE listings SET is_favorite = CASE WHEN is_favorite=1 THEN 0 ELSE 1 END WHERE id=?",
+            (listing_id,),
+        )
+        conn.commit()
 
 
 def get_listings(limit: int = 100, search_term: Optional[str] = None,
                  platform: Optional[str] = None, only_favorites: bool = False,
                  only_free: bool = False, max_age_hours: int = 0,
                  max_distance_km: Optional[float] = None) -> List[Dict]:
-    conn = get_db()
     conditions: List[str] = []
     params: List[Any] = []
 
@@ -330,84 +330,76 @@ def get_listings(limit: int = 100, search_term: Optional[str] = None,
     query += " ORDER BY is_favorite DESC, is_free DESC, found_at DESC LIMIT ?"
     params.append(limit)
 
-    rows = [dict(r) for r in conn.execute(query, params).fetchall()]
-    conn.close()
+    with _db() as conn:
+        rows = [dict(r) for r in conn.execute(query, params).fetchall()]
     return rows
 
 
 def get_listing_count() -> int:
-    conn = get_db()
-    count = conn.execute("SELECT COUNT(*) FROM listings").fetchone()[0]
-    conn.close()
-    return count
+    with _db() as conn:
+        return conn.execute("SELECT COUNT(*) FROM listings").fetchone()[0]
 
 
 def get_listings_today() -> List[Dict]:
     """Alle Anzeigen von heute (für den Tages-Digest)."""
-    conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM listings WHERE found_at >= date('now') ORDER BY found_at DESC"
-    ).fetchall()
-    conn.close()
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM listings WHERE found_at >= date('now') ORDER BY found_at DESC"
+        ).fetchall()
     return [dict(r) for r in rows]
 
 
 def get_price_stats() -> List[Dict]:
     """Durchschnittspreis, Min, Max und Anzahl pro Suchbegriff."""
-    conn = get_db()
-    rows = conn.execute("""
-        SELECT
-            search_term,
-            COUNT(*) as count,
-            ROUND(AVG(CAST(REPLACE(REPLACE(price, ' €', ''), ',', '.') AS REAL)), 2) as avg_price,
-            MIN(CAST(REPLACE(REPLACE(price, ' €', ''), ',', '.') AS REAL)) as min_price,
-            MAX(CAST(REPLACE(REPLACE(price, ' €', ''), ',', '.') AS REAL)) as max_price,
-            SUM(is_free) as free_count
-        FROM listings
-        WHERE price NOT IN ('k.A.', 'Preis nicht angegeben', '')
-          AND CAST(REPLACE(REPLACE(price, ' €', ''), ',', '.') AS REAL) > 0
-        GROUP BY search_term
-        ORDER BY count DESC
-    """).fetchall()
-    conn.close()
+    with _db() as conn:
+        rows = conn.execute("""
+            SELECT
+                search_term,
+                COUNT(*) as count,
+                ROUND(AVG(CAST(REPLACE(REPLACE(price, ' €', ''), ',', '.') AS REAL)), 2) as avg_price,
+                MIN(CAST(REPLACE(REPLACE(price, ' €', ''), ',', '.') AS REAL)) as min_price,
+                MAX(CAST(REPLACE(REPLACE(price, ' €', ''), ',', '.') AS REAL)) as max_price,
+                SUM(is_free) as free_count
+            FROM listings
+            WHERE price NOT IN ('k.A.', 'Preis nicht angegeben', '')
+              AND CAST(REPLACE(REPLACE(price, ' €', ''), ',', '.') AS REAL) > 0
+            GROUP BY search_term
+            ORDER BY count DESC
+        """).fetchall()
     return [dict(r) for r in rows]
 
 
 def clear_old_listings(days: int = 30):
-    conn = get_db()
-    conn.execute(
-        "DELETE FROM listings WHERE is_favorite = 0 AND found_at < datetime('now', ? || ' days')",
-        (f"-{days}",),
-    )
-    conn.commit()
-    conn.close()
+    with _db() as conn:
+        conn.execute(
+            "DELETE FROM listings WHERE is_favorite = 0 AND found_at < datetime('now', ? || ' days')",
+            (f"-{days}",),
+        )
+        conn.commit()
 
 
 def clear_all_listings():
     """Löscht alle Anzeigen (außer Favoriten) und leert den Geocache."""
-    conn = get_db()
-    conn.execute("DELETE FROM listings WHERE is_favorite = 0")
-    conn.execute("DELETE FROM geocache")
-    conn.commit()
-    conn.close()
+    with _db() as conn:
+        conn.execute("DELETE FROM listings WHERE is_favorite = 0")
+        conn.execute("DELETE FROM geocache")
+        conn.commit()
 
 
 # ── Geocache ────────────────────────────────────────────────
 
 def get_geocache(location_text: str) -> Optional[tuple]:
-    conn = get_db()
-    row = conn.execute(
-        "SELECT lat, lon FROM geocache WHERE location_text=?", (location_text,)
-    ).fetchone()
-    conn.close()
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT lat, lon FROM geocache WHERE location_text=?", (location_text,)
+        ).fetchone()
     return (row["lat"], row["lon"]) if row else None
 
 
 def save_geocache(location_text: str, lat: float, lon: float):
-    conn = get_db()
-    conn.execute(
-        "INSERT OR REPLACE INTO geocache(location_text, lat, lon) VALUES (?,?,?)",
-        (location_text, lat, lon),
-    )
-    conn.commit()
-    conn.close()
+    with _db() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO geocache(location_text, lat, lon, cached_at) VALUES (?,?,?,datetime('now'))",
+            (location_text, lat, lon),
+        )
+        conn.commit()

@@ -79,6 +79,16 @@
 - [x] **Scheduler-Bug gefixt** – `next_crawl` zeigte immer „–"; Scheduler lief im Werkzeug-Parent-Prozess, Requests werden im Child beantwortet; Bedingung auf `WERKZEUG_RUN_MAIN == "true" or not app.debug` korrigiert
 - [x] **E-Mail-Betreff konfigurierbar** – `email_subject_alert` + `email_subject_digest`; `{n}` wird durch Anzahl ersetzt; Felder in `settings.html` ergänzt
 
+### Phase 8 – Code-Qualität & Testabdeckung
+- [x] **`database.py` Verbindungs-Leaks gefixt** – alle 18+ DB-Funktionen auf `_db()` Context-Manager migriert (garantiertes Schließen auch bei Exceptions)
+- [x] **`geo.py` Robustheit** – `r.raise_for_status()` vor `r.json()`; Geocoding-Erfolg auf `INFO` hochgestuft
+- [x] **`routes.py` Input-Validierung** – Suchbegriff-Länge (max. 200 Zeichen) und Crawler-Intervall (1–1440 Minuten) werden geprüft und mit Flash-Message zurückgemeldet
+- [x] **`crawler.py` Silent-Exception gefixt** – `except Exception: pass` für Entfernungsberechnung durch echtes `logger.warning(...)` ersetzt
+- [x] **`test_routes.py`** – 30 neue Tests für alle Flask-Routen und REST-API-Endpunkte
+- [x] **`test_crawl_run.py`** – 13 neue Tests für `run_crawl()`-Orchestrierung: Blacklist, Gratis-Erkennung, Fehlerbehandlung, Notify-Logik, Entfernungsberechnung
+- [x] **Blacklist-Regex revertiert** – `\b`-Word-Boundary-Ansatz entfernt; einfaches `in`-Substring-Matching korrekt für deutsche Komposita (z.B. „kaputtes" → trifft „kaputt")
+- [x] **Testanzahl: 180** (vorher 137)
+
 ---
 
 ## 🔜 Geplant
@@ -103,4 +113,4 @@
 
 ---
 
-*Letzte Aktualisierung: 2026-04-25 (Phase 7 abgeschlossen)*
+*Letzte Aktualisierung: 2026-04-25 (Phase 8 abgeschlossen)*

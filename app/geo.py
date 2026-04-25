@@ -56,12 +56,13 @@ def geocode(location_text: str) -> Optional[tuple]:
                 timeout=10,
             )
             _last_nominatim_call = time.time()
+            r.raise_for_status()
             results = r.json()
             if results:
                 lat = float(results[0]["lat"])
                 lon = float(results[0]["lon"])
                 db.save_geocache(location_text, lat, lon)
-                logger.debug(f"Geocoded '{location_text}' → ({lat}, {lon})")
+                logger.info(f"Geocoded '{location_text}' → ({lat:.4f}, {lon:.4f})")
                 return (lat, lon)
         except Exception as e:
             logger.debug(f"Geocoding fehlgeschlagen für '{location_text}': {e}")

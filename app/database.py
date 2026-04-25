@@ -299,10 +299,22 @@ def toggle_favorite(listing_id: int):
         conn.commit()
 
 
+_PRICE_EXPR = "CAST(REPLACE(REPLACE(price,' €',''),',','.') AS REAL)"
+
+_SORT_MAP: Dict[str, str] = {
+    "date_desc":    f"is_free DESC, found_at DESC",
+    "date_asc":     "found_at ASC",
+    "price_asc":    f"({_PRICE_EXPR} IS NULL), {_PRICE_EXPR} ASC",
+    "price_desc":   f"({_PRICE_EXPR} IS NULL), {_PRICE_EXPR} DESC",
+    "distance_asc": "(distance_km IS NULL), distance_km ASC",
+}
+
+
 def get_listings(limit: int = 100, offset: int = 0, search_term: Optional[str] = None,
                  platform: Optional[str] = None, only_favorites: bool = False,
                  only_free: bool = False, max_age_hours: int = 0,
-                 max_distance_km: Optional[float] = None) -> List[Dict]:
+                 max_distance_km: Optional[float] = None,
+                 sort_by: str = "date_desc") -> List[Dict]:
     conditions: List[str] = []
     params: List[Any] = []
 
@@ -320,14 +332,14 @@ def get_listings(limit: int = 100, offset: int = 0, search_term: Optional[str] =
         conditions.append("found_at >= datetime('now', ? || ' hours')")
         params.append(f"-{max_age_hours}")
     if max_distance_km is not None:
-        # Anzeigen ohne berechnete Distanz werden nicht ausgefiltert
         conditions.append("(distance_km IS NULL OR distance_km <= ?)")
         params.append(max_distance_km)
 
+    order = _SORT_MAP.get(sort_by, _SORT_MAP["date_desc"])
     query = "SELECT * FROM listings"
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
-    query += " ORDER BY is_favorite DESC, is_free DESC, found_at DESC LIMIT ? OFFSET ?"
+    query += f" ORDER BY is_favorite DESC, {order} LIMIT ? OFFSET ?"
     params.append(limit)
     params.append(offset)
 

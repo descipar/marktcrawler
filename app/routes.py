@@ -155,10 +155,16 @@ def api_status():
     })
 
 
+_VALID_SORTS = {"date_desc", "date_asc", "price_asc", "price_desc", "distance_asc"}
+
+
 @bp.route("/api/listings")
 def api_listings():
     term = request.args.get("term")
     platform = request.args.get("platform")
+    sort_by = request.args.get("sort", "date_desc")
+    if sort_by not in _VALID_SORTS:
+        sort_by = "date_desc"
     try:
         limit = int(request.args.get("limit", 30))
         offset = int(request.args.get("offset", 0))
@@ -173,7 +179,7 @@ def api_listings():
     listings = db.get_listings(
         limit=limit, offset=offset, search_term=term, platform=platform,
         only_favorites=only_fav, only_free=only_free, max_age_hours=max_age,
-        max_distance_km=max_distance,
+        max_distance_km=max_distance, sort_by=sort_by,
     )
     return jsonify(listings)
 

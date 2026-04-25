@@ -135,6 +135,15 @@
         </div>
         <!-- Scrollbare Filter-Zeile auf Mobile -->
         <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          <select id="sort-select" onchange="applySort(this.value)"
+            class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none bg-white font-medium">
+            <option value="date_desc">🕐 Neueste</option>
+            <option value="date_asc">🕐 Älteste</option>
+            <option value="price_asc">💶 Preis ↑</option>
+            <option value="price_desc">💶 Preis ↓</option>
+            <option value="distance_asc">📍 Entfernung</option>
+          </select>
+          <div class="w-px h-4 bg-slate-200 flex-shrink-0"></div>
           <select id="age-filter" onchange="applyAgeFilter(this.value)"
             class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none bg-white">
             <option value="0">Alle Zeit</option>
@@ -211,7 +220,7 @@
 <!-- ── JavaScript ────────────────────────────────────────── -->
 <script>
 const PAGE_SIZE = 30;
-let termFilter=null, platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false, distanceFilter=null;
+let termFilter=null, platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false, distanceFilter=null, sortBy='date_desc';
 let currentOffset=0, allLoaded=false, totalCount=0;
 
 // Suchbegriff-Sidebar auf Mobile kollabierbar
@@ -269,7 +278,7 @@ function updateLoadMore(fetchedCount) {
 }
 
 async function fetchListings(offset) {
-  let url=`/api/listings?limit=${PAGE_SIZE}&offset=${offset}`;
+  let url=`/api/listings?limit=${PAGE_SIZE}&offset=${offset}&sort=${sortBy}`;
   if(termFilter)     url+='&term='+encodeURIComponent(termFilter);
   if(platformFilter) url+='&platform='+encodeURIComponent(platformFilter);
   if(ageFilter)      url+='&max_age='+ageFilter;
@@ -278,6 +287,8 @@ async function fetchListings(offset) {
   if(distanceFilter) url+='&max_distance='+distanceFilter;
   return await(await fetch(url)).json();
 }
+
+function applySort(v){sortBy=v;loadListings();}
 
 function cardHtml(l) {
   const pc=l.platform==='Kleinanzeigen'?'badge-ka':l.platform==='Shpock'?'badge-sp':'badge-fb';
@@ -322,12 +333,13 @@ function filterListings(term) {
 }
 
 function clearFilter() {
-  termFilter=null; platformFilter=null; ageFilter=0; freeFilter=false; favFilter=false; distanceFilter=null;
+  termFilter=null; platformFilter=null; ageFilter=0; freeFilter=false; favFilter=false; distanceFilter=null; sortBy='date_desc';
   document.getElementById('filter-label').classList.add('hidden');
   document.getElementById('filter-clear').classList.add('hidden');
   document.getElementById('platform-filter').value='';
   document.getElementById('age-filter').value='0';
   document.getElementById('distance-filter').value='';
+  document.getElementById('sort-select').value='date_desc';
   setBtn('free-btn',false,'green'); setBtn('fav-btn',false,'yellow');
   loadListings();
 }

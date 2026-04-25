@@ -52,6 +52,7 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "digest_enabled": "0",
     "digest_time": "19:00",
     # Heimstandort für Entfernungsberechnung
+    "home_location": "München",
     "home_latitude": "48.1351",
     "home_longitude": "11.5820",
     # Status
@@ -111,7 +112,8 @@ def init_db():
     """)
     conn.commit()
 
-    # Spalten-Migration für bestehende Datenbanken
+    # Migrationen für bestehende Datenbanken
+    _migrate_settings_values(conn)
     _migrate_listings(conn)
 
     # Default-Settings nur eintragen wenn noch nicht vorhanden
@@ -131,6 +133,24 @@ def init_db():
     conn.commit()
     conn.close()
     logger.info(f"Datenbank initialisiert: {DB_PATH}")
+
+
+def _migrate_settings_values(conn: sqlite3.Connection):
+    """Aktualisiert veraltete Default-Werte in bestehenden Datenbanken."""
+    # Standorte von altem Default "Dortmund" auf "München" migrieren
+    location_keys = ["kleinanzeigen_location", "shpock_location", "facebook_location"]
+    for key in location_keys:
+        conn.execute("UPDATE settings SET value='München' WHERE key=? AND value='Dortmund'", (key,))
+    # Fallback-Koordinaten ebenfalls aktualisieren
+    coord_migrations = [
+        ("shpock_latitude",  "51.5136", "48.1351"),
+        ("shpock_longitude", "7.4653",  "11.5820"),
+        ("home_latitude",    "51.5136", "48.1351"),
+        ("home_longitude",   "7.4653",  "11.5820"),
+    ]
+    for key, old, new in coord_migrations:
+        conn.execute("UPDATE settings SET value=? WHERE key=? AND value=?", (new, key, old))
+    conn.commit()
 
 
 def _migrate_listings(conn: sqlite3.Connection):

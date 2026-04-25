@@ -100,7 +100,7 @@ def save_settings():
         "crawler_interval", "crawler_max_results", "crawler_delay",
         "crawler_blacklist", "crawler_max_age_hours",
         "digest_enabled", "digest_time",
-        "home_latitude", "home_longitude",
+        "home_location",
     }
     data = {}
     for key in allowed_keys:

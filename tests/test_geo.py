@@ -70,16 +70,23 @@ class TestDistanceToHome:
             result = distance_to_home("Berlin", settings)
             assert result is None
 
-    def test_fallback_auf_shpock_koordinaten(self, temp_db):
-        """Wenn home_lat/lon fehlt, werden shpock_latitude/longitude als Fallback verwendet."""
+    def test_fallback_auf_koordinaten(self, temp_db):
+        """Wenn home_location fehlt, werden home_latitude/longitude als Fallback verwendet."""
         settings = {
-            "shpock_latitude": "51.5136",
-            "shpock_longitude": "7.4653",
+            "home_latitude": "51.5136",
+            "home_longitude": "7.4653",
         }
         with patch("app.geo.geocode", return_value=(52.5200, 13.4050)):
             result = distance_to_home("Berlin", settings)
             assert result is not None
             assert 415 < result < 430
+
+    def test_home_location_als_stadtname(self, temp_db):
+        """home_location als Stadtname wird geocodiert und für Distanzberechnung genutzt."""
+        settings = {"home_location": "München"}
+        with patch("app.geo.geocode", side_effect=lambda loc: (48.1351, 11.5820)):
+            result = distance_to_home("Berlin", settings)
+            assert result is not None
 
 
 # ── geocode (Cache-Verhalten) ─────────────────────────────────

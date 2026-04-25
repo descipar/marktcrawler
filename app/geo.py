@@ -72,16 +72,24 @@ def geocode(location_text: str) -> Optional[tuple]:
 def distance_to_home(location_text: str, settings: dict) -> Optional[float]:
     """
     Berechnet die Entfernung vom Heimstandort zu einem Ortstext.
-    Gibt None zurück wenn Geocoding fehlschlägt.
+    Liest den Heimstandort per Stadtname (home_location) oder als Fallback
+    aus Koordinaten (home_latitude/home_longitude).
     """
-    try:
-        home_lat = float(settings.get("home_latitude") or settings.get("shpock_latitude") or 0)
-        home_lon = float(settings.get("home_longitude") or settings.get("shpock_longitude") or 0)
-    except (TypeError, ValueError):
-        return None
-
-    if not home_lat or not home_lon:
-        return None
+    home_city = settings.get("home_location", "").strip()
+    if home_city:
+        home_coords = geocode(home_city)
+        if not home_coords:
+            logger.debug(f"Heimstandort '{home_city}' konnte nicht geocodiert werden.")
+            return None
+        home_lat, home_lon = home_coords
+    else:
+        try:
+            home_lat = float(settings.get("home_latitude") or 0)
+            home_lon = float(settings.get("home_longitude") or 0)
+        except (TypeError, ValueError):
+            return None
+        if not home_lat or not home_lon:
+            return None
 
     coords = geocode(location_text)
     if coords:

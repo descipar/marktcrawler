@@ -251,19 +251,14 @@
     <div class="px-5 py-3 bg-teal-50 border-b border-slate-200">
       <h2 class="font-semibold text-teal-800">📍 Heimstandort (Entfernungsberechnung)</h2>
     </div>
-    <div class="p-5 grid grid-cols-2 gap-4">
-      {% call field("Breitengrad (lat)") %}
-        <input type="text" name="home_latitude" value="{{ s.home_latitude or '' }}"
-          placeholder="51.5136" class="input-field">
-      {% endcall %}
-      {% call field("Längengrad (lon)") %}
-        <input type="text" name="home_longitude" value="{{ s.home_longitude or '' }}"
-          placeholder="7.4653" class="input-field">
+    <div class="p-5">
+      {% call field("Heimstadt") %}
+        <input type="text" name="home_location" value="{{ s.home_location or '' }}"
+          placeholder="z.B. München" class="input-field">
       {% endcall %}
     </div>
     <div class="px-5 pb-4 text-xs text-slate-400">
       💡 Wenn angegeben, wird bei jeder Anzeige die Entfernung zu deinem Zuhause berechnet und angezeigt.
-      Koordinaten ermitteln: <a href="https://www.latlong.net" target="_blank" class="text-blue-500 hover:underline">latlong.net</a>
     </div>
   </div>
 

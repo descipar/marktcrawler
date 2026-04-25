@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 
 from . import database as db
 from .crawler import run_crawl_async, is_running
-from .scheduler import get_next_run, update_interval, update_digest_schedule
+from .scheduler import get_next_run, update_interval, update_digest_schedule, update_availability_schedule
 
 bp = Blueprint("main", __name__)
 
@@ -106,6 +106,7 @@ def save_settings():
         "crawler_blacklist", "crawler_max_age_hours",
         "digest_enabled", "digest_time",
         "home_location",
+        "availability_check_enabled", "availability_check_interval_hours",
     }
     data = {}
     for key in allowed_keys:
@@ -127,6 +128,7 @@ def save_settings():
         flash("Ungültiges Crawl-Intervall (1–1440 Minuten).", "warning")
 
     update_digest_schedule()
+    update_availability_schedule()
 
     flash("Einstellungen gespeichert.", "success")
     return redirect(url_for("main.settings_page"))
@@ -199,3 +201,12 @@ def api_log():
 def api_clear_listings():
     db.clear_all_listings()
     return jsonify({"status": "ok", "message": "Alle Anzeigen gelöscht (Favoriten behalten)."})
+
+
+@bp.route("/api/availability-check", methods=["POST"])
+def api_availability_check():
+    from .checker import run_availability_check
+    import threading
+    t = threading.Thread(target=run_availability_check, daemon=True, name="availability-check")
+    t.start()
+    return jsonify({"status": "started", "message": "Verfügbarkeits-Check gestartet."})

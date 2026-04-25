@@ -135,6 +135,9 @@ Täglich zur konfigurierten Uhrzeit (CronTrigger) sendet `notifier.send_digest()
 ### Sortierung
 `db.get_listings(sort_by=...)` unterstützt: `date_desc` (Standard), `date_asc`, `price_asc`, `price_desc`, `distance_asc`. Preise werden via `CASE WHEN price GLOB '*[0-9]*'` auf numerischen Wert gecastet – Textwerte (k.A., Kostenlos) ergeben NULL und landen beim Sortieren immer am Ende. Favoriten stehen unabhängig von der Sortierung immer oben (`ORDER BY is_favorite DESC, ...`). `/api/listings?sort=` mit Whitelist-Validierung.
 
+### Verfügbarkeits-Check
+`checker.py.run_availability_check()` iteriert alle Anzeigen aus `db.get_all_listing_urls()`, sendet pro URL einen HEAD-Request (8s Timeout, 0,5s Delay zwischen Anfragen). HTTP 404/410 → `db.delete_listing_by_listing_id()` löscht den Eintrag **inkl. Favoriten**. Netzwerkfehler und andere Status-Codes (200, 301, 403) lassen den Eintrag unangetastet. Wird vom Scheduler alle N Stunden ausgeführt (`availability_job`, `IntervalTrigger`). Einstellungen: `availability_check_enabled` (0/1), `availability_check_interval_hours` (Default 3). Manuell auslösbar über `POST /api/availability-check`.
+
 ### E-Mail bei manuellem Crawl
 `run_crawl_async(manual=True)` wird vom `/api/crawl`-Endpoint aufgerufen. `run_crawl(manual=True)` reicht `force=True` an `notify()` weiter, das dann das Rate-Limit überspringt. Automatische Crawls übergeben `force=False` (Standard) — das Rate-Limit gilt weiterhin.
 

@@ -5,7 +5,7 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-188%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-200%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
@@ -27,6 +27,7 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 - **Sortierung** – Anzeigen nach Datum, Preis (auf-/absteigend) oder Entfernung sortieren
 - **Pagination** – Anzeigen werden seitenweise geladen (30 pro Seite), „Mehr laden"-Button
 - **📱 Mobil-optimiert** – responsive Layout, kollabierbare Sidebar, horizontal scrollbare Filter
+- **🔍 Verfügbarkeits-Check** – prüft periodisch ob Anzeigen noch online sind, löscht automatisch nicht erreichbare Einträge (inkl. Favoriten)
 - **Duplikat-Erkennung** – jede Anzeige wird nur einmal gemeldet
 - **Docker-ready** – läuft auf jedem Linux-Server (Proxmox, Raspberry Pi, Cloud-VM)
 

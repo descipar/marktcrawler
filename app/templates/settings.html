@@ -287,6 +287,29 @@
     </div>
   </div>
 
+  <!-- ── Verfügbarkeits-Check ──────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-5 py-3 bg-sky-50 border-b border-slate-200 flex items-center justify-between">
+      <h2 class="font-semibold text-sky-800">🔍 Verfügbarkeits-Check</h2>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <span class="text-sm text-slate-600">Aktiviert</span>
+        <input type="checkbox" name="availability_check_enabled" value="1"
+          {% if s.availability_check_enabled != '0' %}checked{% endif %}
+          class="w-4 h-4 accent-sky-600">
+      </label>
+    </div>
+    <div class="p-5 grid grid-cols-2 gap-4">
+      {% call field("Intervall (Stunden)") %}
+        <input type="number" name="availability_check_interval_hours"
+          value="{{ s.availability_check_interval_hours or '3' }}"
+          min="1" max="24" class="input-field">
+      {% endcall %}
+    </div>
+    <div class="px-5 pb-4 text-xs text-slate-400">
+      💡 Prüft regelmäßig ob gespeicherte Anzeigen noch online sind (HTTP 404/410). Nicht mehr erreichbare Anzeigen werden automatisch gelöscht – auch Favoriten.
+    </div>
+  </div>
+
   <!-- Speichern (unten) -->
   <div class="flex justify-end pb-4">
     <button type="submit"
@@ -304,15 +327,27 @@
     <div class="px-5 py-3 bg-red-50 border-b border-red-200">
       <h2 class="font-semibold text-red-800">🗑️ Datenverwaltung</h2>
     </div>
-    <div class="p-5 flex items-center justify-between gap-4">
-      <div>
-        <p class="text-sm text-slate-700 font-medium">Alle Suchergebnisse löschen</p>
-        <p class="text-xs text-slate-400 mt-0.5">Löscht alle gespeicherten Anzeigen und den Geocache. Einstellungen und Suchbegriffe bleiben erhalten. Favoriten werden nicht gelöscht.</p>
+    <div class="p-5 space-y-4">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-sm text-slate-700 font-medium">Verfügbarkeits-Check jetzt starten</p>
+          <p class="text-xs text-slate-400 mt-0.5">Prüft sofort alle Anzeigen auf Erreichbarkeit und löscht nicht mehr vorhandene Einträge (inkl. Favoriten).</p>
+        </div>
+        <button onclick="runAvailabilityCheck()"
+          class="shrink-0 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
+          Jetzt prüfen
+        </button>
       </div>
-      <button id="clearListingsBtn" onclick="clearAllListings()"
-        class="shrink-0 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
-        Löschen
-      </button>
+      <div class="border-t border-slate-100 pt-4 flex items-center justify-between gap-4">
+        <div>
+          <p class="text-sm text-slate-700 font-medium">Alle Suchergebnisse löschen</p>
+          <p class="text-xs text-slate-400 mt-0.5">Löscht alle gespeicherten Anzeigen und den Geocache. Einstellungen und Suchbegriffe bleiben erhalten. Favoriten werden nicht gelöscht.</p>
+        </div>
+        <button id="clearListingsBtn" onclick="clearAllListings()"
+          class="shrink-0 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
+          Löschen
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -321,16 +356,23 @@
 function clearAllListings() {
   if (!confirm('Wirklich alle Anzeigen löschen? (Favoriten bleiben erhalten)')) return;
   const btn = document.getElementById('clearListingsBtn');
-  btn.disabled = true;
-  btn.textContent = 'Lädt...';
+  btn.disabled = true; btn.textContent = 'Lädt...';
   fetch('/api/clear-listings', {method: 'POST'})
     .then(r => r.json())
-    .then(d => {
+    .then(() => {
       btn.textContent = '✓ Gelöscht';
       btn.classList.replace('bg-red-600', 'bg-green-600');
       setTimeout(() => { btn.disabled = false; btn.textContent = 'Löschen'; btn.classList.replace('bg-green-600', 'bg-red-600'); }, 3000);
     })
     .catch(() => { btn.disabled = false; btn.textContent = 'Fehler'; });
+}
+
+function runAvailabilityCheck() {
+  if (!confirm('Verfügbarkeits-Check starten? Nicht mehr erreichbare Anzeigen (inkl. Favoriten) werden gelöscht.')) return;
+  fetch('/api/availability-check', {method: 'POST'})
+    .then(r => r.json())
+    .then(() => alert('Verfügbarkeits-Check gestartet. Ergebnis im Dashboard-Log sichtbar.'))
+    .catch(() => alert('Fehler beim Starten des Checks.'));
 }
 </script>
 

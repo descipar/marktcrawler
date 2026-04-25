@@ -125,4 +125,12 @@
 - [x] **8 neue Tests** in `test_database.py` (Preis auf-/absteigend, Entfernung, NULL-Handling, Favoriten-Priorität)
 - [x] **Testanzahl: 188**
 
-*Letzte Aktualisierung: 2026-04-25 (Phase 10 abgeschlossen)*
+### Phase 11 – Verfügbarkeits-Check
+- [x] **`checker.py`** – neues Modul mit `run_availability_check()`: HEAD-Request pro Anzeige, HTTP 404/410 → löschen (inkl. Favoriten), Netzwerkfehler → skip
+- [x] **`db.get_all_listing_urls()`** + **`db.delete_listing_by_listing_id()`** – löscht unabhängig von `is_favorite`
+- [x] **Scheduler-Job** `availability_job` (IntervalTrigger, konfigurierbar, Default 3h)
+- [x] **Settings**: `availability_check_enabled` + `availability_check_interval_hours`; Einstellungsseite mit neuem Abschnitt + „Jetzt prüfen"-Button
+- [x] **`POST /api/availability-check`** – manueller Start als Background-Thread
+- [x] **12 neue Tests** in `test_checker.py`; 200 Tests gesamt
+
+*Letzte Aktualisierung: 2026-04-25 (Phase 11 abgeschlossen)*

@@ -6,6 +6,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 
 from . import database as db
+from .checker import run_availability_check
 from .crawler import run_crawl
 from .notifier import send_digest
 
@@ -35,6 +36,9 @@ def init_scheduler(app):
 
     # Tages-Digest-Job
     _schedule_digest()
+
+    # Verfügbarkeits-Check-Job
+    _schedule_availability_check()
 
     _scheduler.start()
     logger.info(f"Scheduler gestartet: Crawl alle {interval_minutes} Minuten.")
@@ -81,9 +85,41 @@ def update_interval(minutes: int):
     logger.info(f"Crawl-Intervall auf {minutes} Minuten geändert.")
 
 
+def _schedule_availability_check():
+    global _scheduler
+    if _scheduler is None:
+        return
+
+    if _scheduler.get_job("availability_job"):
+        _scheduler.remove_job("availability_job")
+
+    enabled = db.get_setting("availability_check_enabled", "1") == "1"
+    if not enabled:
+        return
+
+    try:
+        hours = max(1, int(db.get_setting("availability_check_interval_hours", "3")))
+    except (ValueError, TypeError):
+        hours = 3
+
+    _scheduler.add_job(
+        run_availability_check,
+        trigger=IntervalTrigger(hours=hours),
+        id="availability_job",
+        name="Baby-Crawler Verfügbarkeits-Check",
+        replace_existing=True,
+    )
+    logger.info(f"Verfügbarkeits-Check eingerichtet: alle {hours} Stunden.")
+
+
 def update_digest_schedule():
     """Neueinrichten des Digest-Jobs nach Einstellungsänderung."""
     _schedule_digest()
+
+
+def update_availability_schedule():
+    """Neueinrichten des Verfügbarkeits-Check-Jobs nach Einstellungsänderung."""
+    _schedule_availability_check()
 
 
 def get_next_run() -> str:

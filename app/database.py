@@ -62,6 +62,9 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "home_location": "München",
     "home_latitude": "48.1351",
     "home_longitude": "11.5820",
+    # Verfügbarkeits-Check
+    "availability_check_enabled": "1",
+    "availability_check_interval_hours": "3",
     # Status
     "last_crawl_start": "",
     "last_crawl_end": "",
@@ -402,6 +405,22 @@ def clear_all_listings():
     with _db() as conn:
         conn.execute("DELETE FROM listings WHERE is_favorite = 0")
         conn.execute("DELETE FROM geocache")
+        conn.commit()
+
+
+def get_all_listing_urls() -> List[Dict]:
+    """Gibt id, listing_id, url und title aller Anzeigen zurück (für Verfügbarkeits-Check)."""
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT listing_id, url, title FROM listings ORDER BY found_at DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def delete_listing_by_listing_id(listing_id: str):
+    """Löscht eine Anzeige anhand ihrer listing_id – auch wenn sie Favorit ist."""
+    with _db() as conn:
+        conn.execute("DELETE FROM listings WHERE listing_id = ?", (listing_id,))
         conn.commit()
 
 

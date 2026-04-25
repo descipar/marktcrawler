@@ -3,7 +3,7 @@
 
 {% block content %}
 <!-- ── Status-Leiste ─────────────────────────────────────── -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
   <div class="bg-white rounded-xl border border-slate-200 p-4">
     <div class="text-xs text-slate-500 mb-1">Status</div>
     <div id="status-badge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium
@@ -25,6 +25,13 @@
   <div class="bg-white rounded-xl border border-slate-200 p-4">
     <div class="text-xs text-slate-500 mb-1">Anzeigen gesamt</div>
     <div id="total-listings" class="text-2xl font-bold text-brand-600">{{ stats.total_listings }}</div>
+  </div>
+  <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-center">
+    <button id="crawl-btn-top" onclick="startCrawl()"
+      class="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white py-2 rounded-lg text-sm font-semibold transition-colors">
+      🚀 Jetzt crawlen
+    </button>
+    <p id="crawl-msg" class="text-xs text-slate-500 text-center mt-1 hidden"></p>
   </div>
 </div>
 
@@ -104,13 +111,6 @@
         <li class="px-4 py-6 text-center text-slate-400 text-sm">Noch keine Suchbegriffe.</li>
         {% endfor %}
       </ul>
-      <div class="p-3 border-t border-slate-100">
-        <button id="crawl-btn" onclick="startCrawl()"
-          class="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white py-2 rounded-lg text-sm font-semibold transition-colors">
-          🚀 Jetzt crawlen
-        </button>
-        <p id="crawl-msg" class="text-xs text-slate-500 text-center mt-1 hidden"></p>
-      </div>
     </div>
   </div>
 
@@ -167,7 +167,7 @@
 let termFilter=null, platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false;
 
 async function startCrawl() {
-  const btn=document.getElementById('crawl-btn'), msg=document.getElementById('crawl-msg');
+  const btn=document.getElementById('crawl-btn-top'), msg=document.getElementById('crawl-msg');
   btn.disabled=true; btn.textContent='⟳ Läuft…';
   msg.textContent='Crawl gestartet…'; msg.classList.remove('hidden');
   try { await fetch('/api/crawl',{method:'POST'}); } catch(e){}
@@ -176,7 +176,7 @@ async function startCrawl() {
 
 async function pollStatus() {
   const d=await(await fetch('/api/status')).json();
-  const badge=document.getElementById('status-badge'), btn=document.getElementById('crawl-btn'), msg=document.getElementById('crawl-msg');
+  const badge=document.getElementById('status-badge'), btn=document.getElementById('crawl-btn-top'), msg=document.getElementById('crawl-msg');
   if(d.is_running){
     badge.className='inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-run';
     badge.innerHTML='<span class="spinner">⟳</span> Läuft…';

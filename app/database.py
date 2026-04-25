@@ -15,20 +15,20 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     # Kleinanzeigen
     "kleinanzeigen_enabled": "1",
     "kleinanzeigen_max_price": "80",
-    "kleinanzeigen_location": "Dortmund",
+    "kleinanzeigen_location": "München",
     "kleinanzeigen_radius": "30",
     # Shpock
     "shpock_enabled": "1",
     "shpock_max_price": "80",
-    "shpock_location": "Dortmund",
+    "shpock_location": "München",
     "shpock_radius": "30",
     # Fallback-Koordinaten für bestehende Installationen ohne shpock_location
-    "shpock_latitude": "51.5136",
-    "shpock_longitude": "7.4653",
+    "shpock_latitude": "48.1351",
+    "shpock_longitude": "11.5820",
     # Facebook
     "facebook_enabled": "0",
     "facebook_max_price": "80",
-    "facebook_location": "Dortmund",
+    "facebook_location": "München",
     # Vinted
     "vinted_enabled": "0",
     "vinted_max_price": "80",
@@ -52,8 +52,8 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "digest_enabled": "0",
     "digest_time": "19:00",
     # Heimstandort für Entfernungsberechnung
-    "home_latitude": "51.5136",
-    "home_longitude": "7.4653",
+    "home_latitude": "48.1351",
+    "home_longitude": "11.5820",
     # Status
     "last_crawl_start": "",
     "last_crawl_end": "",

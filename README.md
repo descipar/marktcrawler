@@ -41,11 +41,10 @@ curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker pi
 # Terminal neu starten oder: newgrp docker
 
-# 2. Projekt auf den RPi kopieren (vom eigenen Rechner aus)
-scp -r baby-crawler-v2 pi@<rpi-ip>:/home/pi/baby-crawler
+# 2. Repo klonen (einmalig)
+git clone https://github.com/descipar/baby-crawler.git /home/pi/baby-crawler
 
 # 3. Starten
-ssh pi@<rpi-ip>
 cd /home/pi/baby-crawler
 docker compose up -d --build
 ```
@@ -58,10 +57,10 @@ Admin-UI aufrufen: **`http://<rpi-ip>:5000`**
 
 ```bash
 # Docker in Ubuntu/Debian LXC installieren (einmalig)
-apt update && apt install -y docker.io docker-compose-plugin
+apt update && apt install -y docker.io docker-compose-plugin git
 
-# Projekt auf den Server kopieren
-scp -r baby-crawler-v2 root@<proxmox-ip>:/opt/baby-crawler
+# Repo klonen (einmalig)
+git clone https://github.com/descipar/baby-crawler.git /opt/baby-crawler
 
 # Starten
 cd /opt/baby-crawler

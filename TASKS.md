@@ -69,7 +69,7 @@
 - [ ] Dunkelmodus
 
 ### Infrastruktur
-- [ ] GitHub Actions CI – Tests automatisch bei Push ausführen
+- [x] GitHub Actions CI – Tests automatisch bei Push ausführen
 - [ ] Automatisches Backup der SQLite-DB (z.B. tägliches `cp` per Cron)
 - [ ] Health-Check-Endpoint (`/health`) für Docker / Uptime-Monitoring
 

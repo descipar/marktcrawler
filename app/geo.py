@@ -2,6 +2,7 @@
 
 import logging
 import math
+import threading
 import time
 from typing import Optional
 
@@ -11,6 +12,7 @@ from . import database as db
 
 logger = logging.getLogger(__name__)
 
+_nominatim_lock = threading.Lock()
 _last_nominatim_call: float = 0.0
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 NOMINATIM_HEADERS = {"User-Agent": "baby-crawler/1.0 (private use)"}
@@ -39,29 +41,30 @@ def geocode(location_text: str) -> Optional[tuple]:
     if cached:
         return cached
 
-    # Nominatim – Rate-Limit 1 req/s einhalten
+    # Nominatim – Rate-Limit 1 req/s einhalten (thread-safe)
     global _last_nominatim_call
-    wait = 1.1 - (time.time() - _last_nominatim_call)
-    if wait > 0:
-        time.sleep(wait)
+    with _nominatim_lock:
+        wait = 1.1 - (time.time() - _last_nominatim_call)
+        if wait > 0:
+            time.sleep(wait)
 
-    try:
-        r = requests.get(
-            NOMINATIM_URL,
-            params={"q": location_text, "format": "json", "limit": 1, "countrycodes": "de,at,ch"},
-            headers=NOMINATIM_HEADERS,
-            timeout=10,
-        )
-        _last_nominatim_call = time.time()
-        results = r.json()
-        if results:
-            lat = float(results[0]["lat"])
-            lon = float(results[0]["lon"])
-            db.save_geocache(location_text, lat, lon)
-            logger.debug(f"Geocoded '{location_text}' → ({lat}, {lon})")
-            return (lat, lon)
-    except Exception as e:
-        logger.debug(f"Geocoding fehlgeschlagen für '{location_text}': {e}")
+        try:
+            r = requests.get(
+                NOMINATIM_URL,
+                params={"q": location_text, "format": "json", "limit": 1, "countrycodes": "de,at,ch"},
+                headers=NOMINATIM_HEADERS,
+                timeout=10,
+            )
+            _last_nominatim_call = time.time()
+            results = r.json()
+            if results:
+                lat = float(results[0]["lat"])
+                lon = float(results[0]["lon"])
+                db.save_geocache(location_text, lat, lon)
+                logger.debug(f"Geocoded '{location_text}' → ({lat}, {lon})")
+                return (lat, lon)
+        except Exception as e:
+            logger.debug(f"Geocoding fehlgeschlagen für '{location_text}': {e}")
 
     return None
 

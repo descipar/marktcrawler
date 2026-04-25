@@ -5,7 +5,7 @@ from typing import List, Optional
 
 import requests
 
-from .base import Listing
+from .base import Listing, _float
 
 logger = logging.getLogger(__name__)
 
@@ -79,8 +79,3 @@ class VintedScraper:
             return None
 
 
-def _float(v) -> Optional[float]:
-    try:
-        return float(v)
-    except (TypeError, ValueError):
-        return None

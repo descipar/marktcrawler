@@ -42,13 +42,26 @@
 - [x] Blacklist-Bug gefixt: Textarea sendet Zeilenumbrüche, kein Komma
 
 ### Phase 4 – Qualität & Dokumentation
-- [x] **93 Unit-Tests** mit pytest
+- [x] **115 Unit-Tests** mit pytest
   - `test_crawler.py` – `_is_free()` und `_is_blacklisted()` (30 Tests)
   - `test_database.py` – CRUD, Migration, Favoriten, Geocache (25 Tests)
   - `test_geo.py` – Haversine, Geocoding-Cache, `distance_to_home()` (13 Tests)
   - `test_notifier.py` – HTML/Text-Builder, Badges, E-Mail-Struktur (25 Tests)
+  - `test_scrapers.py` – VintedScraper, EbayScraper (22 Tests)
 - [x] `CLAUDE.md` mit Architektur, DB-Schema, API-Dokumentation und Konventionen
 - [x] `README.md` mit Deployment-Optionen (RPi4, Proxmox, lokal), Features, Tests
+
+### Phase 5 – Bugfixes & Code-Qualität
+- [x] **SECRET_KEY** aus Umgebungsvariable statt hardcoded (`app/__init__.py`)
+- [x] **Vinted & eBay** in `allowed_keys`, `DEFAULT_SETTINGS` und `settings.html` ergänzt (waren de facto deaktiviert)
+- [x] **`Listing.distance_km`** Typhinweis korrigiert (`float` → `Optional[float]`)
+- [x] **Code-Duplikat** – `_int`, `_float`, `price_within_limit` in `base.py` zentralisiert, aus allen Scrapers entfernt
+- [x] **Shpock-Preis-Parsing** – fragilen `>500`-Schwellenwert durch korrektes `/100` für alle Cent-Preise ersetzt
+- [x] **ValueError** in `/api/listings` bei ungültigem `?limit=` oder `?max_age=` (HTTP 400 statt 500)
+- [x] **Thread-Safety Geocoding** – `_nominatim_lock` in `geo.py` schützt Rate-Limit und API-Call
+- [x] **`geocache`-Spalte `cached_at`** im Schema und Migration ergänzt (war in CLAUDE.md dokumentiert, fehlte in DB)
+- [x] **`is_running()` und `finally`** in `crawler.py` nutzen jetzt den `_lock`
+- [x] **Notifier-Duplikat** – `_html_from_objects` / `_text_from_objects` entfernt; `_send()` nutzt `dataclasses.asdict()` + gemeinsame Dict-Builder
 
 ---
 
@@ -74,4 +87,4 @@
 
 ---
 
-*Letzte Aktualisierung: 2026-04-24*
+*Letzte Aktualisierung: 2026-04-25*

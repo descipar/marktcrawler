@@ -3,7 +3,7 @@
 import logging
 from typing import List, Optional
 import requests
-from .base import Listing
+from .base import Listing, _int
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +54,11 @@ class ShpockScraper:
     def _parse(self, item: dict, term: str) -> Optional[Listing]:
         try:
             raw_price = item.get("price", 0)
-            price_str = (f"{raw_price/100:.2f} €" if isinstance(raw_price, (int, float)) and raw_price > 500
-                         else (f"{raw_price} €" if raw_price else "k.A."))
+            # Shpock liefert Preise in Cent (integer) → immer durch 100 teilen
+            if isinstance(raw_price, (int, float)) and raw_price > 0:
+                price_str = f"{raw_price / 100:.2f} €"
+            else:
+                price_str = "k.A."
             loc = item.get("location") or {}
             location = ", ".join(filter(None, [loc.get("city"), loc.get("country")]))
             path = item.get("path", "")
@@ -75,8 +78,3 @@ class ShpockScraper:
             return None
 
 
-def _int(v) -> Optional[int]:
-    try:
-        return int(v)
-    except (TypeError, ValueError):
-        return None

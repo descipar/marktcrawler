@@ -1,7 +1,9 @@
 """Tests für app/notifier.py: HTML/Text-Builder."""
 
 import pytest
-from app.notifier import _card_html, _html_from_objects, _html_from_dicts, _text_from_objects, _text_from_dicts
+from dataclasses import asdict
+
+from app.notifier import _card_html, _html_from_dicts, _text_from_dicts
 from app.scrapers.base import Listing
 
 
@@ -96,31 +98,29 @@ class TestCardHtml:
         assert "2024-06-01" not in html
 
 
-# ── _html_from_objects ────────────────────────────────────────
+# ── _html_from_dicts (Listing-Objekte) ───────────────────────
 
 class TestHtmlFromObjects:
 
     def test_enthält_alle_titel(self):
-        listings = [
-            make_listing(title="Kinderwagen Alpha", listing_id="a1"),
-            make_listing(title="Babybett Beta", listing_id="b2"),
-        ]
-        html = _html_from_objects(listings)
+        listings = [asdict(make_listing(title="Kinderwagen Alpha", listing_id="a1")),
+                    asdict(make_listing(title="Babybett Beta", listing_id="b2"))]
+        html = _html_from_dicts(listings)
         assert "Kinderwagen Alpha" in html
         assert "Babybett Beta" in html
 
     def test_korrekte_anzahl_im_heading(self):
-        listings = [make_listing(listing_id=f"x{i}") for i in range(3)]
-        html = _html_from_objects(listings)
+        listings = [asdict(make_listing(listing_id=f"x{i}")) for i in range(3)]
+        html = _html_from_dicts(listings)
         assert "3" in html
 
     def test_valides_html_grundstruktur(self):
-        html = _html_from_objects([make_listing()])
+        html = _html_from_dicts([asdict(make_listing())])
         assert html.startswith("<html>")
         assert "</html>" in html
 
     def test_leere_liste_kein_fehler(self):
-        html = _html_from_objects([])
+        html = _html_from_dicts([])
         assert "<html>" in html
 
 
@@ -143,29 +143,29 @@ class TestHtmlFromDicts:
         assert "<html>" in html
 
 
-# ── _text_from_objects ────────────────────────────────────────
+# ── _text_from_dicts (Listing-Objekte) ───────────────────────
 
 class TestTextFromObjects:
 
     def test_enthält_plattform_und_titel(self):
-        listings = [make_listing(title="Laufstall", platform="Kleinanzeigen")]
-        text = _text_from_objects(listings)
+        listings = [asdict(make_listing(title="Laufstall", platform="Kleinanzeigen"))]
+        text = _text_from_dicts(listings)
         assert "Kleinanzeigen" in text
         assert "Laufstall" in text
 
     def test_gratis_kennzeichnung(self):
-        listings = [make_listing(is_free=True)]
-        text = _text_from_objects(listings)
+        listings = [asdict(make_listing(is_free=True))]
+        text = _text_from_dicts(listings)
         assert "GRATIS" in text
 
     def test_entfernung_in_text(self):
-        listings = [make_listing(distance_km=42.0)]
-        text = _text_from_objects(listings)
+        listings = [asdict(make_listing(distance_km=42.0))]
+        text = _text_from_dicts(listings)
         assert "42" in text
 
     def test_url_enthalten(self):
-        listings = [make_listing(url="https://mein.link/xyz")]
-        text = _text_from_objects(listings)
+        listings = [asdict(make_listing(url="https://mein.link/xyz"))]
+        text = _text_from_dicts(listings)
         assert "https://mein.link/xyz" in text
 
 

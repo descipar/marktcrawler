@@ -159,12 +159,13 @@ baby-crawler/
 ├── pytest.ini
 ├── run.py                  # Einstiegspunkt (Flask / Gunicorn)
 ├── data/                   # Persistentes Volume (SQLite-DB, FB-Session)
-├── tests/                  # Unit-Tests (pytest, 93 Tests)
+├── tests/                  # Unit-Tests (pytest, 115 Tests)
 │   ├── conftest.py
 │   ├── test_crawler.py
 │   ├── test_database.py
 │   ├── test_geo.py
-│   └── test_notifier.py
+│   ├── test_notifier.py
+│   └── test_scrapers.py
 └── app/
     ├── __init__.py         # Flask App Factory
     ├── database.py         # SQLite-Datenbankschicht (inkl. Migration)
@@ -174,7 +175,7 @@ baby-crawler/
     ├── notifier.py         # E-Mail-Versand (Sofort + Digest)
     ├── geo.py              # Geocoding (Nominatim/OSM) + Haversine
     ├── scrapers/
-    │   ├── base.py         # Listing-Datenklasse
+    │   ├── base.py         # Listing-Datenklasse + gemeinsame Hilfsfunktionen
     │   ├── kleinanzeigen.py
     │   ├── shpock.py
     │   ├── vinted.py
@@ -212,7 +213,14 @@ python run.py
 
 Admin-UI aufrufen: **`http://localhost:5000`**
 
-Die `.env`-Datei im Projektroot setzt den Datenbankpfad automatisch auf `./data` – es ist keine weitere Konfiguration nötig. Im Docker-Container wird stattdessen das Volume `/data` verwendet.
+Die `.env`-Datei im Projektroot setzt den Datenbankpfad automatisch auf `./data`. Für persistente Sessions empfiehlt es sich, zusätzlich einen stabilen `SECRET_KEY` zu setzen:
+
+```
+DATA_DIR=./data
+SECRET_KEY=<langer-zufaelliger-string>
+```
+
+Im Docker-Container wird das Volume `/data` verwendet und `SECRET_KEY` als Umgebungsvariable in `docker-compose.yml` oder per `--env-file` übergeben.
 
 ### Tests ausführen
 

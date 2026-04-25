@@ -102,6 +102,44 @@
     </div>
   </div>
 
+  <!-- ── Vinted ────────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-5 py-3 bg-teal-50 border-b border-slate-200 flex items-center justify-between">
+      <h2 class="font-semibold text-teal-800">Vinted</h2>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <span class="text-sm text-slate-600">Aktiviert</span>
+        <input type="checkbox" name="vinted_enabled" value="1"
+          {% if s.vinted_enabled == '1' %}checked{% endif %}
+          class="w-4 h-4 accent-teal-600">
+      </label>
+    </div>
+    <div class="p-5 grid grid-cols-2 gap-4">
+      {% call field("Max. Preis (€)") %}
+        <input type="number" name="vinted_max_price" value="{{ s.vinted_max_price }}"
+          min="0" class="input-field">
+      {% endcall %}
+    </div>
+  </div>
+
+  <!-- ── eBay ───────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-5 py-3 bg-amber-50 border-b border-slate-200 flex items-center justify-between">
+      <h2 class="font-semibold text-amber-800">eBay</h2>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <span class="text-sm text-slate-600">Aktiviert</span>
+        <input type="checkbox" name="ebay_enabled" value="1"
+          {% if s.ebay_enabled == '1' %}checked{% endif %}
+          class="w-4 h-4 accent-amber-600">
+      </label>
+    </div>
+    <div class="p-5 grid grid-cols-2 gap-4">
+      {% call field("Max. Preis (€)") %}
+        <input type="number" name="ebay_max_price" value="{{ s.ebay_max_price }}"
+          min="0" class="input-field">
+      {% endcall %}
+    </div>
+  </div>
+
   <!-- ── E-Mail ──────────────────────────────────── -->
   <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
     <div class="px-5 py-3 bg-yellow-50 border-b border-slate-200 flex items-center justify-between">

@@ -2,7 +2,9 @@
 
 import logging
 import smtplib
+import threading
 import time
+from dataclasses import asdict
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import List
@@ -11,6 +13,7 @@ from . import database as db
 
 logger = logging.getLogger(__name__)
 
+_notify_lock = threading.Lock()
 _last_sent: float = 0.0
 
 
@@ -25,11 +28,16 @@ def notify(listings: list, settings: dict) -> bool:
         return False
 
     min_interval = int(settings.get("crawler_interval", 60)) * 60
-    if time.time() - _last_sent < min_interval:
-        return False
+    with _notify_lock:
+        if time.time() - _last_sent < min_interval:
+            return False
 
     subject = f"🍼 Baby-Crawler: {len(listings)} neue Anzeige(n) gefunden!"
-    return _send(subject, listings, settings)
+    result = _send(subject, listings, settings)
+    if result:
+        with _notify_lock:
+            _last_sent = time.time()
+    return result
 
 
 # ── Tages-Digest ─────────────────────────────────────────────
@@ -60,16 +68,15 @@ def _send(subject: str, listings: list, settings: dict) -> bool:
     if not recipients:
         return False
 
+    listing_dicts = [asdict(l) for l in listings]
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = ", ".join(recipients)
-    msg.attach(MIMEText(_text_from_objects(listings), "plain", "utf-8"))
-    msg.attach(MIMEText(_html_from_objects(listings), "html", "utf-8"))
+    msg.attach(MIMEText(_text_from_dicts(listing_dicts), "plain", "utf-8"))
+    msg.attach(MIMEText(_html_from_dicts(listing_dicts), "html", "utf-8"))
 
     if _smtp_send(msg, sender, password, recipients, settings):
-        global _last_sent
-        _last_sent = time.time()
         logger.info(f"E-Mail '{subject}' → {', '.join(recipients)}")
         return True
     return False
@@ -164,27 +171,6 @@ def _card_html(title, platform, search_term, price, location, url,
     </div>"""
 
 
-def _html_from_objects(listings: list, is_digest: bool = False) -> str:
-    cards = "".join(
-        _card_html(
-            title=l.title, platform=l.platform, search_term=l.search_term,
-            price=l.price, location=l.location, url=l.url,
-            image_url=getattr(l, "image_url", ""),
-            is_free=getattr(l, "is_free", False),
-            distance_km=getattr(l, "distance_km", None),
-            is_digest=is_digest,
-        )
-        for l in listings
-    )
-    count = len(listings)
-    heading = f"{'Tages-Digest: ' if is_digest else ''}{count} Babysachen"
-    return f"""<html><body style="font-family:Arial,sans-serif;max-width:680px;
-      margin:0 auto;padding:20px">
-      <h2 style="color:#333">🍼 {heading}</h2>{cards}
-      <p style="color:#aaa;font-size:11px">Baby-Crawler – automatische Benachrichtigung</p>
-    </body></html>"""
-
-
 def _html_from_dicts(listings: list, is_digest: bool = False) -> str:
     cards = "".join(
         _card_html(
@@ -200,35 +186,24 @@ def _html_from_dicts(listings: list, is_digest: bool = False) -> str:
         for l in listings
     )
     count = len(listings)
+    heading = f"{'Tages-Digest: ' if is_digest else ''}{count} Babysachen"
+    footer = "Tages-Zusammenfassung" if is_digest else "automatische Benachrichtigung"
     return f"""<html><body style="font-family:Arial,sans-serif;max-width:680px;
       margin:0 auto;padding:20px">
-      <h2 style="color:#333">🍼 Tages-Digest: {count} Anzeigen heute</h2>{cards}
-      <p style="color:#aaa;font-size:11px">Baby-Crawler – Tages-Zusammenfassung</p>
+      <h2 style="color:#333">🍼 {heading}</h2>{cards}
+      <p style="color:#aaa;font-size:11px">Baby-Crawler – {footer}</p>
     </body></html>"""
 
 
-def _text_from_objects(listings: list) -> str:
-    lines = [f"Baby-Crawler: {len(listings)} neue Anzeige(n)\n" + "=" * 50]
-    for l in listings:
-        free = " [GRATIS]" if getattr(l, "is_free", False) else ""
-        dist = f" ({l.distance_km:.0f} km)" if getattr(l, "distance_km", None) else ""
-        lines += [
-            f"\n[{l.platform}] {l.title}{free}",
-            f"Preis: {l.price}{dist}",
-            f"Ort:   {l.location}",
-            f"Link:  {l.url}",
-            "-" * 50,
-        ]
-    return "\n".join(lines)
-
-
-def _text_from_dicts(listings: list) -> str:
-    lines = [f"Baby-Crawler Tages-Digest: {len(listings)} Anzeige(n)\n" + "=" * 50]
+def _text_from_dicts(listings: list, is_digest: bool = False) -> str:
+    heading = f"Baby-Crawler {'Tages-Digest' if is_digest else 'Benachrichtigung'}: {len(listings)} Anzeige(n)"
+    lines = [heading + "\n" + "=" * 50]
     for l in listings:
         free = " [GRATIS]" if l.get("is_free") else ""
+        dist = f" ({l['distance_km']:.0f} km)" if l.get("distance_km") else ""
         lines += [
             f"\n[{l.get('platform')}] {l.get('title')}{free}",
-            f"Preis: {l.get('price')}",
+            f"Preis: {l.get('price')}{dist}",
             f"Ort:   {l.get('location')}",
             f"Link:  {l.get('url')}",
             "-" * 50,

@@ -93,6 +93,8 @@ def save_settings():
         "shpock_enabled", "shpock_max_price",
         "shpock_latitude", "shpock_longitude", "shpock_radius",
         "facebook_enabled", "facebook_max_price", "facebook_location",
+        "vinted_enabled", "vinted_max_price",
+        "ebay_enabled", "ebay_max_price",
         "email_enabled", "email_smtp_server", "email_smtp_port",
         "email_sender", "email_password", "email_recipient",
         "crawler_interval", "crawler_max_results", "crawler_delay",
@@ -149,10 +151,13 @@ def api_status():
 def api_listings():
     term = request.args.get("term")
     platform = request.args.get("platform")
-    limit = int(request.args.get("limit", 60))
+    try:
+        limit = int(request.args.get("limit", 60))
+        max_age = int(request.args.get("max_age", 0) or 0)
+    except ValueError:
+        return jsonify({"error": "limit und max_age müssen Ganzzahlen sein."}), 400
     only_fav = request.args.get("favorites") == "1"
     only_free = request.args.get("free") == "1"
-    max_age = int(request.args.get("max_age", 0) or 0)
 
     listings = db.get_listings(
         limit=limit, search_term=term, platform=platform,

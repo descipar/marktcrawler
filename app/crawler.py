@@ -29,7 +29,8 @@ _FREE_TEXT_RE = re.compile(
 
 
 def is_running() -> bool:
-    return _running
+    with _lock:
+        return _running
 
 
 def _is_free(listing: Listing) -> bool:
@@ -149,7 +150,8 @@ def run_crawl() -> dict:
         logger.error(f"Unerwarteter Crawl-Fehler: {e}", exc_info=True)
         stats["errors"] += 1
     finally:
-        _running = False
+        with _lock:
+            _running = False
         db.set_setting("crawl_status", "idle")
         db.set_setting("last_crawl_end", datetime.now().isoformat(timespec="seconds"))
         db.set_setting("last_crawl_found", str(stats["new"]))

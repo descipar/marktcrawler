@@ -7,7 +7,7 @@ from typing import List, Optional
 import requests
 from bs4 import BeautifulSoup
 
-from .base import Listing
+from .base import Listing, _float, price_within_limit
 
 logger = logging.getLogger(__name__)
 
@@ -96,19 +96,4 @@ class EbayScraper:
             return None
 
     def _price_ok(self, listing: Listing) -> bool:
-        if not self.max_price:
-            return True
-        m = re.search(r"(\d[\d.]*)", listing.price.replace(".", "").replace(",", "."))
-        if m:
-            try:
-                return float(m.group(1)) <= self.max_price
-            except ValueError:
-                pass
-        return True
-
-
-def _float(v) -> Optional[float]:
-    try:
-        return float(v)
-    except (TypeError, ValueError):
-        return None
+        return price_within_limit(listing.price, self.max_price)

@@ -27,6 +27,12 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "facebook_enabled": "0",
     "facebook_max_price": "80",
     "facebook_location": "Dortmund",
+    # Vinted
+    "vinted_enabled": "0",
+    "vinted_max_price": "80",
+    # eBay
+    "ebay_enabled": "0",
+    "ebay_max_price": "80",
     # E-Mail
     "email_enabled": "0",
     "email_smtp_server": "smtp.gmail.com",
@@ -97,7 +103,8 @@ def init_db():
         CREATE TABLE IF NOT EXISTS geocache (
             location_text TEXT PRIMARY KEY,
             lat           REAL,
-            lon           REAL
+            lon           REAL,
+            cached_at     TEXT DEFAULT (datetime('now'))
         );
     """)
     conn.commit()
@@ -135,6 +142,11 @@ def _migrate_listings(conn: sqlite3.Connection):
     for col, definition in new_cols:
         if col not in existing:
             conn.execute(f"ALTER TABLE listings ADD COLUMN {col} {definition}")
+
+    existing_geo = {row[1] for row in conn.execute("PRAGMA table_info(geocache)")}
+    if "cached_at" not in existing_geo:
+        conn.execute("ALTER TABLE geocache ADD COLUMN cached_at TEXT DEFAULT (datetime('now'))")
+
     conn.commit()
 
 

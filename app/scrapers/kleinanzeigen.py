@@ -8,7 +8,7 @@ from typing import List, Optional
 import requests
 from bs4 import BeautifulSoup
 
-from .base import Listing
+from .base import Listing, _int, price_within_limit
 
 logger = logging.getLogger(__name__)
 
@@ -111,19 +111,4 @@ class KleinanzeigenScraper:
             return None
 
     def _price_ok(self, l: Listing) -> bool:
-        if not self.max_price:
-            return True
-        m = re.search(r"(\d[\d.]*)", l.price.replace(".", "").replace(",", "."))
-        if m:
-            try:
-                return float(m.group(1)) <= self.max_price
-            except ValueError:
-                pass
-        return True
-
-
-def _int(v) -> Optional[int]:
-    try:
-        return int(v)
-    except (TypeError, ValueError):
-        return None
+        return price_within_limit(l.price, self.max_price)

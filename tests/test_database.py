@@ -208,6 +208,43 @@ class TestListings:
         assert ids1.isdisjoint(ids2)
 
 
+class TestSearchTermsFilter:
+
+    def _save(self, temp_db, lid, term):
+        from app.scrapers.base import Listing
+        temp_db.save_listing(Listing(
+            platform="Test", title=lid, price="10 €", location="München",
+            url=f"https://example.com/{lid}", listing_id=lid, search_term=term,
+        ))
+
+    def test_einzel_term_filter(self, temp_db):
+        self._save(temp_db, "a", "kinderwagen")
+        self._save(temp_db, "b", "babybett")
+        result = temp_db.get_listings(search_terms=["kinderwagen"])
+        assert len(result) == 1
+        assert result[0]["listing_id"] == "a"
+
+    def test_mehrere_terme_filter(self, temp_db):
+        self._save(temp_db, "c", "kinderwagen")
+        self._save(temp_db, "d", "babybett")
+        self._save(temp_db, "e", "hochstuhl")
+        result = temp_db.get_listings(search_terms=["kinderwagen", "babybett"])
+        ids = {l["listing_id"] for l in result}
+        assert ids == {"c", "d"}
+        assert "e" not in ids
+
+    def test_kein_filter_gibt_alles_zurueck(self, temp_db):
+        self._save(temp_db, "f", "kinderwagen")
+        self._save(temp_db, "g", "babybett")
+        result = temp_db.get_listings(search_terms=None)
+        assert len(result) == 2
+
+    def test_unbekannter_term_gibt_leer_zurueck(self, temp_db):
+        self._save(temp_db, "h", "kinderwagen")
+        result = temp_db.get_listings(search_terms=["gibtesnicht"])
+        assert result == []
+
+
 class TestSortierung:
 
     def _save_listings(self, temp_db):

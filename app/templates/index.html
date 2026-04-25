@@ -56,7 +56,7 @@
       </thead>
       <tbody class="divide-y divide-slate-50">
         {% for s in price_stats %}
-        <tr class="hover:bg-slate-50 cursor-pointer" onclick="filterListings('{{ s.search_term }}')">
+        <tr class="hover:bg-slate-50 cursor-pointer" onclick="toggleTermFilter('{{ s.search_term }}')">
           <td class="px-4 py-2 font-medium text-slate-700">{{ s.search_term }}</td>
           <td class="text-right px-3 py-2 text-slate-600">{{ s.count }}</td>
           <td class="text-right px-3 py-2 text-slate-600">{{ '%.0f €' % s.avg_price if s.avg_price else '–' }}</td>
@@ -104,8 +104,8 @@
                 <span class="absolute top-0.5 {% if t.enabled %}right-0.5{% else %}left-0.5{% endif %} w-4 h-4 bg-white rounded-full shadow transition-all"></span>
               </button>
             </form>
-            <button onclick="filterListings('{{ t.term }}')"
-              class="flex-1 text-sm text-left {% if not t.enabled %}text-slate-400 line-through{% else %}text-slate-700 hover:text-brand-600{% endif %} truncate transition-colors"
+            <button onclick="toggleTermFilter('{{ t.term }}')" data-term="{{ t.term }}"
+              class="term-filter-btn flex-1 text-sm text-left {% if not t.enabled %}text-slate-400 line-through{% else %}text-slate-700 hover:text-brand-600{% endif %} truncate transition-colors"
               title="Nach '{{ t.term }}' filtern">{{ t.term }}</button>
             <form method="POST" action="/terms/{{ t.id }}/delete" onsubmit="return confirm('\'{{ t.term }}\' und alle {{ t.term }}-Anzeigen löschen?')">
               <button type="submit" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all text-lg leading-none">×</button>
@@ -227,7 +227,7 @@
 <!-- ── JavaScript ────────────────────────────────────────── -->
 <script>
 const PAGE_SIZE = 30;
-let termFilter=null, platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false, distanceFilter=null, sortBy='date_desc', excludeText=null;
+let activeTerms=new Set(), platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false, distanceFilter=null, sortBy='date_desc', excludeText=null;
 let currentOffset=0, allLoaded=false, totalCount=0;
 let _excludeTimer=null;
 
@@ -287,7 +287,7 @@ function updateLoadMore(fetchedCount) {
 
 async function fetchListings(offset) {
   let url=`/api/listings?limit=${PAGE_SIZE}&offset=${offset}&sort=${sortBy}`;
-  if(termFilter)     url+='&term='+encodeURIComponent(termFilter);
+  activeTerms.forEach(t => url+='&term='+encodeURIComponent(t));
   if(platformFilter) url+='&platform='+encodeURIComponent(platformFilter);
   if(ageFilter)      url+='&max_age='+ageFilter;
   if(freeFilter)     url+='&free=1';
@@ -356,18 +356,36 @@ async function toggleFav(id, btn) {
   btn.className=`absolute top-2 right-2 z-10 text-xl leading-none ${fav?'text-yellow-400':'text-slate-200 hover:text-yellow-300'}`;
 }
 
-function filterListings(term) {
-  termFilter=term;
-  document.getElementById('filter-label').textContent='🔍 '+term;
-  document.getElementById('filter-label').classList.remove('hidden');
-  document.getElementById('filter-clear').classList.remove('hidden');
+function toggleTermFilter(term) {
+  if(activeTerms.has(term)) activeTerms.delete(term); else activeTerms.add(term);
+  _updateTermButtons();
+  _updateTermLabel();
   loadListings();
 }
 
+function _updateTermButtons() {
+  document.querySelectorAll('.term-filter-btn').forEach(btn => {
+    const on = activeTerms.has(btn.dataset.term);
+    btn.classList.toggle('text-brand-600', on);
+    btn.classList.toggle('font-semibold', on);
+    btn.closest('li').classList.toggle('bg-brand-50', on);
+  });
+}
+
+function _updateTermLabel() {
+  const label=document.getElementById('filter-label'), clr=document.getElementById('filter-clear');
+  if(activeTerms.size > 0){
+    label.textContent='🔍 '+[...activeTerms].join(', ');
+    label.classList.remove('hidden'); clr.classList.remove('hidden');
+  } else {
+    label.classList.add('hidden'); clr.classList.add('hidden');
+  }
+}
+
 function clearFilter() {
-  termFilter=null; platformFilter=null; ageFilter=0; freeFilter=false; favFilter=false; distanceFilter=null; sortBy='date_desc'; excludeText=null;
-  document.getElementById('filter-label').classList.add('hidden');
-  document.getElementById('filter-clear').classList.add('hidden');
+  activeTerms.clear(); platformFilter=null; ageFilter=0; freeFilter=false; favFilter=false; distanceFilter=null; sortBy='date_desc'; excludeText=null;
+  _updateTermButtons();
+  _updateTermLabel();
   document.getElementById('platform-filter').value='';
   document.getElementById('age-filter').value='0';
   document.getElementById('distance-filter').value='';

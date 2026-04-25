@@ -168,7 +168,7 @@ _VALID_SORTS = {"date_desc", "date_asc", "price_asc", "price_desc", "distance_as
 
 @bp.route("/api/listings")
 def api_listings():
-    term = request.args.get("term")
+    terms = request.args.getlist("term") or None
     platform = request.args.get("platform")
     sort_by = request.args.get("sort", "date_desc")
     if sort_by not in _VALID_SORTS:
@@ -186,7 +186,7 @@ def api_listings():
     only_free = request.args.get("free") == "1"
 
     listings = db.get_listings(
-        limit=limit, offset=offset, search_term=term, platform=platform,
+        limit=limit, offset=offset, search_terms=terms, platform=platform,
         only_favorites=only_fav, only_free=only_free, max_age_hours=max_age,
         max_distance_km=max_distance, sort_by=sort_by, exclude_text=exclude_text,
     )

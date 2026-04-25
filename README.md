@@ -31,7 +31,7 @@ Admin-UI aufrufen: **`http://localhost:5000`**
 - **Entfernungsfilter** – Radius pro Plattform konfigurierbar; Radius 0 = kein Filter
 - **Altersfilter** – nur Anzeigen der letzten 3h / 6h / 24h / 48h anzeigen
 - **Plattform-Filter** – nur eine Plattform anzeigen
-- **Suchbegriff-Filter** – Klick auf einen Suchbegriff filtert die Anzeigenliste
+- **Suchbegriff-Filter** – Klick auf einen Suchbegriff filtert die Anzeigenliste; mehrere Begriffe gleichzeitig auswählbar (Toggle); aktive Begriffe werden hervorgehoben
 - **Exclude-Filter** – Begriffe live ausblenden (400 ms Debounce, ×-Button zum Zurücksetzen)
 - **Duplikat-Erkennung** – jede Anzeige wird nur einmal gespeichert
 

@@ -304,6 +304,51 @@ class TestApiListings:
         resp = client.get("/api/listings?max_distance=abc")
         assert resp.status_code == 400
 
+    def test_listings_einzel_term_filter(self, client, app):
+        from app.scrapers.base import Listing
+        import app.database as db
+        with app.app_context():
+            db.save_listing(Listing(
+                platform="Test", title="K", price="5 €", location="München",
+                url="https://example.com/term-a", listing_id="term-a",
+                search_term="kinderwagen",
+            ))
+            db.save_listing(Listing(
+                platform="Test", title="B", price="5 €", location="München",
+                url="https://example.com/term-b", listing_id="term-b",
+                search_term="babybett",
+            ))
+        resp = client.get("/api/listings?term=kinderwagen")
+        data = json.loads(resp.data)
+        assert all(l["search_term"] == "kinderwagen" for l in data)
+        assert len(data) == 1
+
+    def test_listings_mehrere_terme(self, client, app):
+        from app.scrapers.base import Listing
+        import app.database as db
+        with app.app_context():
+            db.save_listing(Listing(
+                platform="Test", title="K", price="5 €", location="München",
+                url="https://example.com/multi-a", listing_id="multi-a",
+                search_term="kinderwagen",
+            ))
+            db.save_listing(Listing(
+                platform="Test", title="B", price="5 €", location="München",
+                url="https://example.com/multi-b", listing_id="multi-b",
+                search_term="babybett",
+            ))
+            db.save_listing(Listing(
+                platform="Test", title="H", price="5 €", location="München",
+                url="https://example.com/multi-c", listing_id="multi-c",
+                search_term="hochstuhl",
+            ))
+        resp = client.get("/api/listings?term=kinderwagen&term=babybett")
+        data = json.loads(resp.data)
+        ids = {l["listing_id"] for l in data}
+        assert "multi-a" in ids
+        assert "multi-b" in ids
+        assert "multi-c" not in ids
+
 
 # ── Stats-API ─────────────────────────────────────────────────
 

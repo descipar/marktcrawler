@@ -147,4 +147,12 @@
 - [x] **13 neue Tests**: 5 × TestDismiss + 2 × TestDeleteTermWithListings in `test_database.py`, 3 × TestDismissRoute in `test_routes.py`; 218 Tests gesamt
 - [x] **README vollständig überarbeitet** – neue Struktur: Schnellstart, Features nach Kategorien, vollständige Settings-Tabelle, aktualisierte Architektur/Tests
 
-*Letzte Aktualisierung: 2026-04-25 (Phase 13 abgeschlossen)*
+### Phase 14 – Suchbegriff-Mehrfachfilter
+- [x] **Mehrere Suchbegriffe gleichzeitig filtern** – `activeTerms` als JS-Set; Klick auf Term togglet Aktivierung; mehrere aktive Terme werden als `?term=a&term=b` an `/api/listings` übergeben
+- [x] **Visuelle Hervorhebung aktiver Terme** – aktiver Term: blauer Text + fett + blauer Listenhintergrund (`bg-brand-50`); beim Deaktivieren und bei „Filter löschen" zurückgesetzt
+- [x] **Filter-Label zeigt alle aktiven Terme** – kommagetrennte Auflistung; ausgeblendet wenn keine Terme aktiv
+- [x] **Backend: `get_listings(search_terms: List[str])`** – ein Term → `= ?`, mehrere Terme → `IN (?, ?, ...)` SQLite
+- [x] **Route: `request.args.getlist("term")`** – mehrere `?term=`-Parameter werden als Liste übergeben
+- [x] **8 neue Tests**: 4 × TestSearchTermsFilter in `test_database.py`, 2 × Mehrfachterm in `test_routes.py`; 224 Tests gesamt
+
+*Letzte Aktualisierung: 2026-04-25 (Phase 14 abgeschlossen)*

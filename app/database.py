@@ -348,7 +348,8 @@ _SORT_MAP: Dict[str, str] = {
 }
 
 
-def get_listings(limit: int = 100, offset: int = 0, search_term: Optional[str] = None,
+def get_listings(limit: int = 100, offset: int = 0,
+                 search_terms: Optional[List[str]] = None,
                  platform: Optional[str] = None, only_favorites: bool = False,
                  only_free: bool = False, max_age_hours: int = 0,
                  max_distance_km: Optional[float] = None,
@@ -356,9 +357,14 @@ def get_listings(limit: int = 100, offset: int = 0, search_term: Optional[str] =
     conditions: List[str] = []
     params: List[Any] = []
 
-    if search_term:
-        conditions.append("search_term = ?")
-        params.append(search_term)
+    if search_terms:
+        if len(search_terms) == 1:
+            conditions.append("search_term = ?")
+            params.append(search_terms[0])
+        else:
+            placeholders = ",".join("?" * len(search_terms))
+            conditions.append(f"search_term IN ({placeholders})")
+            params.extend(search_terms)
     if platform:
         conditions.append("platform = ?")
         params.append(platform)

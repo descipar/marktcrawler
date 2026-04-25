@@ -162,6 +162,21 @@
   </div>
 </div>
 
+<!-- ── Log-Terminal ──────────────────────────────────────── -->
+<div class="mt-6 bg-slate-900 rounded-xl border border-slate-700 overflow-hidden">
+  <div class="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700">
+    <span class="text-xs font-mono text-slate-300">📋 Crawler-Log</span>
+    <button onclick="toggleLog()" id="log-toggle"
+      class="text-xs text-slate-400 hover:text-slate-200 transition-colors">▼ ausblenden</button>
+  </div>
+  <div id="log-panel">
+    <div id="log-output"
+      class="font-mono text-xs text-green-400 p-4 h-48 overflow-y-auto whitespace-pre-wrap leading-5">
+      <span class="text-slate-500">Warte auf Crawl-Start…</span>
+    </div>
+  </div>
+</div>
+
 <!-- ── JavaScript ────────────────────────────────────────── -->
 <script>
 let termFilter=null, platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false;
@@ -171,26 +186,8 @@ async function startCrawl() {
   btn.disabled=true; btn.textContent='⟳ Läuft…';
   msg.textContent='Crawl gestartet…'; msg.classList.remove('hidden');
   try { await fetch('/api/crawl',{method:'POST'}); } catch(e){}
+  startLogPolling();
   pollStatus();
-}
-
-async function pollStatus() {
-  const d=await(await fetch('/api/status')).json();
-  const badge=document.getElementById('status-badge'), btn=document.getElementById('crawl-btn-top'), msg=document.getElementById('crawl-msg');
-  if(d.is_running){
-    badge.className='inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-run';
-    badge.innerHTML='<span class="spinner">⟳</span> Läuft…';
-    btn.disabled=true; btn.textContent='⟳ Läuft…';
-    setTimeout(pollStatus,3000);
-  } else {
-    badge.className='inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-idle';
-    badge.innerHTML='✓ Bereit'; btn.disabled=false; btn.textContent='🚀 Jetzt crawlen';
-    if(msg) msg.textContent=`Fertig! ${d.last_found} neue Anzeige(n).`;
-    document.getElementById('last-crawl').textContent=(d.last_crawl||'').replace('T',' ');
-    document.getElementById('next-crawl').textContent=d.next_crawl;
-    document.getElementById('total-listings').textContent=d.total_listings;
-    loadListings();
-  }
 }
 
 async function loadListings() {
@@ -281,5 +278,65 @@ function toggleStats(){
 }
 
 {% if stats.crawl_status == 'running' %}setTimeout(pollStatus,3000);{% endif %}
+
+// ── Log-Terminal ──────────────────────────────────────────
+let logVisible = true;
+let logPollInterval = null;
+
+function toggleLog() {
+  logVisible = !logVisible;
+  document.getElementById('log-panel').classList.toggle('hidden', !logVisible);
+  document.getElementById('log-toggle').textContent = logVisible ? '▼ ausblenden' : '▶ anzeigen';
+}
+
+async function refreshLog() {
+  const lines = await (await fetch('/api/log')).json();
+  const out = document.getElementById('log-output');
+  if (!lines.length) return;
+  out.textContent = lines.join('\n');
+  out.scrollTop = out.scrollHeight;
+}
+
+function startLogPolling() {
+  if (logPollInterval) return;
+  logPollInterval = setInterval(refreshLog, 2000);
+  refreshLog();
+}
+
+function stopLogPolling() {
+  clearInterval(logPollInterval);
+  logPollInterval = null;
+  refreshLog(); // letzte Zeilen noch holen
+}
+
+// Polling starten wenn Crawl läuft, sonst einmalig laden
+{% if stats.crawl_status == 'running' %}
+startLogPolling();
+{% else %}
+refreshLog();
+{% endif %}
+
+// pollStatus erweitern: Log-Polling an Crawl-Status koppeln
+const _origPollStatus = pollStatus;
+async function pollStatus() {
+  const d = await (await fetch('/api/status')).json();
+  const badge = document.getElementById('status-badge'), btn = document.getElementById('crawl-btn-top'), msg = document.getElementById('crawl-msg');
+  if (d.is_running) {
+    badge.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-run';
+    badge.innerHTML = '<span class="spinner">⟳</span> Läuft…';
+    btn.disabled = true; btn.textContent = '⟳ Läuft…';
+    startLogPolling();
+    setTimeout(pollStatus, 3000);
+  } else {
+    badge.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-idle';
+    badge.innerHTML = '✓ Bereit'; btn.disabled = false; btn.textContent = '🚀 Jetzt crawlen';
+    if (msg) msg.textContent = `Fertig! ${d.last_found} neue Anzeige(n).`;
+    document.getElementById('last-crawl').textContent = (d.last_crawl || '').replace('T', ' ');
+    document.getElementById('next-crawl').textContent = d.next_crawl;
+    document.getElementById('total-listings').textContent = d.total_listings;
+    stopLogPolling();
+    loadListings();
+  }
+}
 </script>
 {% endblock %}

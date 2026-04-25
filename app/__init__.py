@@ -25,6 +25,10 @@ def create_app() -> Flask:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    # Log-Buffer für das Dashboard-Terminal registrieren
+    from .logbuffer import handler as log_handler
+    logging.getLogger().addHandler(log_handler)
+
     # Datenbank initialisieren
     init_db()
 

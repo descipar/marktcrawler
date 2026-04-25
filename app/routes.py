@@ -169,3 +169,9 @@ def api_listings():
 @bp.route("/api/stats")
 def api_stats():
     return jsonify(db.get_price_stats())
+
+
+@bp.route("/api/log")
+def api_log():
+    from .logbuffer import get_lines
+    return jsonify(get_lines())

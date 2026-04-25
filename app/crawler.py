@@ -9,6 +9,7 @@ from typing import List
 
 from . import database as db
 from .geo import distance_to_home
+from .logbuffer import clear as clear_log
 from .notifier import notify
 from .scrapers import KleinanzeigenScraper, ShpockScraper, FacebookScraper, VintedScraper, EbayScraper
 from .scrapers.base import Listing
@@ -59,6 +60,7 @@ def run_crawl() -> dict:
             return {"status": "already_running", "new": 0}
         _running = True
 
+    clear_log()
     stats = {"new": 0, "total": 0, "errors": 0, "skipped_blacklist": 0, "free": 0}
     db.set_setting("crawl_status", "running")
     db.set_setting("last_crawl_start", datetime.now().isoformat(timespec="seconds"))

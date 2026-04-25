@@ -132,6 +132,9 @@ Täglich zur konfigurierten Uhrzeit (CronTrigger) sendet `notifier.send_digest()
 ### Pagination
 `db.get_listings()` akzeptiert `limit` und `offset`. `/api/listings` liefert standardmäßig 30 Einträge. Das Dashboard lädt weitere Seiten per „Mehr laden"-Button (`loadMore()` in `index.html`). Server-seitig gerenderte Karten + JS-geladene Seiten fügen sich nahtlos zusammen.
 
+### Sortierung
+`db.get_listings(sort_by=...)` unterstützt: `date_desc` (Standard), `date_asc`, `price_asc`, `price_desc`, `distance_asc`. Preise werden via `CASE WHEN price GLOB '*[0-9]*'` auf numerischen Wert gecastet – Textwerte (k.A., Kostenlos) ergeben NULL und landen beim Sortieren immer am Ende. Favoriten stehen unabhängig von der Sortierung immer oben (`ORDER BY is_favorite DESC, ...`). `/api/listings?sort=` mit Whitelist-Validierung.
+
 ### E-Mail bei manuellem Crawl
 `run_crawl_async(manual=True)` wird vom `/api/crawl`-Endpoint aufgerufen. `run_crawl(manual=True)` reicht `force=True` an `notify()` weiter, das dann das Rate-Limit überspringt. Automatische Crawls übergeben `force=False` (Standard) — das Rate-Limit gilt weiterhin.
 

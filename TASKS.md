@@ -118,4 +118,11 @@
 - [x] **Mobile-UI** – Suchbegriff-Sidebar auf kleinen Bildschirmen ein-/ausklappbar; Filter-Leiste scrollt horizontal (`overflow-x-auto`, `flex-shrink-0`); kein festes `max-h` mehr am Listings-Grid
 - [x] **E-Mail bei manuellem Crawl** – `/api/crawl` startet `run_crawl_async(manual=True)`; `notify(force=True)` überspringt Rate-Limit; automatische Crawls behalten Rate-Limit
 
-*Letzte Aktualisierung: 2026-04-25 (Phase 9 abgeschlossen)*
+### Phase 10 – Sortierfunktion
+- [x] **Sortierung nach Datum, Preis, Entfernung** – `db.get_listings(sort_by=)` mit 5 Optionen; Preis-CAST via `GLOB '*[0-9]*'` (nicht-numerische Werte landen am Ende); Favoriten immer oben
+- [x] **`/api/listings?sort=`** mit Whitelist-Validierung
+- [x] **Dashboard-Sortier-Dropdown** als erstes Element in der Filter-Leiste; wird bei „Filter löschen" zurückgesetzt
+- [x] **8 neue Tests** in `test_database.py` (Preis auf-/absteigend, Entfernung, NULL-Handling, Favoriten-Priorität)
+- [x] **Testanzahl: 188**
+
+*Letzte Aktualisierung: 2026-04-25 (Phase 10 abgeschlossen)*

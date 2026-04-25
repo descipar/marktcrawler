@@ -299,7 +299,13 @@ def toggle_favorite(listing_id: int):
         conn.commit()
 
 
-_PRICE_EXPR = "CAST(REPLACE(REPLACE(price,' €',''),',','.') AS REAL)"
+# GLOB '*[0-9]*' erkennt ob eine Ziffer vorhanden ist;
+# ohne Ziffer (k.A., Kostenlos, …) → NULL damit NULLS LAST greift
+_PRICE_EXPR = (
+    "CASE WHEN price GLOB '*[0-9]*' "
+    "THEN CAST(REPLACE(REPLACE(price,' €',''),',','.') AS REAL) "
+    "ELSE NULL END"
+)
 
 _SORT_MAP: Dict[str, str] = {
     "date_desc":    f"is_free DESC, found_at DESC",

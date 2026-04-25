@@ -196,6 +196,95 @@ class TestListings:
         assert "old-fav" in remaining
         assert "old-normal" not in remaining
 
+    def test_offset_paginierung(self, temp_db):
+        for i in range(5):
+            temp_db.save_listing(make_listing(f"page-{i:03d}"))
+        page1 = temp_db.get_listings(limit=3, offset=0)
+        page2 = temp_db.get_listings(limit=3, offset=3)
+        assert len(page1) == 3
+        assert len(page2) == 2
+        ids1 = {l["listing_id"] for l in page1}
+        ids2 = {l["listing_id"] for l in page2}
+        assert ids1.isdisjoint(ids2)
+
+
+class TestSortierung:
+
+    def _save_listings(self, temp_db):
+        """Legt drei Listings mit unterschiedlichen Preisen und Distanzen an."""
+        from app.scrapers.base import Listing
+        entries = [
+            ("sort-a", "10 €", 5.0),
+            ("sort-b", "50 €", 30.0),
+            ("sort-c", "25 €", 15.0),
+        ]
+        for lid, price, dist in entries:
+            l = Listing(
+                platform="Test", title=lid, price=price,
+                location="München", url=f"https://example.com/{lid}",
+                listing_id=lid, search_term="test",
+            )
+            temp_db.save_listing(l)
+            temp_db.update_listing_distance(lid, dist)
+
+    def test_sort_preis_aufsteigend(self, temp_db):
+        self._save_listings(temp_db)
+        result = temp_db.get_listings(sort_by="price_asc")
+        prices = [l["price"] for l in result]
+        assert prices == ["10 €", "25 €", "50 €"]
+
+    def test_sort_preis_absteigend(self, temp_db):
+        self._save_listings(temp_db)
+        result = temp_db.get_listings(sort_by="price_desc")
+        prices = [l["price"] for l in result]
+        assert prices == ["50 €", "25 €", "10 €"]
+
+    def test_sort_entfernung_aufsteigend(self, temp_db):
+        self._save_listings(temp_db)
+        result = temp_db.get_listings(sort_by="distance_asc")
+        ids = [l["listing_id"] for l in result]
+        assert ids == ["sort-a", "sort-c", "sort-b"]
+
+    def test_sort_entfernung_null_ans_ende(self, temp_db):
+        """Listings ohne Distanz landen beim Entfernungs-Sort am Ende."""
+        from app.scrapers.base import Listing
+        l_ohne = Listing(
+            platform="Test", title="ohne", price="5 €",
+            location="", url="https://example.com/ohne",
+            listing_id="ohne-dist", search_term="test",
+        )
+        temp_db.save_listing(l_ohne)
+        self._save_listings(temp_db)
+        result = temp_db.get_listings(sort_by="distance_asc")
+        assert result[-1]["listing_id"] == "ohne-dist"
+
+    def test_sort_preis_ohne_preis_ans_ende(self, temp_db):
+        """Listings mit nicht-numerischem Preis landen beim Preis-Sort am Ende."""
+        from app.scrapers.base import Listing
+        l_ka = Listing(
+            platform="Test", title="ka", price="k.A.",
+            location="München", url="https://example.com/ka",
+            listing_id="preis-ka", search_term="test",
+        )
+        temp_db.save_listing(l_ka)
+        self._save_listings(temp_db)
+        result = temp_db.get_listings(sort_by="price_asc")
+        assert result[-1]["listing_id"] == "preis-ka"
+
+    def test_sort_unbekannter_wert_faellt_auf_default(self, temp_db):
+        """Ungültiger sort_by-Wert löst keinen Fehler aus."""
+        self._save_listings(temp_db)
+        result = temp_db.get_listings(sort_by="gibts_nicht")
+        assert len(result) == 3
+
+    def test_favoriten_bleiben_immer_oben(self, temp_db):
+        """Favoriten erscheinen unabhängig von der Sortierung zuerst."""
+        self._save_listings(temp_db)
+        fav_id = next(l["id"] for l in temp_db.get_listings() if l["listing_id"] == "sort-b")
+        temp_db.toggle_favorite(fav_id)
+        result = temp_db.get_listings(sort_by="price_asc")
+        assert result[0]["listing_id"] == "sort-b"
+
 
 # ── Geocache ─────────────────────────────────────────────────
 

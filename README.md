@@ -1,11 +1,11 @@
 # 🍼 Baby-Crawler
 
-Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanzeigen.de**, **Shpock** und optional **Facebook Marketplace** automatisch nach Babysachen und benachrichtigt per E-Mail über neue Treffer.
+Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanzeigen.de**, **Shpock**, **Vinted**, **eBay** und optional **Facebook Marketplace** automatisch nach Babysachen und benachrichtigt per E-Mail über neue Treffer.
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-93%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-115%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
@@ -13,7 +13,7 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 ## ✨ Features
 
 - **Admin-UI** im Browser – Suchbegriffe per Klick hinzufügen, deaktivieren oder löschen
-- **Mehrere Plattformen** gleichzeitig durchsuchen (Kleinanzeigen, Shpock, Facebook)
+- **Mehrere Plattformen** gleichzeitig durchsuchen (Kleinanzeigen, Shpock, Vinted, eBay, Facebook)
 - **E-Mail-Benachrichtigungen** – Sofort-Alert bei neuen Treffern
 - **Tages-Digest** – zusätzliche tägliche Zusammenfassung per E-Mail, zu konfigurierbarer Uhrzeit
 - **Automatischer Scheduler** – kein manueller Cronjob nötig, Intervall frei einstellbar
@@ -97,6 +97,8 @@ Verwalte Suchbegriffe und sieh alle gefundenen Anzeigen in einer Kachelansicht.
 |---------|---------------|
 | Kleinanzeigen.de | Aktiviert, Max. Preis, Standort, Radius |
 | Shpock | Aktiviert, Max. Preis, Koordinaten, Radius |
+| Vinted | Aktiviert, Max. Preis |
+| eBay | Aktiviert, Max. Preis |
 | Facebook Marketplace | Aktiviert, Max. Preis, Standort |
 | E-Mail | SMTP-Server, Absender, Empfänger (kommagetrennt), App-Passwort |
 | Tages-Digest | Aktiviert, Uhrzeit (z.B. `19:00`) |
@@ -175,6 +177,8 @@ baby-crawler/
     │   ├── base.py         # Listing-Datenklasse
     │   ├── kleinanzeigen.py
     │   ├── shpock.py
+    │   ├── vinted.py
+    │   ├── ebay.py
     │   └── facebook.py
     └── templates/          # Jinja2 + Tailwind CSS (CDN, kein Build-Step)
 ```
@@ -187,7 +191,7 @@ baby-crawler/
 - **Geocoding**: Nominatim (OpenStreetMap), Ergebnisse werden in der DB gecacht
 - **Frontend**: Jinja2, Tailwind CSS via CDN, Vanilla JS
 - **Deployment**: Docker + docker-compose, Gunicorn
-- **Tests**: pytest, 93 Unit-Tests, keine externen Abhängigkeiten (Mocks für HTTP und DB)
+- **Tests**: pytest, 115 Unit-Tests, keine externen Abhängigkeiten (Mocks für HTTP und DB)
 
 ---
 

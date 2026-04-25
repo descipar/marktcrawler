@@ -59,8 +59,8 @@
 - [ ] Push-Benachrichtigungen (ntfy.sh oder Gotify, self-hosted)
 
 ### Scraper
-- [ ] **eBay** – Scraper für eBay-Auktionen und Sofortkauf
-- [ ] **Vinted** – Scraper für Kinderkleidung auf Vinted
+- [x] **eBay** – Scraper für eBay-Auktionen und Sofortkauf
+- [x] **Vinted** – Scraper für Kinderkleidung auf Vinted
 - [ ] Preishistorie pro Anzeige speichern (Preisentwicklung verfolgen)
 
 ### UI & Filterung
@@ -69,7 +69,6 @@
 - [ ] Dunkelmodus
 
 ### Infrastruktur
-- [x] GitHub Actions CI – Tests automatisch bei Push ausführen
 - [ ] Automatisches Backup der SQLite-DB (z.B. tägliches `cp` per Cron)
 - [ ] Health-Check-Endpoint (`/health`) für Docker / Uptime-Monitoring
 

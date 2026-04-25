@@ -10,7 +10,7 @@ from typing import List
 from . import database as db
 from .geo import distance_to_home
 from .notifier import notify
-from .scrapers import KleinanzeigenScraper, ShpockScraper, FacebookScraper
+from .scrapers import KleinanzeigenScraper, ShpockScraper, FacebookScraper, VintedScraper, EbayScraper
 from .scrapers.base import Listing
 
 logger = logging.getLogger(__name__)
@@ -83,6 +83,10 @@ def run_crawl() -> dict:
             scrapers.append(ShpockScraper(settings))
         if settings.get("facebook_enabled") == "1":
             scrapers.append(FacebookScraper(settings))
+        if settings.get("vinted_enabled") == "1":
+            scrapers.append(VintedScraper(settings))
+        if settings.get("ebay_enabled") == "1":
+            scrapers.append(EbayScraper(settings))
 
         if not scrapers:
             logger.warning("Keine Plattform aktiviert.")

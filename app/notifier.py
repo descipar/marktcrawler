@@ -32,7 +32,8 @@ def notify(listings: list, settings: dict) -> bool:
         if time.time() - _last_sent < min_interval:
             return False
 
-    subject = f"🍼 Baby-Crawler: {len(listings)} neue Anzeige(n) gefunden!"
+    tpl = settings.get("email_subject_alert", "🍼 Baby-Crawler: {n} neue Anzeige(n) gefunden!")
+    subject = tpl.replace("{n}", str(len(listings)))
     result = _send(subject, listings, settings)
     if result:
         with _notify_lock:
@@ -55,7 +56,8 @@ def send_digest(settings: dict) -> bool:
         return False
 
     # listings sind hier Dicts aus der DB, keine Listing-Objekte
-    subject = f"🍼 Baby-Crawler Tages-Digest: {len(listings)} Anzeige(n) heute"
+    tpl = settings.get("email_subject_digest", "🍼 Baby-Crawler Tages-Digest: {n} Anzeige(n) heute")
+    subject = tpl.replace("{n}", str(len(listings)))
     logger.info(f"Sende Tages-Digest mit {len(listings)} Anzeigen.")
     return _send_digest_mail(subject, listings, settings)
 

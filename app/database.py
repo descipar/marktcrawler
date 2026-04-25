@@ -41,6 +41,8 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "ebay_radius": "30",
     # E-Mail
     "email_enabled": "0",
+    "email_subject_alert": "🍼 Baby-Crawler: {n} neue Anzeige(n) gefunden!",
+    "email_subject_digest": "🍼 Baby-Crawler Tages-Digest: {n} Anzeige(n) heute",
     "email_smtp_server": "smtp.gmail.com",
     "email_smtp_port": "587",
     "email_sender": "",

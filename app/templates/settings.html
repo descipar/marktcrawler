@@ -182,6 +182,14 @@
         <input type="password" name="email_password" value="{{ s.email_password }}"
           placeholder="••••••••" class="input-field" autocomplete="new-password">
       {% endcall %}
+      {% call field("Betreff Sofort-Alert") %}
+        <input type="text" name="email_subject_alert" value="{{ s.email_subject_alert }}"
+          placeholder="{n} wird durch Anzahl ersetzt" class="input-field col-span-2">
+      {% endcall %}
+      {% call field("Betreff Tages-Digest") %}
+        <input type="text" name="email_subject_digest" value="{{ s.email_subject_digest }}"
+          placeholder="{n} wird durch Anzahl ersetzt" class="input-field col-span-2">
+      {% endcall %}
       {% call field("SMTP-Server") %}
         <input type="text" name="email_smtp_server" value="{{ s.email_smtp_server }}"
           class="input-field">

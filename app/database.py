@@ -299,7 +299,7 @@ def toggle_favorite(listing_id: int):
         conn.commit()
 
 
-def get_listings(limit: int = 100, search_term: Optional[str] = None,
+def get_listings(limit: int = 100, offset: int = 0, search_term: Optional[str] = None,
                  platform: Optional[str] = None, only_favorites: bool = False,
                  only_free: bool = False, max_age_hours: int = 0,
                  max_distance_km: Optional[float] = None) -> List[Dict]:
@@ -327,8 +327,9 @@ def get_listings(limit: int = 100, search_term: Optional[str] = None,
     query = "SELECT * FROM listings"
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
-    query += " ORDER BY is_favorite DESC, is_free DESC, found_at DESC LIMIT ?"
+    query += " ORDER BY is_favorite DESC, is_free DESC, found_at DESC LIMIT ? OFFSET ?"
     params.append(limit)
+    params.append(offset)
 
     with _db() as conn:
         rows = [dict(r) for r in conn.execute(query, params).fetchall()]

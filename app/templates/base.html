@@ -26,6 +26,8 @@
     .listing-card { transition: all .15s ease; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner { animation: spin 1s linear infinite; display:inline-block; }
+    .scrollbar-hide { -ms-overflow-style:none; scrollbar-width:none; }
+    .scrollbar-hide::-webkit-scrollbar { display:none; }
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen">

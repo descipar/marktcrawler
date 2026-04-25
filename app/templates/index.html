@@ -79,59 +79,72 @@
   <!-- Linke Spalte: Suchbegriffe -->
   <div class="w-full lg:w-80 flex-shrink-0">
     <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+      <button onclick="toggleTerms()" class="w-full flex items-center justify-between px-4 py-3 border-b border-slate-100 text-left lg:cursor-default">
         <h2 class="font-semibold text-slate-800">🔍 Suchbegriffe</h2>
-        <span class="text-xs text-slate-500">{{ search_terms | length }} gesamt</span>
+        <span class="flex items-center gap-2">
+          <span class="text-xs text-slate-500">{{ search_terms | length }} gesamt</span>
+          <span id="terms-chevron" class="text-slate-400 text-xs lg:hidden">▼</span>
+        </span>
+      </button>
+      <div id="terms-panel">
+        <form method="POST" action="/terms" class="p-3 border-b border-slate-100">
+          <div class="flex gap-2">
+            <input type="text" name="term" placeholder="z.B. babyschale rot maxi-cosi"
+              class="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400"
+              required maxlength="80">
+            <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">+ Add</button>
+          </div>
+        </form>
+        <ul class="divide-y divide-slate-100 max-h-60 lg:max-h-[50vh] overflow-y-auto">
+          {% for t in search_terms %}
+          <li class="flex items-center gap-2 px-3 py-2.5 hover:bg-slate-50 group">
+            <form method="POST" action="/terms/{{ t.id }}/toggle">
+              <button type="submit"
+                class="w-9 h-5 rounded-full transition-colors flex-shrink-0 relative {% if t.enabled %}bg-brand-500{% else %}bg-slate-200{% endif %}">
+                <span class="absolute top-0.5 {% if t.enabled %}right-0.5{% else %}left-0.5{% endif %} w-4 h-4 bg-white rounded-full shadow transition-all"></span>
+              </button>
+            </form>
+            <span class="flex-1 text-sm {% if not t.enabled %}text-slate-400 line-through{% else %}text-slate-700{% endif %} truncate">{{ t.term }}</span>
+            <button onclick="filterListings('{{ t.term }}')"
+              class="opacity-0 group-hover:opacity-100 text-xs text-brand-600 hover:text-brand-800 transition-opacity px-1" title="Filtern">◎</button>
+            <form method="POST" action="/terms/{{ t.id }}/delete" onsubmit="return confirm('\'{{ t.term }}\' wirklich löschen?')">
+              <button type="submit" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all text-lg leading-none">×</button>
+            </form>
+          </li>
+          {% else %}
+          <li class="px-4 py-6 text-center text-slate-400 text-sm">Noch keine Suchbegriffe.</li>
+          {% endfor %}
+        </ul>
       </div>
-      <form method="POST" action="/terms" class="p-3 border-b border-slate-100">
-        <div class="flex gap-2">
-          <input type="text" name="term" placeholder="z.B. babyschale rot maxi-cosi"
-            class="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400"
-            required maxlength="80">
-          <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">+ Add</button>
-        </div>
-      </form>
-      <ul class="divide-y divide-slate-100 max-h-[50vh] overflow-y-auto">
-        {% for t in search_terms %}
-        <li class="flex items-center gap-2 px-3 py-2.5 hover:bg-slate-50 group">
-          <form method="POST" action="/terms/{{ t.id }}/toggle">
-            <button type="submit"
-              class="w-9 h-5 rounded-full transition-colors flex-shrink-0 relative {% if t.enabled %}bg-brand-500{% else %}bg-slate-200{% endif %}">
-              <span class="absolute top-0.5 {% if t.enabled %}right-0.5{% else %}left-0.5{% endif %} w-4 h-4 bg-white rounded-full shadow transition-all"></span>
-            </button>
-          </form>
-          <span class="flex-1 text-sm {% if not t.enabled %}text-slate-400 line-through{% else %}text-slate-700{% endif %} truncate">{{ t.term }}</span>
-          <button onclick="filterListings('{{ t.term }}')"
-            class="opacity-0 group-hover:opacity-100 text-xs text-brand-600 hover:text-brand-800 transition-opacity px-1" title="Filtern">◎</button>
-          <form method="POST" action="/terms/{{ t.id }}/delete" onsubmit="return confirm('\'{{ t.term }}\' wirklich löschen?')">
-            <button type="submit" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all text-lg leading-none">×</button>
-          </form>
-        </li>
-        {% else %}
-        <li class="px-4 py-6 text-center text-slate-400 text-sm">Noch keine Suchbegriffe.</li>
-        {% endfor %}
-      </ul>
     </div>
   </div>
 
   <!-- Rechte Spalte: Anzeigen -->
   <div class="flex-1 min-w-0">
     <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100 flex-wrap gap-2">
-        <h2 class="font-semibold text-slate-800">📋 Gefundene Anzeigen</h2>
-        <div class="flex items-center gap-2 flex-wrap">
-          <span id="filter-label" class="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full hidden"></span>
-          <button id="filter-clear" onclick="clearFilter()" class="text-xs text-slate-400 hover:text-slate-600 hidden">✕ Filter</button>
+      <!-- Filter-Leiste -->
+      <div class="px-4 py-3 border-b border-slate-100">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-semibold text-slate-800 text-sm">📋 Gefundene Anzeigen
+            <span id="listing-count" class="text-xs font-normal text-slate-400 ml-1"></span>
+          </h2>
+          <div class="flex items-center gap-1.5">
+            <span id="filter-label" class="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full hidden"></span>
+            <button id="filter-clear" onclick="clearFilter()" class="text-xs text-slate-400 hover:text-slate-600 hidden">✕ Filter</button>
+          </div>
+        </div>
+        <!-- Scrollbare Filter-Zeile auf Mobile -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
           <select id="age-filter" onchange="applyAgeFilter(this.value)"
-            class="text-xs border border-slate-200 rounded-md px-2 py-1 text-slate-600 focus:outline-none">
+            class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none bg-white">
             <option value="0">Alle Zeit</option>
-            <option value="3">Letzte 3 Std.</option>
-            <option value="6">Letzte 6 Std.</option>
+            <option value="3">Letzte 3h</option>
+            <option value="6">Letzte 6h</option>
             <option value="24">Heute</option>
             <option value="48">48 Std.</option>
           </select>
           <select id="platform-filter" onchange="applyPlatformFilter(this.value)"
-            class="text-xs border border-slate-200 rounded-md px-2 py-1 text-slate-600 focus:outline-none">
+            class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none bg-white">
             <option value="">Alle Plattformen</option>
             <option value="Kleinanzeigen">Kleinanzeigen</option>
             <option value="Shpock">Shpock</option>
@@ -140,7 +153,7 @@
             <option value="Facebook">Facebook</option>
           </select>
           <select id="distance-filter" onchange="applyDistanceFilter(this.value)"
-            class="text-xs border border-slate-200 rounded-md px-2 py-1 text-slate-600 focus:outline-none">
+            class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none bg-white">
             <option value="">Alle Entfernungen</option>
             <option value="10">≤ 10 km</option>
             <option value="25">≤ 25 km</option>
@@ -148,17 +161,17 @@
             <option value="100">≤ 100 km</option>
           </select>
           <button id="free-btn" onclick="toggleFreeFilter()"
-            class="text-xs border border-slate-200 rounded-md px-2 py-1 text-slate-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors">
+            class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors whitespace-nowrap">
             🎁 Gratis
           </button>
           <button id="fav-btn" onclick="toggleFavFilter()"
-            class="text-xs border border-slate-200 rounded-md px-2 py-1 text-slate-600 hover:bg-yellow-50 hover:border-yellow-300 hover:text-yellow-700 transition-colors">
+            class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 hover:bg-yellow-50 hover:border-yellow-300 hover:text-yellow-700 transition-colors whitespace-nowrap">
             ★ Favoriten
           </button>
         </div>
       </div>
 
-      <div id="listings-grid" class="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[75vh] overflow-y-auto">
+      <div id="listings-grid" class="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {% for l in listings %}
         {% include '_listing_card.html' %}
         {% else %}
@@ -167,6 +180,14 @@
           <p class="text-sm">Noch keine Anzeigen.<br>Starte einen Crawl-Durchlauf!</p>
         </div>
         {% endfor %}
+      </div>
+
+      <!-- Mehr laden -->
+      <div id="load-more-wrap" class="px-4 pb-4 hidden">
+        <button id="load-more-btn" onclick="loadMore()"
+          class="w-full py-2.5 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">
+          ↓ Mehr laden
+        </button>
       </div>
     </div>
   </div>
@@ -189,7 +210,21 @@
 
 <!-- ── JavaScript ────────────────────────────────────────── -->
 <script>
+const PAGE_SIZE = 30;
 let termFilter=null, platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false, distanceFilter=null;
+let currentOffset=0, allLoaded=false, totalCount=0;
+
+// Suchbegriff-Sidebar auf Mobile kollabierbar
+function toggleTerms() {
+  if(window.innerWidth >= 1024) return; // lg: immer sichtbar
+  const panel=document.getElementById('terms-panel'), chev=document.getElementById('terms-chevron');
+  panel.classList.toggle('hidden');
+  chev.textContent=panel.classList.contains('hidden')?'▼':'▲';
+}
+// Auf Mobile initial einklappen
+if(window.innerWidth < 1024) {
+  document.getElementById('terms-panel').classList.add('hidden');
+}
 
 async function startCrawl() {
   const btn=document.getElementById('crawl-btn-top'), msg=document.getElementById('crawl-msg');
@@ -201,20 +236,47 @@ async function startCrawl() {
 }
 
 async function loadListings() {
-  let url='/api/listings?limit=60';
+  currentOffset = 0; allLoaded = false;
+  const grid=document.getElementById('listings-grid');
+  grid.innerHTML='<div class="col-span-3 text-center py-8 text-slate-300 text-sm">Laden…</div>';
+  const listings = await fetchListings(0);
+  if(!listings.length){
+    grid.innerHTML='<div class="col-span-3 text-center py-16 text-slate-400"><div class="text-5xl mb-3">🔍</div><p class="text-sm">Keine Anzeigen für diesen Filter.</p></div>';
+    updateLoadMore(0);
+    return;
+  }
+  grid.innerHTML=listings.map(l=>cardHtml(l)).join('');
+  currentOffset = listings.length;
+  updateLoadMore(listings.length);
+}
+
+async function loadMore() {
+  const btn=document.getElementById('load-more-btn');
+  btn.disabled=true; btn.textContent='Laden…';
+  const listings = await fetchListings(currentOffset);
+  const grid=document.getElementById('listings-grid');
+  grid.insertAdjacentHTML('beforeend', listings.map(l=>cardHtml(l)).join(''));
+  currentOffset += listings.length;
+  btn.disabled=false; btn.textContent='↓ Mehr laden';
+  updateLoadMore(listings.length);
+}
+
+function updateLoadMore(fetchedCount) {
+  const wrap=document.getElementById('load-more-wrap');
+  const hasMore = fetchedCount >= PAGE_SIZE;
+  wrap.classList.toggle('hidden', !hasMore);
+  document.getElementById('listing-count').textContent = currentOffset > 0 ? `(${currentOffset} geladen)` : '';
+}
+
+async function fetchListings(offset) {
+  let url=`/api/listings?limit=${PAGE_SIZE}&offset=${offset}`;
   if(termFilter)     url+='&term='+encodeURIComponent(termFilter);
   if(platformFilter) url+='&platform='+encodeURIComponent(platformFilter);
   if(ageFilter)      url+='&max_age='+ageFilter;
   if(freeFilter)     url+='&free=1';
   if(favFilter)      url+='&favorites=1';
   if(distanceFilter) url+='&max_distance='+distanceFilter;
-  const listings=await(await fetch(url)).json();
-  const grid=document.getElementById('listings-grid');
-  if(!listings.length){
-    grid.innerHTML='<div class="col-span-3 text-center py-16 text-slate-400"><div class="text-5xl mb-3">🔍</div><p class="text-sm">Keine Anzeigen für diesen Filter.</p></div>';
-    return;
-  }
-  grid.innerHTML=listings.map(l=>cardHtml(l)).join('');
+  return await(await fetch(url)).json();
 }
 
 function cardHtml(l) {
@@ -321,6 +383,13 @@ function stopLogPolling() {
   logPollInterval = null;
   refreshLog(); // letzte Zeilen noch holen
 }
+
+// Initialen "Mehr laden"-Button nach Server-Render setzen
+(function(){
+  const initialCount = document.getElementById('listings-grid').querySelectorAll('.listing-card').length;
+  currentOffset = initialCount;
+  updateLoadMore(initialCount);
+})();
 
 // Polling starten wenn Crawl läuft, sonst einmalig laden
 {% if stats.crawl_status == 'running' %}

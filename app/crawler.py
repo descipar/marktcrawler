@@ -57,7 +57,7 @@ def _is_blacklisted(listing: Listing, blacklist: List[str]) -> bool:
     return any(term.lower() in text for term in blacklist)
 
 
-def run_crawl() -> dict:
+def run_crawl(manual: bool = False) -> dict:
     global _running
 
     with _lock:
@@ -146,7 +146,7 @@ def run_crawl() -> dict:
         db.clear_old_listings(days=30)
 
         if new_listings:
-            notify(new_listings, settings)
+            notify(new_listings, settings, force=manual)
 
         logger.info(
             f"Crawl beendet: {stats['new']} neu / {stats['total']} gesamt / "
@@ -167,7 +167,7 @@ def run_crawl() -> dict:
     return {"status": "ok", **stats}
 
 
-def run_crawl_async() -> threading.Thread:
-    t = threading.Thread(target=run_crawl, daemon=True, name="crawler")
+def run_crawl_async(manual: bool = False) -> threading.Thread:
+    t = threading.Thread(target=run_crawl, args=(manual,), daemon=True, name="crawler")
     t.start()
     return t

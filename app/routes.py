@@ -21,7 +21,7 @@ def index():
     only_free = request.args.get("free") == "1"
 
     listings = db.get_listings(
-        limit=60,
+        limit=30,
         only_favorites=only_fav,
         only_free=only_free,
         max_age_hours=max_age,
@@ -138,7 +138,7 @@ def save_settings():
 def api_crawl():
     if is_running():
         return jsonify({"status": "already_running", "message": "Crawl läuft bereits."}), 409
-    run_crawl_async()
+    run_crawl_async(manual=True)
     return jsonify({"status": "started", "message": "Crawl gestartet."})
 
 
@@ -160,7 +160,8 @@ def api_listings():
     term = request.args.get("term")
     platform = request.args.get("platform")
     try:
-        limit = int(request.args.get("limit", 60))
+        limit = int(request.args.get("limit", 30))
+        offset = int(request.args.get("offset", 0))
         max_age = int(request.args.get("max_age", 0) or 0)
         max_dist_raw = request.args.get("max_distance", "")
         max_distance = float(max_dist_raw) if max_dist_raw else None
@@ -170,7 +171,7 @@ def api_listings():
     only_free = request.args.get("free") == "1"
 
     listings = db.get_listings(
-        limit=limit, search_term=term, platform=platform,
+        limit=limit, offset=offset, search_term=term, platform=platform,
         only_favorites=only_fav, only_free=only_free, max_age_hours=max_age,
         max_distance_km=max_distance,
     )

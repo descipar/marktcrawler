@@ -19,18 +19,23 @@ _last_sent: float = 0.0
 
 # ── Sofort-Benachrichtigung ──────────────────────────────────
 
-def notify(listings: list, settings: dict) -> bool:
-    """Sendet sofortige E-Mail bei neuen Anzeigen."""
+def notify(listings: list, settings: dict, force: bool = False) -> bool:
+    """Sendet sofortige E-Mail bei neuen Anzeigen.
+
+    force=True überspringt das Rate-Limit (für manuell gestartete Crawls).
+    """
     global _last_sent
     if not int(settings.get("email_enabled", 0)):
         return False
     if not listings:
         return False
 
-    min_interval = int(settings.get("crawler_interval", 60)) * 60
-    with _notify_lock:
-        if time.time() - _last_sent < min_interval:
-            return False
+    if not force:
+        min_interval = int(settings.get("crawler_interval", 60)) * 60
+        with _notify_lock:
+            if time.time() - _last_sent < min_interval:
+                logger.debug("E-Mail-Rate-Limit aktiv – kein Versand.")
+                return False
 
     tpl = settings.get("email_subject_alert", "🍼 Baby-Crawler: {n} neue Anzeige(n) gefunden!")
     subject = tpl.replace("{n}", str(len(listings)))

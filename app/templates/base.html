@@ -121,7 +121,9 @@ function showConfirm(msg, cb, okLabel) {
   okBtn.focus();
 }
 document.getElementById('confirm-ok-btn').addEventListener('click', function() {
-  _closeConfirmModal(); if (_confirmCb) _confirmCb();
+  const cb = _confirmCb;
+  _closeConfirmModal();
+  if (cb) cb();
 });
 function _confirmCancel() { _closeConfirmModal(); }
 function _closeConfirmModal() {

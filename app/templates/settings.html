@@ -276,6 +276,12 @@
           Jetzt löschen
         </button>
       </div>
+      <div id="delete-log-wrap" class="hidden px-5 pb-4">
+        <div id="delete-log-output"
+          class="bg-slate-900 rounded-lg p-3 h-28 overflow-y-auto font-mono text-xs text-green-400 whitespace-pre-wrap leading-5">
+          <span class="text-slate-500">Warte auf Start…</span>
+        </div>
+      </div>
       <div class="px-5 pb-4 text-xs text-slate-500">
         💡 Löscht Anzeigen dauerhaft aus der Datenbank und merkt sie als gesehen – sie werden beim nächsten Crawl nicht erneut gefunden. Favoriten bleiben erhalten.
       </div>
@@ -581,12 +587,36 @@ function deleteProfile(id, btn) {
   }, 'Löschen');
 }
 
+let _deleteLogTimer = null;
+
+function _refreshDeleteLog() {
+  fetch('/api/log').then(r => r.json()).then(lines => {
+    if (!lines.length) return;
+    const out = document.getElementById('delete-log-output');
+    out.textContent = lines.join('\n');
+    out.scrollTop = out.scrollHeight;
+  }).catch(() => {});
+}
+
+function _startDeleteLog() {
+  document.getElementById('delete-log-wrap').classList.remove('hidden');
+  _refreshDeleteLog();
+  _deleteLogTimer = setInterval(_refreshDeleteLog, 1500);
+}
+
+function _stopDeleteLog() {
+  clearInterval(_deleteLogTimer);
+  _deleteLogTimer = null;
+  setTimeout(_refreshDeleteLog, 400);
+}
+
 function deleteOldListings() {
   const hours = parseInt(document.getElementById('deleteAgeHours').value);
   if (!hours || hours <= 0) { showToast('Bitte eine gültige Stundenanzahl eingeben.'); return; }
   const btn = event.target;
   showConfirm(`Wirklich alle Anzeigen löschen die älter als ${hours} Stunden sind? Sie werden nicht erneut gefunden. Favoriten bleiben erhalten.`, () => {
     btn.disabled = true; btn.textContent = 'Lädt...';
+    _startDeleteLog();
     fetch('/api/clear-listings-by-age', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -594,11 +624,12 @@ function deleteOldListings() {
     })
       .then(r => r.json())
       .then(d => {
+        _stopDeleteLog();
         btn.textContent = `✓ ${d.deleted} gelöscht`;
         btn.classList.replace('bg-orange-600', 'bg-green-600');
         setTimeout(() => { btn.disabled = false; btn.textContent = 'Jetzt löschen'; btn.classList.replace('bg-green-600', 'bg-orange-600'); }, 3000);
       })
-      .catch(() => { btn.disabled = false; btn.textContent = 'Fehler'; });
+      .catch(() => { _stopDeleteLog(); btn.disabled = false; btn.textContent = 'Fehler'; });
   }, 'Löschen');
 }
 </script>

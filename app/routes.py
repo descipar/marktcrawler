@@ -1,8 +1,12 @@
 """Flask-Routen: Dashboard, Einstellungen, REST-API."""
 
+import logging
+
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
 
 from . import database as db
+
+logger = logging.getLogger(__name__)
 from .crawler import run_crawl_async, is_running
 from .scheduler import get_next_run, update_interval, update_digest_schedule, update_availability_schedule
 
@@ -263,7 +267,9 @@ def api_clear_listings_by_age():
             raise ValueError
     except (TypeError, ValueError, AttributeError):
         return jsonify({"error": "Ungültiger Wert für hours."}), 400
+    logger.info(f"🗑️ Löschung gestartet: Anzeigen älter als {hours}h …")
     deleted = db.clear_listings_older_than(hours)
+    logger.info(f"🗑️ Fertig: {deleted} Anzeige(n) gelöscht und als gesehen markiert.")
     return jsonify({"status": "ok", "deleted": deleted,
                     "message": f"{deleted} Anzeigen gelöscht (älter als {hours}h)."})
 

@@ -81,6 +81,21 @@ def run_crawl(manual: bool = False) -> dict:
         # Textarea sendet Zeilenumbrüche; Komma als Fallback für alte Daten
         blacklist = [w.strip() for w in re.split(r"[\n,]", raw_blacklist) if w.strip()]
 
+        # Verspätungs-Warnung
+        last_end = settings.get("last_crawl_end")
+        interval_min = int(settings.get("crawler_interval", 60))
+        if last_end and not manual:
+            try:
+                elapsed_min = (datetime.now() - datetime.fromisoformat(last_end)).total_seconds() / 60
+                if elapsed_min > interval_min * 1.5:
+                    logger.warning(
+                        f"⚠️ Crawl-Verzögerung: letzter Lauf vor {elapsed_min:.0f} Min. "
+                        f"(Intervall: {interval_min} Min.) – "
+                        f"mögliche Ursache: App-Neustart oder vorheriger Crawl dauerte zu lange."
+                    )
+            except (ValueError, TypeError):
+                pass
+
         if not search_terms:
             logger.warning("Keine aktiven Suchbegriffe.")
             return {"status": "no_terms", "new": 0}

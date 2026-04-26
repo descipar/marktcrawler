@@ -1,230 +1,135 @@
 # 📋 Baby-Crawler – Aufgaben & Roadmap
 
-Übersicht aller erledigten und geplanten Aufgaben.
+---
+
+## 🔜 Offene Aufgaben
+
+Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") oder einzelne Tasks per Nummer (z.B. „mach 8 und 11").
+
+---
+
+### Accessibility
+
+- [ ] **8** – `aria-label` auf Icon-Buttons (✕, ★), `label[for]`-Verknüpfung auf allen Formularfeldern, `aria-live`-Region für Listings, Skip-Nav-Link
+- [ ] **9** – Kontrast-Fixes: `slate-400` → `slate-500/600` an Hint-Texten und Metadaten
+- [ ] **19** – `alert()`/`confirm()` durch barrierefreie Inline-Meldungen und eigenes Confirm-Modal ersetzen
+
+---
+
+### Features – KI-Integration
+
+- [ ] **26** – KI-Anfragetext-Generator: auf Wunsch pro Anzeige einen Verkäufer-Text per Knopfdruck generieren; bei VB-Anzeigen automatisch einen sinnvollen Preisvorschlag einbauen (basiert auf `price_stats` der eigenen Daten); API-Key konfigurierbar (Claude, OpenAI, oder andere); Text wird immer in einer editierbaren Textarea angezeigt, kein direktes Absenden; Modell + API-Key in Einstellungen hinterlegbar
+
+---
+
+### Features – Benachrichtigungen
+
+- [ ] **12** – Telegram-Bot als Alternative zu SMTP (Bot-Token + Chat-ID, Alert + Digest)
+- [ ] **20** – Browser Push Notifications (Web Push API, kein E-Mail-Setup nötig)
+
+---
+
+### Features – Mehrbenutzer
+
+- [ ] **10** – Profil-System à la Netflix: „Neu"-Badge pro Person, `last_seen_at` pro Profil in DB; jede Person sieht welche Anzeigen seit ihrem letzten Besuch neu sind
+
+---
+
+### Features – Daten & Export
+
+- [ ] **13** – CSV/JSON-Export der aktuell gefilterten Anzeigen (clientseitiger Download, kein Server-Endpoint nötig)
+- [ ] **23** – Settings-Backup: Import/Export als JSON-Datei
+
+---
+
+### Features – Komfort & Bedienung
+
+- [ ] **11** – Tastaturkürzel: j/k navigieren, f favorisieren, d dismisssen, / Suche fokussieren, ? Hilfe-Overlay
+- [ ] **21** – Dark Mode (`prefers-color-scheme` + manueller Toggle, Zustand in `localStorage`)
+- [ ] **22** – PWA-Manifest: App auf Smartphone installierbar (Homescreen-Icon, Offline-Splash)
 
 ---
 
 ## ✅ Erledigt
 
 ### Phase 1 – Grundgerüst
-- [x] Projektstruktur anlegen (`app/`, `scrapers/`, `templates/`)
-- [x] Kleinanzeigen.de Scraper (`requests` + `BeautifulSoup`)
-- [x] Shpock Scraper (GraphQL-API)
-- [x] Facebook Marketplace Scraper (Playwright, optional)
-- [x] `Listing`-Datenklasse als gemeinsame Scraper-Schnittstelle
-- [x] SQLite-Datenbankschicht ohne ORM (`database.py`)
-- [x] E-Mail-Benachrichtigung per SMTP (`notifier.py`)
-- [x] APScheduler-Integration für automatischen Crawl (`scheduler.py`)
-- [x] Flask App Factory + Blueprint-Routen (`routes.py`)
-- [x] Admin-UI: Dashboard mit Suchbegriff-Verwaltung und Anzeigen-Grid (`index.html`)
-- [x] Einstellungsseite für alle Plattformen und E-Mail (`settings.html`)
-- [x] Docker-Setup (`Dockerfile`, `docker-compose.yml`)
-- [x] Mehrere E-Mail-Empfänger (kommagetrennt)
-- [x] Duplikat-Erkennung über `listing_id`
+- [x] Projektstruktur, Kleinanzeigen-Scraper, Shpock-Scraper (GraphQL), Facebook-Scraper (Playwright)
+- [x] `Listing`-Datenklasse, SQLite-Schicht ohne ORM, E-Mail-Benachrichtigung, APScheduler
+- [x] Flask App Factory + Blueprint, Dashboard, Einstellungsseite, Docker-Setup
+- [x] Mehrere E-Mail-Empfänger, Duplikat-Erkennung über `listing_id`
 
 ### Phase 2 – Lokale Entwicklung
-- [x] `DATA_DIR`-Umgebungsvariable für flexiblen DB-Pfad
-- [x] `.env`-Datei für lokale Entwicklung (`DATA_DIR=./data`)
-- [x] `python-dotenv` in `run.py` eingebunden
-- [x] Mehrwort-Suche auf Kleinanzeigen.de gefixt (`q-`-Prefix-URL)
+- [x] `DATA_DIR`-Umgebungsvariable, `.env`-Datei, `python-dotenv`, Mehrwort-Suche gefixt
 
 ### Phase 3 – Erweiterte Features
-- [x] **🎁 Gratis-Erkennung** – Regex auf Preis + Keywords in Titel/Beschreibung (`_is_free()`)
-- [x] **🚫 Blacklist** – Anzeigen mit bestimmten Wörtern automatisch überspringen
-- [x] **⭐ Favoriten** – Anzeigen markieren, AJAX-Toggle, nie automatisch gelöscht
-- [x] **📊 Preisstatistik** – Avg / Min / Max / Gratis-Zähler pro Suchbegriff (Dashboard + API)
-- [x] **📍 Entfernungsberechnung** – Nominatim-Geocoding + Haversine-Formel (`geo.py`)
-- [x] **🕐 Altersfilter** – Anzeigen nach Stunden filtern (Dashboard + API)
-- [x] **📋 Tages-Digest** – tägliche Zusammenfassung per E-Mail via CronTrigger
-- [x] Geocoding-Cache in DB (`geocache`-Tabelle, Rate-Limit 1 req/s)
-- [x] DB-Migration für bestehende Installationen (neue Spalten via `PRAGMA table_info`)
-- [x] Einstellungsseite um neue Felder ergänzt (Blacklist, Digest, Heimstandort, Max-Alter)
-- [x] Blacklist-Bug gefixt: Textarea sendet Zeilenumbrüche, kein Komma
+- [x] 🎁 Gratis-Erkennung, 🚫 Blacklist, ⭐ Favoriten, 📊 Preisstatistik
+- [x] 📍 Entfernungsberechnung (Nominatim + Haversine), 🕐 Altersfilter, 📋 Tages-Digest
+- [x] Geocoding-Cache, DB-Migration, Blacklist-Bug (Textarea Zeilenumbrüche)
 
 ### Phase 4 – Qualität & Dokumentation
-- [x] **115 Unit-Tests** mit pytest
-  - `test_crawler.py` – `_is_free()` und `_is_blacklisted()` (30 Tests)
-  - `test_database.py` – CRUD, Migration, Favoriten, Geocache (25 Tests)
-  - `test_geo.py` – Haversine, Geocoding-Cache, `distance_to_home()` (13 Tests)
-  - `test_notifier.py` – HTML/Text-Builder, Badges, E-Mail-Struktur (25 Tests)
-  - `test_scrapers.py` – VintedScraper, EbayScraper (22 Tests)
-- [x] `CLAUDE.md` mit Architektur, DB-Schema, API-Dokumentation und Konventionen
-- [x] `README.md` mit Deployment-Optionen (RPi4, Proxmox, lokal), Features, Tests
+- [x] 115 Unit-Tests, CLAUDE.md, README.md
 
 ### Phase 5 – Bugfixes & Code-Qualität
-- [x] **SECRET_KEY** aus Umgebungsvariable statt hardcoded (`app/__init__.py`)
-- [x] **Vinted & eBay** in `allowed_keys`, `DEFAULT_SETTINGS` und `settings.html` ergänzt (waren de facto deaktiviert)
-- [x] **`Listing.distance_km`** Typhinweis korrigiert (`float` → `Optional[float]`)
-- [x] **Code-Duplikat** – `_int`, `_float`, `price_within_limit` in `base.py` zentralisiert, aus allen Scrapers entfernt
-- [x] **Shpock-Preis-Parsing** – fragilen `>500`-Schwellenwert durch korrektes `/100` für alle Cent-Preise ersetzt
-- [x] **ValueError** in `/api/listings` bei ungültigem `?limit=` oder `?max_age=` (HTTP 400 statt 500)
-- [x] **Thread-Safety Geocoding** – `_nominatim_lock` in `geo.py` schützt Rate-Limit und API-Call
-- [x] **`geocache`-Spalte `cached_at`** im Schema und Migration ergänzt (war in CLAUDE.md dokumentiert, fehlte in DB)
-- [x] **`is_running()` und `finally`** in `crawler.py` nutzen jetzt den `_lock`
-- [x] **Notifier-Duplikat** – `_html_from_objects` / `_text_from_objects` entfernt; `_send()` nutzt `dataclasses.asdict()` + gemeinsame Dict-Builder
-- [x] **SQLite-Timeout erhöht** – `timeout=30` in `get_db()` behebt `database is locked`-Fehler bei gleichzeitigem Crawler-Write und Flask-API-Polling
+- [x] SECRET_KEY aus Env, Vinted/eBay in Settings ergänzt, Helfer in `base.py` zentralisiert
+- [x] Shpock-Preis-Parsing, ValueError HTTP 400, Thread-Safety Geocoding, SQLite-Timeout 30s
 
 ### Phase 6 – Shpock-Reaktivierung & Bugfixes
-- [x] **Shpock-Scraper komplett überarbeitet** – neue GraphQL-Query-Struktur (`ItemSearch` mit `serializedFilters`, Key `"q"` statt `"keyword"`), Preise direkt in Euro (kein `/100` mehr), Bild-URLs via `secondhandapp.at`
-- [x] **Shpock Entfernungsfilter** – API liefert `distance: null` ohne Session; client-seitiger Geo-Filter via Nominatim-Geocoding + Haversine; API-Request auf `3×max_results` erhöht um mehr Kandidaten zu filtern; Log-Warnung wenn 0 Treffer im Radius
-- [x] **`_is_free()`-Bug** – Preis hat jetzt Vorrang vor Text-Keywords: ein Listing mit echtem Preis > 0 wird nie als gratis markiert, auch wenn Beschreibung Wörter wie „gratis Zubehör" enthält
-- [x] **Shpock-Warnung in `settings.html` entfernt** – veralteter Hinweis auf defekte API
-- [x] **Vinted 401 gefixt** – Vinted setzt `access_token_web`-JWT-Cookie erst beim Startseiten-Besuch; `_authenticate()` holt Cookie einmalig im `__init__`, bei erneutem 401 automatischer Retry; Preis-Parsing auf neues API-Format `{"amount": "...", "currency_code": "..."}` umgestellt
-- [x] **Tests nachgezogen** – 14 neue Tests für alle Änderungen dieser Phase: `_is_free`-Grenzfälle (echter Preis vs. Text, VB-Preis), Shpock `_parse`/Radius/Preis/Auth-Filter, Vinted Auth-Init und 401-Retry; bestehende Tests an neue Formate angepasst (130 Tests gesamt)
+- [x] Shpock GraphQL komplett überarbeitet, Entfernungsfilter client-seitig
+- [x] `_is_free()`-Bug (Preis hat Vorrang vor Text), Vinted 401 + neues API-Format
+- [x] 14 neue Tests (130 gesamt)
 
 ### Phase 7 – Standort/Radius + Konfigurierbarkeit
-- [x] **Standort + Radius für Vinted** – `vinted_location` (Stadtname) + `vinted_radius`; client-seitiger Geo-Filter via Nominatim + Haversine; 7 neue Tests (137 gesamt)
-- [x] **Standort + Radius für eBay** – `ebay_location` (PLZ oder Stadtname) + `ebay_radius`; URL-Parameter `_stpos`/`_sadis`; kein Filter wenn Feld leer
-- [x] **Crawler-Intervall-Default** – 60 → 15 Minuten
-- [x] **Scheduler-Bug gefixt** – `next_crawl` zeigte immer „–"; Scheduler lief im Werkzeug-Parent-Prozess, Requests werden im Child beantwortet; Bedingung auf `WERKZEUG_RUN_MAIN == "true" or not app.debug` korrigiert
-- [x] **E-Mail-Betreff konfigurierbar** – `email_subject_alert` + `email_subject_digest`; `{n}` wird durch Anzahl ersetzt; Felder in `settings.html` ergänzt
+- [x] Vinted + eBay Standort/Radius, Crawl-Intervall-Default 15 Min.
+- [x] Scheduler-Bug `next_crawl`, E-Mail-Betreff konfigurierbar
 
 ### Phase 8 – Code-Qualität & Testabdeckung
-- [x] **`database.py` Verbindungs-Leaks gefixt** – alle 18+ DB-Funktionen auf `_db()` Context-Manager migriert (garantiertes Schließen auch bei Exceptions)
-- [x] **`geo.py` Robustheit** – `r.raise_for_status()` vor `r.json()`; Geocoding-Erfolg auf `INFO` hochgestuft
-- [x] **`routes.py` Input-Validierung** – Suchbegriff-Länge (max. 200 Zeichen) und Crawler-Intervall (1–1440 Minuten) werden geprüft und mit Flash-Message zurückgemeldet
-- [x] **`crawler.py` Silent-Exception gefixt** – `except Exception: pass` für Entfernungsberechnung durch echtes `logger.warning(...)` ersetzt
-- [x] **`test_routes.py`** – 30 neue Tests für alle Flask-Routen und REST-API-Endpunkte
-- [x] **`test_crawl_run.py`** – 13 neue Tests für `run_crawl()`-Orchestrierung: Blacklist, Gratis-Erkennung, Fehlerbehandlung, Notify-Logik, Entfernungsberechnung
-- [x] **Blacklist-Regex revertiert** – `\b`-Word-Boundary-Ansatz entfernt; einfaches `in`-Substring-Matching korrekt für deutsche Komposita (z.B. „kaputtes" → trifft „kaputt")
-- [x] **Testanzahl: 180** (vorher 137)
-
----
-
-## 🔜 Geplant
-
-Aufgaben sind nummeriert – zum Umsetzen einfach die Nummer nennen (z.B. „mach Task 1 und 4").
-
----
-
-### Settings-Seite – Struktur
-
-| # | Aufgabe | Status |
-|---|---------|--------|
-| 1 | Settings in 3 Tabs: **Plattformen** / **Benachrichtigungen** / **Crawler & Daten** | [ ] |
-
-### Settings-Seite – UX
-
-| # | Aufgabe | Status |
-|---|---------|--------|
-| 2 | Deaktivierte Plattformen optisch dimmen (Felder ausgegraut, nicht editierbar) | [ ] |
-| 3 | Speichern-Button sticky + Unsaved-Changes-Warnung beim Verlassen | [ ] |
-| 15 | Inline-Validierung statt `alert()` bei Fehleingaben | [ ] |
-| 16 | „Verbindung testen"-Button pro Plattform (Mini-Crawl, 1 Ergebnis) | [ ] |
-
----
-
-### , Dashboard – Filter & Ansicht
-
-| # | Aufgabe | Status |
-|---|---------|--------|
-| 4 | Filter-Controls in ausklappbares Panel – aktive Filter als Badge-Zeile | [ ] |
-| 17 | Plattform-Filter zeigt nur Plattformen für die Anzeigen vorhanden sind | [ ] |
-| 18 | Status-Bar: relative Zeit („vor 12 Min."), Anzeigen-Anzahl pro Plattform | [ ] |
-
-### Dashboard – Listing-Karten
-
-| # | Aufgabe | Status |
-|---|---------|--------|
-| 5 | Relative Zeitangaben („vor 2h") statt ISO-Timestamp, Tooltip mit absolutem Datum | [ ] |
-| 6 | Listing-Detailansicht per Modal (Bild groß, Beschreibung, alle Metadaten) | [ ] |
-| 24 | Notizfeld pro Anzeige (inline editierbar, visuelles Kennzeichen auf Karte) | [ ] |
-
-### Dashboard – Sonstiges
-
-| # | Aufgabe | Status |
-|---|---------|--------|
-| 7 | Log-Terminal standardmäßig eingeklappt, öffnet sich nur bei aktivem Crawl | [ ] |
-
----
-
-### Accessibility
-
-| # | Aufgabe | Status |
-|---|---------|--------|
-| 8 | `aria-label` auf Icon-Buttons (✕, ★), `label[for]`-Verknüpfung, `aria-live` für Listings, Skip-Nav-Link | [ ] |
-| 9 | Kontrast-Fixes: `slate-400` → `slate-500/600` an Hint-Texten und Metadaten | [ ] |
-| 19 | `alert()`/`confirm()` durch barrierefreie Inline-Meldungen und eigenes Confirm-Modal ersetzen | [ ] |
-
----
-
-### Features – Benachrichtigungen
-
-| # | Aufgabe | Status |
-|---|---------|--------|
-| 12 | Telegram-Bot als Alternative zu SMTP (Bot-Token + Chat-ID, Alert + Digest) | [ ] |
-| 20 | Browser Push Notifications (Web Push API, kein E-Mail-Setup nötig) | [ ] |
-
-### Features – Mehrbenutzer
-
-| # | Aufgabe | Status |
-|---|---------|--------|
-| 10 | Profil-System à la Netflix – „Neu"-Badge pro Person, `last_seen_at` pro Profil | [ ] |
-
-### Features – Suche & Filterung
-
-| # | Aufgabe | Status |
-|---|---------|--------|
-| 25 | Preis-Schwelle pro Suchbegriff (überschreibt globalen Plattform-Max-Preis) | [ ] |
-| 14 | Duplikat-Erkennung plattformübergreifend (gleicher Titel + Preis + Ort) | [ ] |
-
-### Features – Daten & Export
-
-| # | Aufgabe | Status |
-|---|---------|--------|
-| 13 | CSV/JSON-Export der aktuell gefilterten Anzeigen (clientseitiger Download) | [ ] |
-| 23 | Settings-Backup: Import/Export als JSON | [ ] |
-
-### Features – Komfort & Bedienung
-
-| # | Aufgabe | Status |
-|---|---------|--------|
-| 11 | Tastaturkürzel (j/k navigieren, f favorisieren, d dismisssen, / suchen, ? Hilfe) | [ ] |
-| 21 | Dark Mode (`prefers-color-scheme` + manueller Toggle) | [ ] |
-| 22 | PWA-Manifest: App auf Smartphone installierbar | [ ] |
-
----
+- [x] DB-Verbindungs-Leaks gefixt (`_db()` Context-Manager), `geo.py` Robustheit
+- [x] Input-Validierung in `routes.py`, Silent-Exception in Crawler gefixt
+- [x] 30 neue Tests `test_routes.py`, 13 neue Tests `test_crawl_run.py` (180 gesamt)
 
 ### Phase 9 – Pagination, Mobile-UI & E-Mail manuell
-- [x] **Pagination** – `db.get_listings()` hat `offset`-Parameter; `/api/listings` liefert 30 Einträge pro Seite; „Mehr laden"-Button im Dashboard; server-seitige erste Seite + JS-nachgeladene Seiten nahtlos kombiniert
-- [x] **Mobile-UI** – Suchbegriff-Sidebar auf kleinen Bildschirmen ein-/ausklappbar; Filter-Leiste scrollt horizontal (`overflow-x-auto`, `flex-shrink-0`); kein festes `max-h` mehr am Listings-Grid
-- [x] **E-Mail bei manuellem Crawl** – `/api/crawl` startet `run_crawl_async(manual=True)`; `notify(force=True)` überspringt Rate-Limit; automatische Crawls behalten Rate-Limit
+- [x] Pagination (`offset`, „Mehr laden"-Button), Mobile-UI (kollabierbare Sidebar, horizontale Filter-Leiste)
+- [x] E-Mail bei manuellem Crawl (`force=True` überspringt Rate-Limit)
 
 ### Phase 10 – Sortierfunktion
-- [x] **Sortierung nach Datum, Preis, Entfernung** – `db.get_listings(sort_by=)` mit 5 Optionen; Preis-CAST via `GLOB '*[0-9]*'` (nicht-numerische Werte landen am Ende); Favoriten immer oben
-- [x] **`/api/listings?sort=`** mit Whitelist-Validierung
-- [x] **Dashboard-Sortier-Dropdown** als erstes Element in der Filter-Leiste; wird bei „Filter löschen" zurückgesetzt
-- [x] **8 neue Tests** in `test_database.py` (Preis auf-/absteigend, Entfernung, NULL-Handling, Favoriten-Priorität)
-- [x] **Testanzahl: 188**
+- [x] Sortierung nach Datum, Preis, Entfernung; Preis-CAST via `GLOB`; Favoriten immer oben
+- [x] `/api/listings?sort=` mit Whitelist, Dashboard-Dropdown (188 Tests)
 
 ### Phase 11 – Verfügbarkeits-Check
-- [x] **`checker.py`** – neues Modul mit `run_availability_check()`: HEAD-Request pro Anzeige, HTTP 404/410 → löschen (inkl. Favoriten), Netzwerkfehler → skip
-- [x] **`db.get_all_listing_urls()`** + **`db.delete_listing_by_listing_id()`** – löscht unabhängig von `is_favorite`
-- [x] **Scheduler-Job** `availability_job` (IntervalTrigger, konfigurierbar, Default 3h)
-- [x] **Settings**: `availability_check_enabled` + `availability_check_interval_hours`; Einstellungsseite mit neuem Abschnitt + „Jetzt prüfen"-Button
-- [x] **`POST /api/availability-check`** – manueller Start als Background-Thread
-- [x] **12 neue Tests** in `test_checker.py`; 200 Tests gesamt
+- [x] `checker.py` mit HEAD-Requests (404/410 → löschen inkl. Favoriten)
+- [x] Scheduler-Job, Settings, `POST /api/availability-check` (200 Tests)
 
-### Phase 12 – Radius-0-Option, Suchbegriff-Filter & Exclude-Filter
-- [x] **Radius=0 deaktiviert Entfernungsfilter (Vinted & Shpock)** – `radius_km=0` überspringt Geo-Filter vollständig; kein Geocoding-Aufruf; Muster `30 if raw is None else raw` statt `or 30`
-- [x] **Suchbegriff-Filter im Dashboard** – Klick auf einen Suchbegriff in der Sidebar filtert Anzeigen via `?term=`; ganzes Term-Element ist klickbarer `<button>`
-- [x] **Exclude-Filter** – Eingabefeld „Begriffe ausschließen"; 400 ms Debounce; `db.get_listings(exclude_text=...)` filtert via `title NOT LIKE ? AND COALESCE(description,'') NOT LIKE ?`; ×-Button zum Zurücksetzen
-- [x] **8 neue Tests**: 4 × `TestExcludeFilter` in `test_database.py`, 2 × Vinted-Radius-0 + 2 × Shpock-Radius-0 in `test_scrapers.py`
-- [x] **Testanzahl: 208**
+### Phase 12 – Radius-0, Suchbegriff-Filter & Exclude-Filter
+- [x] Radius=0 deaktiviert Entfernungsfilter (Vinted & Shpock)
+- [x] Suchbegriff-Filter (Klick auf Term), Exclude-Filter mit Debounce (208 Tests)
 
-### Phase 13 – Dismiss & Term-Delete mit Anzeigen
-- [x] **Anzeige dauerhaft ausblenden** – `dismissed_listings`-Tabelle; `db.dismiss_listing(db_id)` trägt `listing_id` ein und löscht das Listing; `db.save_listing()` prüft `is_dismissed()` vor INSERT; `POST /listings/<id>/dismiss` (AJAX); ✕-Button oben links auf jeder Karte
-- [x] **Suchbegriff-Löschen löscht Anzeigen** – `delete_search_term()` löscht zuerst alle zugehörigen Listings, dann den Term; Bestätigungsdialog im Frontend aktualisiert
-- [x] **`_listing_card.html` auf Stand gebracht** – Server-seitige Karten haben jetzt Favorit-Stern, Gratis-Badge, Distanz-Badge und Dismiss-Button (war bisher veraltet)
-- [x] **13 neue Tests**: 5 × TestDismiss + 2 × TestDeleteTermWithListings in `test_database.py`, 3 × TestDismissRoute in `test_routes.py`; 218 Tests gesamt
-- [x] **README vollständig überarbeitet** – neue Struktur: Schnellstart, Features nach Kategorien, vollständige Settings-Tabelle, aktualisierte Architektur/Tests
+### Phase 13 – Dismiss & Term-Delete
+- [x] `dismissed_listings`-Tabelle, ✕-Button auf Karten, Term-Löschen löscht Anzeigen
+- [x] `_listing_card.html` auf Stand gebracht (218 Tests)
 
 ### Phase 14 – Suchbegriff-Mehrfachfilter
-- [x] **Mehrere Suchbegriffe gleichzeitig filtern** – `activeTerms` als JS-Set; Klick auf Term togglet Aktivierung; mehrere aktive Terme werden als `?term=a&term=b` an `/api/listings` übergeben
-- [x] **Visuelle Hervorhebung aktiver Terme** – aktiver Term: blauer Text + fett + blauer Listenhintergrund (`bg-brand-50`); beim Deaktivieren und bei „Filter löschen" zurückgesetzt
-- [x] **Filter-Label zeigt alle aktiven Terme** – kommagetrennte Auflistung; ausgeblendet wenn keine Terme aktiv
-- [x] **Backend: `get_listings(search_terms: List[str])`** – ein Term → `= ?`, mehrere Terme → `IN (?, ?, ...)` SQLite
-- [x] **Route: `request.args.getlist("term")`** – mehrere `?term=`-Parameter werden als Liste übergeben
-- [x] **8 neue Tests**: 4 × TestSearchTermsFilter in `test_database.py`, 2 × Mehrfachterm in `test_routes.py`; 224 Tests gesamt
+- [x] Mehrere Terme gleichzeitig filtern (Toggle, `?term=a&term=b`), visuelle Hervorhebung (224 Tests)
 
-*Letzte Aktualisierung: 2026-04-25 (Phase 14 abgeschlossen)*
+### Phase 15 – Dashboard-UX, Settings-Tabs & neue Features
+- [x] **1** Settings: 3-Tab-Layout (Plattformen / Benachrichtigungen / Crawler & Daten)
+- [x] **2** Settings: deaktivierte Plattformen optisch dimmen
+- [x] **3** Settings: sticky Save-Button + Unsaved-Changes-Warnung
+- [x] **15** Settings: Inline-Validierung + `showFieldError()` wechselt automatisch Tab
+- [x] **16** Settings: „Verbindung testen"-Button pro Plattform
+- [x] **4** Dashboard: ausklappbares Filter-Panel mit Aktiv-Badge
+- [x] **5** Dashboard: relative Zeitangaben („vor 2h") auf Karten
+- [x] **6** Dashboard: Listing-Detailansicht per Modal
+- [x] **7** Dashboard: Log-Terminal standardmäßig eingeklappt
+- [x] **17** Dashboard: Plattform-Filter aus `/api/platforms` (nur vorhandene Plattformen)
+- [x] **18** Dashboard: Status-Bar mit Anzeigen pro Plattform + relative Laufzeit
+- [x] **14** Feature: Duplikat-Erkennung plattformübergreifend (Amber-Badge)
+- [x] **24** Feature: Notizfeld pro Anzeige (💬-Badge, Modal-Textarea)
+- [x] **25** Feature: Preis-Schwelle pro Suchbegriff (Inline-Edit in Sidebar)
+- [x] Checker: `_running`-Guard, `min_age_minutes=60` für frische Anzeigen
+- [x] API: `/terms/<id>/max-price`, `/listings/<id>/note`, `/api/platforms`, `/api/test-scraper`, `/api/clear-listings-by-age`, `platform_counts` in `/api/status`
+- [x] DB: `notes`, `potential_duplicate` (listings), `max_price` (search_terms), Migration sicher
+- [x] 41 neue Tests (259 gesamt)
+
+---
+
+*Letzte Aktualisierung: 2026-04-26 (Phase 15 abgeschlossen)*

@@ -161,7 +161,7 @@ class TestRunCrawlOrchestration:
 
         mock_notify.assert_not_called()
 
-    def test_notify_wird_bei_neuen_listings_aufgerufen(self, patched_db):
+    def test_notify_wird_bei_auto_crawl_nicht_aufgerufen(self, patched_db):
         listing = make_listing(listing_id="notify-1")
         mock_scraper = MagicMock()
         mock_scraper.search.return_value = [listing]
@@ -174,7 +174,24 @@ class TestRunCrawlOrchestration:
              patch("app.crawler.db.set_setting"), \
              patch("app.crawler.db.update_listing_distance"), \
              patch("app.crawler.notify") as mock_notify:
-            crawler_module.run_crawl("kleinanzeigen")
+            crawler_module.run_crawl("kleinanzeigen")  # auto crawl
+
+        mock_notify.assert_not_called()
+
+    def test_notify_wird_bei_manuellem_crawl_aufgerufen(self, patched_db):
+        listing = make_listing(listing_id="notify-manual-1")
+        mock_scraper = MagicMock()
+        mock_scraper.search.return_value = [listing]
+
+        with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
+             patch("app.crawler.db.get_settings", return_value=_BASE_SETTINGS), \
+             patch("app.crawler.db.get_search_terms", return_value=[{"term": "kinderwagen"}]), \
+             patch("app.crawler.db.save_listing", return_value=True), \
+             patch("app.crawler.db.clear_old_listings"), \
+             patch("app.crawler.db.set_setting"), \
+             patch("app.crawler.db.update_listing_distance"), \
+             patch("app.crawler.notify") as mock_notify:
+            crawler_module.run_crawl("kleinanzeigen", manual=True)
 
         mock_notify.assert_called_once()
 

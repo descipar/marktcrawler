@@ -200,6 +200,7 @@ def _migrate_listings(conn: sqlite3.Connection):
         ("distance_km",         "REAL"),
         ("notes",               "TEXT"),
         ("potential_duplicate", "TEXT"),
+        ("notified_at",         "TEXT"),
     ]
     for col, definition in new_cols:
         if col not in existing:
@@ -512,6 +513,29 @@ def get_price_stats() -> List[Dict]:
             ORDER BY count DESC
         """).fetchall()
     return [dict(r) for r in rows]
+
+
+def get_unnotified_listings() -> List[Dict]:
+    """Alle Anzeigen ohne Benachrichtigung, sortiert nach Plattform und Suchbegriff."""
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM listings WHERE notified_at IS NULL "
+            "ORDER BY platform, search_term, found_at DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def mark_listings_notified(listing_ids: List[str]):
+    """Setzt notified_at für die angegebenen listing_ids."""
+    if not listing_ids:
+        return
+    with _db() as conn:
+        placeholders = ",".join("?" * len(listing_ids))
+        conn.execute(
+            f"UPDATE listings SET notified_at=datetime('now') WHERE listing_id IN ({placeholders})",
+            listing_ids,
+        )
+        conn.commit()
 
 
 def clear_old_listings(days: int = 30):

@@ -2,8 +2,7 @@
 
 import logging
 import smtplib
-import threading
-import time
+from collections import defaultdict
 from dataclasses import asdict
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -13,36 +12,43 @@ from . import database as db
 
 logger = logging.getLogger(__name__)
 
-_notify_lock = threading.Lock()
-_last_sent: float = 0.0
 
-
-# ── Sofort-Benachrichtigung ──────────────────────────────────
+# ── Sofort-Benachrichtigung (manueller Crawl) ────────────────
 
 def notify(listings: list, settings: dict, force: bool = False) -> bool:
-    """Sendet sofortige E-Mail bei neuen Anzeigen.
-
-    force=True überspringt das Rate-Limit (für manuell gestartete Crawls).
-    """
-    global _last_sent
+    """Sendet sofortige E-Mail für manuell gestartete Crawls und markiert Listings als benachrichtigt."""
     if not int(settings.get("email_enabled", 0)):
         return False
     if not listings:
         return False
 
-    if not force:
-        min_interval = int(settings.get("crawler_interval", 60)) * 60
-        with _notify_lock:
-            if time.time() - _last_sent < min_interval:
-                logger.debug("E-Mail-Rate-Limit aktiv – kein Versand.")
-                return False
+    listing_dicts = [asdict(l) for l in listings]
+    tpl = settings.get("email_subject_alert", "🍼 Baby-Crawler: {n} neue Anzeige(n) gefunden!")
+    subject = tpl.replace("{n}", str(len(listing_dicts)))
+    result = _send_dicts(subject, listing_dicts, settings)
+    if result:
+        db.mark_listings_notified([l.listing_id for l in listings])
+    return result
+
+
+# ── Gebündelter Benachrichtigungs-Job (alle 15 Min.) ─────────
+
+def notify_pending(settings: dict) -> bool:
+    """Sammelt alle unbenachrichtigten Anzeigen und sendet eine gebündelte E-Mail."""
+    if not int(settings.get("email_enabled", 0)):
+        return False
+
+    listings = db.get_unnotified_listings()
+    if not listings:
+        logger.debug("notify_pending: Keine unbenachrichtigten Anzeigen.")
+        return False
 
     tpl = settings.get("email_subject_alert", "🍼 Baby-Crawler: {n} neue Anzeige(n) gefunden!")
     subject = tpl.replace("{n}", str(len(listings)))
-    result = _send(subject, listings, settings)
+    result = _send_dicts(subject, listings, settings)
     if result:
-        with _notify_lock:
-            _last_sent = time.time()
+        db.mark_listings_notified([l["listing_id"] for l in listings])
+        logger.info(f"notify_pending: {len(listings)} Anzeigen benachrichtigt.")
     return result
 
 
@@ -60,7 +66,6 @@ def send_digest(settings: dict) -> bool:
         logger.info("Digest: Heute keine Anzeigen gefunden – kein Versand.")
         return False
 
-    # listings sind hier Dicts aus der DB, keine Listing-Objekte
     tpl = settings.get("email_subject_digest", "🍼 Baby-Crawler Tages-Digest: {n} Anzeige(n) heute")
     subject = tpl.replace("{n}", str(len(listings)))
     logger.info(f"Sende Tages-Digest mit {len(listings)} Anzeigen.")
@@ -69,19 +74,18 @@ def send_digest(settings: dict) -> bool:
 
 # ── Interner Versand ─────────────────────────────────────────
 
-def _send(subject: str, listings: list, settings: dict) -> bool:
-    """Sendet eine E-Mail mit Listing-Objekten."""
+def _send_dicts(subject: str, listings: list, settings: dict) -> bool:
+    """Sendet eine E-Mail mit gruppierten Listings (als Dicts)."""
     sender, password, recipients = _get_email_config(settings)
     if not recipients:
         return False
 
-    listing_dicts = [asdict(l) for l in listings]
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = ", ".join(recipients)
-    msg.attach(MIMEText(_text_from_dicts(listing_dicts), "plain", "utf-8"))
-    msg.attach(MIMEText(_html_from_dicts(listing_dicts), "html", "utf-8"))
+    msg.attach(MIMEText(_text_from_dicts(listings), "plain", "utf-8"))
+    msg.attach(MIMEText(_html_grouped(listings), "html", "utf-8"))
 
     if _smtp_send(msg, sender, password, recipients, settings):
         logger.info(f"E-Mail '{subject}' → {', '.join(recipients)}")
@@ -90,7 +94,7 @@ def _send(subject: str, listings: list, settings: dict) -> bool:
 
 
 def _send_digest_mail(subject: str, listings: list, settings: dict) -> bool:
-    """Sendet eine E-Mail mit Listings als Dicts (aus DB)."""
+    """Sendet eine E-Mail mit Listings als Dicts (aus DB), flaches Format für Digest."""
     sender, password, recipients = _get_email_config(settings)
     if not recipients:
         return False
@@ -143,14 +147,22 @@ _PLATFORM_COLORS = {
     "Facebook": "#e8eaf6",
 }
 
+_PLATFORM_HEADER_COLORS = {
+    "Kleinanzeigen": "#2e7d32",
+    "Shpock": "#1565c0",
+    "Vinted": "#00695c",
+    "eBay": "#e65100",
+    "Facebook": "#283593",
+}
+
 
 def _card_html(title, platform, search_term, price, location, url,
                image_url="", is_free=False, distance_km=None,
                found_at="", is_digest=False) -> str:
-    bg = _PLATFORM_COLORS.get(platform, "#f5f5f5")
+    bg = "#dcedc8" if is_free else _PLATFORM_COLORS.get(platform, "#f5f5f5")
     img = (f'<img src="{image_url}" style="max-width:180px;border-radius:6px;'
            f'margin-bottom:8px"><br>') if image_url else ""
-    free_badge = ('<span style="background:#e8f5e9;color:#1b5e20;font-size:11px;'
+    free_badge = ('<span style="background:#1b5e20;color:#fff;font-size:11px;'
                   'padding:2px 8px;border-radius:12px;font-weight:bold;'
                   'margin-left:6px">🎁 Gratis</span>') if is_free else ""
     dist_str = (f'<span style="color:#888;font-size:12px;margin-left:6px">'
@@ -178,6 +190,76 @@ def _card_html(title, platform, search_term, price, location, url,
       <a href="{url}" style="padding:6px 14px;background:#1976d2;color:white;
          text-decoration:none;border-radius:4px;font-size:13px">Ansehen →</a>
     </div>"""
+
+
+def _html_grouped(listings: list) -> str:
+    """Grupiertes HTML-E-Mail: Plattform → Suchbegriff mit Inhaltsverzeichnis."""
+    groups: dict = defaultdict(lambda: defaultdict(list))
+    for l in listings:
+        groups[l.get("platform", "Unbekannt")][l.get("search_term", "")].append(l)
+
+    # Inhaltsverzeichnis
+    toc_rows = []
+    for platform in sorted(groups):
+        total = sum(len(v) for v in groups[platform].values())
+        hc = _PLATFORM_HEADER_COLORS.get(platform, "#333")
+        toc_rows.append(
+            f'<tr><td style="padding:3px 8px;font-weight:bold;color:{hc}">{platform}</td>'
+            f'<td style="padding:3px 8px;color:#666">{total} Anzeige(n)</td></tr>'
+        )
+        for term in sorted(groups[platform]):
+            count = len(groups[platform][term])
+            toc_rows.append(
+                f'<tr><td style="padding:1px 8px 1px 20px;color:#777">↳ {term}</td>'
+                f'<td style="padding:1px 8px;color:#999">{count}</td></tr>'
+            )
+    toc = f'<table style="border-collapse:collapse">{"".join(toc_rows)}</table>'
+
+    # Sektionen
+    sections = []
+    for platform in sorted(groups):
+        bg = _PLATFORM_COLORS.get(platform, "#f5f5f5")
+        hc = _PLATFORM_HEADER_COLORS.get(platform, "#333")
+        sections.append(
+            f'<div style="margin-top:28px">'
+            f'<div style="background:{bg};border-left:5px solid {hc};'
+            f'padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:12px">'
+            f'<h3 style="margin:0;color:{hc};font-size:16px">{platform}</h3>'
+            f'</div>'
+        )
+        for term in sorted(groups[platform]):
+            items = groups[platform][term]
+            cards = "".join(
+                _card_html(
+                    title=l.get("title", ""), platform=platform, search_term=term,
+                    price=l.get("price", ""), location=l.get("location", ""),
+                    url=l.get("url", ""), image_url=l.get("image_url", ""),
+                    is_free=bool(l.get("is_free")), distance_km=l.get("distance_km"),
+                    found_at=l.get("found_at", ""),
+                )
+                for l in items
+            )
+            sections.append(
+                f'<div style="margin-left:12px;margin-bottom:16px">'
+                f'<h4 style="margin:0 0 8px;color:#555;border-bottom:1px solid #ddd;'
+                f'padding-bottom:4px;font-size:13px">🔍 {term} ({len(items)})</h4>'
+                f'{cards}</div>'
+            )
+        sections.append('</div>')
+
+    count = len(listings)
+    return (
+        '<html><body style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;padding:20px">'
+        f'<h2 style="color:#333">🍼 {count} neue Babysachen</h2>'
+        '<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;'
+        'padding:14px;margin-bottom:24px">'
+        '<p style="margin:0 0 8px;font-weight:bold;color:#333">Inhalt</p>'
+        f'{toc}</div>'
+        + "".join(sections)
+        + '<p style="color:#aaa;font-size:11px;margin-top:24px">'
+        'Baby-Crawler – automatische Benachrichtigung</p>'
+        '</body></html>'
+    )
 
 
 def _html_from_dicts(listings: list, is_digest: bool = False) -> str:

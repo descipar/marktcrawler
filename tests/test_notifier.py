@@ -5,7 +5,10 @@ from dataclasses import asdict
 from email.mime.text import MIMEText
 from unittest.mock import patch, MagicMock
 
-from app.notifier import _card_html, _html_from_dicts, _text_from_dicts, _smtp_send
+from app.notifier import (
+    _card_html, _html_from_dicts, _html_grouped, _text_from_dicts, _smtp_send,
+    notify_pending,
+)
 from app.scrapers.base import Listing
 
 
@@ -185,6 +188,107 @@ class TestTextFromDicts:
         listings = [make_listing_dict(is_free=True)]
         text = _text_from_dicts(listings)
         assert "GRATIS" in text
+
+
+# ── _html_grouped ────────────────────────────────────────────
+
+class TestHtmlGrouped:
+
+    def _two_platform_listings(self):
+        return [
+            make_listing_dict(platform="Kleinanzeigen", search_term="kinderwagen", title="Wagen A", listing_id="a1"),
+            make_listing_dict(platform="Kleinanzeigen", search_term="kinderwagen", title="Wagen B", listing_id="a2"),
+            make_listing_dict(platform="Shpock", search_term="babybett", title="Bett X", listing_id="b1"),
+        ]
+
+    def test_valide_html_grundstruktur(self):
+        html = _html_grouped([make_listing_dict()])
+        assert html.startswith("<html>")
+        assert "</html>" in html
+
+    def test_enthält_alle_plattformen(self):
+        html = _html_grouped(self._two_platform_listings())
+        assert "Kleinanzeigen" in html
+        assert "Shpock" in html
+
+    def test_enthält_alle_titel(self):
+        html = _html_grouped(self._two_platform_listings())
+        assert "Wagen A" in html
+        assert "Wagen B" in html
+        assert "Bett X" in html
+
+    def test_enthält_suchbegriffe(self):
+        html = _html_grouped(self._two_platform_listings())
+        assert "kinderwagen" in html
+        assert "babybett" in html
+
+    def test_enthält_gesamtanzahl(self):
+        html = _html_grouped(self._two_platform_listings())
+        assert "3" in html
+
+    def test_gratis_hervorgehoben(self):
+        listing = make_listing_dict(is_free=True)
+        html = _html_grouped([listing])
+        assert "Gratis" in html
+        assert "#dcedc8" in html  # grüner Hintergrund für Gratis-Karten
+
+    def test_leere_liste_kein_fehler(self):
+        html = _html_grouped([])
+        assert "<html>" in html
+
+    def test_inhaltsverzeichnis_vorhanden(self):
+        html = _html_grouped(self._two_platform_listings())
+        assert "Inhalt" in html
+
+
+# ── notify_pending ────────────────────────────────────────────
+
+class TestNotifyPending:
+
+    _SETTINGS = {
+        "email_enabled": "1",
+        "email_sender": "sender@example.com",
+        "email_password": "pw",
+        "email_recipient": "recv@example.com",
+        "email_smtp_server": "smtp.example.com",
+        "email_smtp_port": "587",
+        "email_subject_alert": "🍼 Baby-Crawler: {n} neue Anzeige(n) gefunden!",
+    }
+
+    def test_sendet_nicht_wenn_email_deaktiviert(self):
+        settings = {**self._SETTINGS, "email_enabled": "0"}
+        with patch("app.notifier.db.get_unnotified_listings") as mock_get:
+            result = notify_pending(settings)
+        assert result is False
+        mock_get.assert_not_called()
+
+    def test_sendet_nicht_ohne_listings(self):
+        with patch("app.notifier.db.get_unnotified_listings", return_value=[]), \
+             patch("app.notifier._smtp_send") as mock_smtp:
+            result = notify_pending(self._SETTINGS)
+        assert result is False
+        mock_smtp.assert_not_called()
+
+    def test_markiert_listings_nach_versand(self):
+        listings = [
+            {**make_listing_dict(listing_id="p1"), "listing_id": "p1"},
+            {**make_listing_dict(listing_id="p2"), "listing_id": "p2"},
+        ]
+        with patch("app.notifier.db.get_unnotified_listings", return_value=listings), \
+             patch("app.notifier._smtp_send", return_value=True), \
+             patch("app.notifier.db.mark_listings_notified") as mock_mark:
+            result = notify_pending(self._SETTINGS)
+        assert result is True
+        mock_mark.assert_called_once_with(["p1", "p2"])
+
+    def test_markiert_nicht_bei_smtp_fehler(self):
+        listings = [{**make_listing_dict(), "listing_id": "q1"}]
+        with patch("app.notifier.db.get_unnotified_listings", return_value=listings), \
+             patch("app.notifier._smtp_send", return_value=False), \
+             patch("app.notifier.db.mark_listings_notified") as mock_mark:
+            result = notify_pending(self._SETTINGS)
+        assert result is False
+        mock_mark.assert_not_called()
 
 
 # ── _smtp_send ────────────────────────────────────────────────

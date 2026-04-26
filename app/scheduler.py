@@ -8,7 +8,7 @@ from apscheduler.triggers.cron import CronTrigger
 from . import database as db
 from .checker import run_availability_check
 from .crawler import run_crawl, DEFAULT_INTERVALS, PLATFORM_SCRAPER_MAP
-from .notifier import send_digest
+from .notifier import send_digest, notify_pending
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +22,17 @@ def _run_digest():
     send_digest(settings)
 
 
+def _run_notify_pending():
+    settings = db.get_settings()
+    notify_pending(settings)
+
+
 def init_scheduler(app):
     global _scheduler
     _scheduler = BackgroundScheduler(daemon=True, timezone="Europe/Berlin")
 
     _schedule_platform_jobs()
+    _schedule_notify_job()
     _schedule_digest()
     _schedule_availability_check()
 
@@ -67,6 +73,24 @@ def _schedule_platform_jobs():
             replace_existing=True,
         )
         logger.info(f"[{platform}] Crawl-Job: alle {minutes} Minuten.")
+
+
+def _schedule_notify_job():
+    global _scheduler
+    if _scheduler is None:
+        return
+
+    if _scheduler.get_job("notify_job"):
+        _scheduler.remove_job("notify_job")
+
+    _scheduler.add_job(
+        _run_notify_pending,
+        trigger=IntervalTrigger(minutes=15),
+        id="notify_job",
+        name="Baby-Crawler Benachrichtigung",
+        replace_existing=True,
+    )
+    logger.info("Benachrichtigungs-Job: alle 15 Minuten.")
 
 
 def _schedule_digest():

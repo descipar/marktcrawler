@@ -176,8 +176,8 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
 
         db.clear_old_listings(days=30)
 
-        if new_listings:
-            notify(new_listings, settings, force=manual)
+        if new_listings and manual:
+            notify(new_listings, settings, force=True)
 
         logger.info(
             f"[{platform}] Crawl beendet: {stats['new']} neu / {stats['total']} gesamt / "

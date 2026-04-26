@@ -539,3 +539,98 @@ class TestApiClearListings:
 
         with app.app_context():
             assert db.get_listing_count() == 0
+
+
+# ── Profile-Routen ────────────────────────────────────────────
+
+class TestProfileRoutes:
+
+    def test_index_ohne_profile_kein_redirect(self, client):
+        """Ohne Profile direkt zum Dashboard."""
+        resp = client.get("/")
+        assert resp.status_code == 200
+
+    def test_index_mit_profil_redirectet_zu_select(self, client, app):
+        import app.database as db
+        with app.app_context():
+            db.create_profile("Kai", "🐣")
+        resp = client.get("/")
+        assert resp.status_code == 302
+        assert "/profiles/select" in resp.headers["Location"]
+
+    def test_profile_select_seite(self, client, app):
+        import app.database as db
+        with app.app_context():
+            db.create_profile("Kai", "🐣")
+        resp = client.get("/profiles/select")
+        assert resp.status_code == 200
+        assert b"Kai" in resp.data
+
+    def test_profile_select_ohne_profile_redirect(self, client):
+        resp = client.get("/profiles/select")
+        assert resp.status_code == 302
+
+    def test_profil_auswaehlen_setzt_session(self, client, app):
+        import app.database as db
+        with app.app_context():
+            pid = db.create_profile("Lisa", "🌸")
+        resp = client.post(f"/profiles/select/{pid}", follow_redirects=False)
+        assert resp.status_code == 302
+        with client.session_transaction() as sess:
+            assert sess["profile_id"] == pid
+            assert sess["profile_name"] == "Lisa"
+
+    def test_profil_auswaehlen_aktualisiert_last_seen(self, client, app):
+        import app.database as db
+        with app.app_context():
+            pid = db.create_profile("Test", "👤")
+            assert db.get_profile(pid)["last_seen_at"] is None
+        client.post(f"/profiles/select/{pid}")
+        with app.app_context():
+            assert db.get_profile(pid)["last_seen_at"] is not None
+
+    def test_profil_erstellen(self, client, app):
+        import app.database as db
+        client.post("/profiles", data={"name": "Neu", "emoji": "🎉"})
+        with app.app_context():
+            profiles = db.get_profiles()
+        assert any(p["name"] == "Neu" for p in profiles)
+
+    def test_profil_loeschen(self, client, app):
+        import app.database as db
+        with app.app_context():
+            pid = db.create_profile("Weg", "🗑️")
+        resp = client.post(f"/profiles/{pid}/delete",
+                           content_type="application/json")
+        assert resp.status_code == 200
+        with app.app_context():
+            assert db.get_profile(pid) is None
+
+    def test_profil_umbenennen(self, client, app):
+        import app.database as db
+        with app.app_context():
+            pid = db.create_profile("Alt", "👤")
+        resp = client.post(f"/profiles/{pid}/update",
+                           json={"name": "Neu", "emoji": "🎊"},
+                           content_type="application/json")
+        assert resp.status_code == 200
+        with app.app_context():
+            assert db.get_profile(pid)["name"] == "Neu"
+
+    def test_api_listings_is_new_mit_profil(self, client, app):
+        """is_new=True für Anzeigen die nach last_seen_at gefunden wurden."""
+        import app.database as db
+        from app.scrapers.base import Listing
+        with app.app_context():
+            pid = db.create_profile("Test", "👤")
+            db.save_listing(Listing(
+                platform="Test", title="Neue Anzeige", price="5 €",
+                location="München", url="https://example.com/new",
+                listing_id="new-1", search_term="test",
+            ))
+        # Profil auswählen → last_seen_at = None → keine is_new Badges
+        client.post(f"/profiles/select/{pid}")
+        resp = client.get("/api/listings")
+        listings = json.loads(resp.data)
+        # last_seen_at war None beim ersten Besuch → is_new = False
+        assert all(not l["is_new"] for l in listings)

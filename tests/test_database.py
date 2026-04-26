@@ -701,3 +701,48 @@ class TestMigration:
         cols = {row[1] for row in conn.execute("PRAGMA table_info(search_terms)")}
         conn.close()
         assert "max_price" in cols
+
+
+# ── Profile ───────────────────────────────────────────────────
+
+class TestProfiles:
+
+    def test_profile_anlegen_und_lesen(self, temp_db):
+        pid = temp_db.create_profile("Kai", "🐣")
+        assert isinstance(pid, int)
+        profile = temp_db.get_profile(pid)
+        assert profile["name"] == "Kai"
+        assert profile["emoji"] == "🐣"
+        assert profile["last_seen_at"] is None
+
+    def test_get_profiles_leer(self, temp_db):
+        assert temp_db.get_profiles() == []
+
+    def test_get_profiles_mehrere(self, temp_db):
+        temp_db.create_profile("Kai", "🐣")
+        temp_db.create_profile("Lisa", "🌸")
+        profiles = temp_db.get_profiles()
+        assert len(profiles) == 2
+        assert {p["name"] for p in profiles} == {"Kai", "Lisa"}
+
+    def test_unbekanntes_profil_gibt_none(self, temp_db):
+        assert temp_db.get_profile(9999) is None
+
+    def test_profil_aktualisieren(self, temp_db):
+        pid = temp_db.create_profile("Alt", "👤")
+        temp_db.update_profile(pid, "Neu", "🎉")
+        profile = temp_db.get_profile(pid)
+        assert profile["name"] == "Neu"
+        assert profile["emoji"] == "🎉"
+
+    def test_profil_loeschen(self, temp_db):
+        pid = temp_db.create_profile("Löschen", "❌")
+        temp_db.delete_profile(pid)
+        assert temp_db.get_profile(pid) is None
+        assert temp_db.get_profiles() == []
+
+    def test_last_seen_at_wird_aktualisiert(self, temp_db):
+        pid = temp_db.create_profile("Test", "👤")
+        assert temp_db.get_profile(pid)["last_seen_at"] is None
+        temp_db.update_profile_last_seen(pid)
+        assert temp_db.get_profile(pid)["last_seen_at"] is not None

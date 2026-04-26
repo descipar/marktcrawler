@@ -33,9 +33,7 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") ode
 
 ---
 
-### Features – Mehrbenutzer
-
-- [ ] **10** – Profil-System à la Netflix: „Neu"-Badge pro Person, `last_seen_at` pro Profil in DB; jede Person sieht welche Anzeigen seit ihrem letzten Besuch neu sind
+~~### Features – Mehrbenutzer~~ ✅ (Phase 17)
 
 ---
 
@@ -145,6 +143,15 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") ode
 - [x] **33** `checker.py`: erwartete Laufzeit beim Start loggen, Delete-Logs auf `debug()` gesenkt
 - [x] 1 neuer Test, 1 Test korrigiert (260 gesamt)
 
+### Phase 17 – Mehrbenutzer-Profile
+- [x] **10** Profil-System (Netflix-Stil): Profil-Auswahl beim Start, `profiles`-Tabelle in DB
+- [x] Suchbegriffe global geteilt; `last_seen_at` pro Profil für „Neu"-Badge
+- [x] ✨ Neu-Badge auf Karten und im Modal für Anzeigen seit letztem Besuch
+- [x] Profil-Verwaltung in Settings (neuer Tab „Profile"): anlegen, bearbeiten, löschen
+- [x] Aktives Profil + Wechsel-Button in der Navbar
+- [x] Neue Route `/profiles/select`, `/profiles/select/<id>`, `/profiles/logout`
+- [x] 17 neue Tests (277 gesamt)
+
 ---
 
-*Letzte Aktualisierung: 2026-04-26 (Phase 16 abgeschlossen)*
+*Letzte Aktualisierung: 2026-04-26 (Phase 17 abgeschlossen)*

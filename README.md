@@ -5,7 +5,7 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-259%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-277%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
@@ -34,6 +34,7 @@ Admin-UI aufrufen: **`http://localhost:5000`**
 - **Suchbegriff-Filter** – Klick auf einen Suchbegriff filtert die Anzeigenliste; mehrere Begriffe gleichzeitig auswählbar (Toggle); aktive Begriffe werden hervorgehoben
 - **Exclude-Filter** – Begriffe live ausblenden (400 ms Debounce, ×-Button zum Zurücksetzen)
 - **Duplikat-Erkennung** – jede Anzeige wird nur einmal gespeichert
+- **👤 Mehrbenutzer-Profile** – Netflix-Stil: jedes Profil sieht „✨ Neu"-Badge für Anzeigen seit dem letzten Besuch; Suchbegriffe geteilt
 
 ### Anzeigen-Verwaltung
 - **⭐ Favoriten** – Anzeigen markieren; Favoriten werden beim automatischen Aufräumen nie gelöscht

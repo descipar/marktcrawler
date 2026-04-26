@@ -1,6 +1,6 @@
 """Flask-Routen: Dashboard, Einstellungen, REST-API."""
 
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
 
 from . import database as db
 from .crawler import run_crawl_async, is_running
@@ -13,6 +13,10 @@ bp = Blueprint("main", __name__)
 
 @bp.route("/")
 def index():
+    # Wenn Profile existieren und kein Profil in Session → Auswahl
+    if db.get_profiles() and "profile_id" not in session:
+        return redirect(url_for("main.profiles_select"))
+
     search_terms = db.get_search_terms()
     settings = db.get_settings()
 
@@ -26,6 +30,12 @@ def index():
         only_free=only_free,
         max_age_hours=max_age,
     )
+
+    # is_new: Anzeigen seit letztem Besuch des aktiven Profils markieren
+    last_seen_at = session.get("profile_last_seen")
+    for l in listings:
+        l["is_new"] = bool(last_seen_at and l.get("found_at", "") > last_seen_at)
+
     stats = {
         "total_listings": db.get_listing_count(),
         "last_crawl": settings.get("last_crawl_end", "") or "Noch kein Lauf",
@@ -42,6 +52,8 @@ def index():
         price_stats=price_stats,
         only_fav=only_fav,
         only_free=only_free,
+        active_profile=session.get("profile_name"),
+        active_profile_emoji=session.get("profile_emoji"),
     )
 
 
@@ -107,7 +119,7 @@ def update_note(listing_id):
 @bp.route("/settings")
 def settings_page():
     settings = db.get_settings()
-    return render_template("settings.html", s=settings)
+    return render_template("settings.html", s=settings, profiles=db.get_profiles())
 
 
 @bp.route("/settings", methods=["POST"])
@@ -211,6 +223,9 @@ def api_listings():
         only_favorites=only_fav, only_free=only_free, max_age_hours=max_age,
         max_distance_km=max_distance, sort_by=sort_by, exclude_text=exclude_text,
     )
+    last_seen_at = session.get("profile_last_seen")
+    for l in listings:
+        l["is_new"] = bool(last_seen_at and l.get("found_at", "") > last_seen_at)
     return jsonify(listings)
 
 
@@ -278,3 +293,72 @@ def api_test_scraper():
                         "message": f"✓ {len(results)} Ergebnis(se) für \"{test_term}\""})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)[:300]}), 500
+
+
+# ── Profile ──────────────────────────────────────────────────
+
+@bp.route("/profiles/select")
+def profiles_select():
+    profiles = db.get_profiles()
+    if not profiles:
+        return redirect(url_for("main.index"))
+    return render_template("profiles_select.html", profiles=profiles)
+
+
+@bp.route("/profiles/select/<int:profile_id>", methods=["POST"])
+def select_profile(profile_id):
+    profile = db.get_profile(profile_id)
+    if not profile:
+        return redirect(url_for("main.profiles_select"))
+    session["profile_id"] = profile_id
+    session["profile_name"] = profile["name"]
+    session["profile_emoji"] = profile["emoji"]
+    session["profile_last_seen"] = profile["last_seen_at"]
+    db.update_profile_last_seen(profile_id)
+    return redirect(url_for("main.index"))
+
+
+@bp.route("/profiles/logout", methods=["POST"])
+def profile_logout():
+    for key in ("profile_id", "profile_name", "profile_emoji", "profile_last_seen"):
+        session.pop(key, None)
+    profiles = db.get_profiles()
+    if profiles:
+        return redirect(url_for("main.profiles_select"))
+    return redirect(url_for("main.index"))
+
+
+@bp.route("/profiles", methods=["POST"])
+def create_profile_route():
+    name = request.form.get("name", "").strip()
+    emoji = request.form.get("emoji", "👤").strip() or "👤"
+    if not name:
+        flash("Name darf nicht leer sein.", "error")
+    elif len(name) > 50:
+        flash("Name zu lang (max. 50 Zeichen).", "error")
+    else:
+        db.create_profile(name, emoji)
+    return redirect(url_for("main.settings_page") + "#profiles")
+
+
+@bp.route("/profiles/<int:profile_id>/update", methods=["POST"])
+def update_profile_route(profile_id):
+    data = request.json or {}
+    name = data.get("name", "").strip()
+    emoji = data.get("emoji", "👤").strip() or "👤"
+    if not name or len(name) > 50:
+        return jsonify({"error": "Ungültiger Name."}), 400
+    db.update_profile(profile_id, name, emoji)
+    if session.get("profile_id") == profile_id:
+        session["profile_name"] = name
+        session["profile_emoji"] = emoji
+    return jsonify({"status": "ok"})
+
+
+@bp.route("/profiles/<int:profile_id>/delete", methods=["POST"])
+def delete_profile_route(profile_id):
+    if session.get("profile_id") == profile_id:
+        for key in ("profile_id", "profile_name", "profile_emoji", "profile_last_seen"):
+            session.pop(key, None)
+    db.delete_profile(profile_id)
+    return jsonify({"status": "ok"})

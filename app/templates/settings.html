@@ -74,6 +74,7 @@
     <button type="button" class="tab-btn active-tab" data-tab="platforms" onclick="switchTab('platforms')">🏪 Plattformen</button>
     <button type="button" class="tab-btn" data-tab="notifications" onclick="switchTab('notifications')">📧 Benachrichtigungen</button>
     <button type="button" class="tab-btn" data-tab="crawler" onclick="switchTab('crawler')">🤖 Crawler &amp; Daten</button>
+    <button type="button" class="tab-btn" data-tab="profiles" onclick="switchTab('profiles')">👤 Profile</button>
   </div>
 
   <!-- ── Tab: Plattformen ────────────────────────────────── -->
@@ -280,6 +281,69 @@
 
   </div><!-- /tab-crawler -->
 
+  <!-- ── Tab: Profile ───────────────────────────────────── -->
+  <div id="tab-profiles" class="tab-panel hidden space-y-4 pt-4">
+
+    <!-- Neues Profil anlegen -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3 bg-brand-50 border-b border-slate-200">
+        <h2 class="font-semibold text-brand-700">➕ Neues Profil anlegen</h2>
+      </div>
+      <div class="p-5">
+        <p class="text-xs text-slate-400 mb-4">Suchbegriffe gelten für alle Profile gemeinsam.</p>
+        <form method="POST" action="/profiles" class="flex items-end gap-3 flex-wrap">
+          {% call field("Emoji") %}
+            <input type="text" name="emoji" maxlength="4" value="👤"
+              class="input-field text-2xl text-center w-16">
+          {% endcall %}
+          {% call field("Name") %}
+            <input type="text" name="name" maxlength="50" placeholder="z.B. Kai" required
+              class="input-field">
+          {% endcall %}
+          <button type="submit"
+            class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg transition-colors shrink-0">
+            Anlegen
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Bestehende Profile -->
+    {% if profiles %}
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3 bg-slate-50 border-b border-slate-200">
+        <h2 class="font-semibold text-slate-700">Vorhandene Profile</h2>
+      </div>
+      <ul class="divide-y divide-slate-100">
+        {% for profile in profiles %}
+        <li class="px-5 py-4 flex items-center gap-4" data-profile-id="{{ profile.id }}">
+          <span class="text-3xl profile-emoji">{{ profile.emoji }}</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-slate-800 profile-name">{{ profile.name }}</div>
+            <div class="text-xs text-slate-400">
+              {% if profile.last_seen_at %}zuletzt {{ profile.last_seen_at[:16].replace('T',' ') }}{% else %}noch nicht besucht{% endif %}
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="editProfile({{ profile.id }}, this)"
+              class="text-xs border border-slate-200 text-slate-600 hover:bg-slate-50 px-2 py-1 rounded transition-colors">
+              Bearbeiten
+            </button>
+            <button onclick="deleteProfile({{ profile.id }}, this)"
+              class="text-xs border border-red-200 text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors">
+              Löschen
+            </button>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-400 text-center py-4">Noch keine Profile angelegt. Ohne Profile wird kein Profil-Auswahl-Bildschirm angezeigt.</p>
+    {% endif %}
+
+  </div><!-- /tab-profiles -->
+
   <!-- ── Sticky Speichern-Button (Task 3) ───────────────── -->
   <div class="sticky bottom-4 z-20 flex justify-end pt-4 pb-2">
     <button type="submit"
@@ -464,6 +528,34 @@ function runAvailabilityCheck() {
     .then(r => r.json())
     .then(() => alert('Verfügbarkeits-Check gestartet. Ergebnis im Dashboard-Log sichtbar.'))
     .catch(() => alert('Fehler beim Starten des Checks.'));
+}
+
+// ── Profile ──────────────────────────────────────────────────
+async function editProfile(id, btn) {
+  const li = btn.closest('li');
+  const nameEl = li.querySelector('.profile-name');
+  const emojiEl = li.querySelector('.profile-emoji');
+  const newName = prompt('Name:', nameEl.textContent.trim());
+  if (newName === null) return;
+  const newEmoji = prompt('Emoji:', emojiEl.textContent.trim());
+  if (newEmoji === null) return;
+  const name = newName.trim();
+  if (!name) { alert('Name darf nicht leer sein.'); return; }
+  const res = await fetch(`/profiles/${id}/update`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name, emoji: newEmoji.trim() || '👤'})
+  });
+  if (res.ok) {
+    nameEl.textContent = name;
+    emojiEl.textContent = newEmoji.trim() || '👤';
+  }
+}
+
+async function deleteProfile(id, btn) {
+  if (!confirm('Profil wirklich löschen?')) return;
+  const res = await fetch(`/profiles/${id}/delete`, {method: 'POST'});
+  if (res.ok) btn.closest('li').remove();
 }
 
 function deleteOldListings() {

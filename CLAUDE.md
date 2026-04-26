@@ -63,6 +63,9 @@ listings     (id, listing_id TEXT UNIQUE, platform, title, price,
 geocache     (location_text TEXT PRIMARY KEY, lat REAL, lon REAL, cached_at)
 
 dismissed_listings (listing_id TEXT PRIMARY KEY, dismissed_at TEXT)
+
+profiles     (id INTEGER PRIMARY KEY, name TEXT NOT NULL, emoji TEXT DEFAULT '👤',
+              last_seen_at TEXT, created_at TEXT)
 ```
 
 **Migration**: Drei separate Migrations-Funktionen ergänzen fehlende Spalten in bestehenden DBs via `PRAGMA table_info` – keine Datenverluste bei Updates:
@@ -172,8 +175,11 @@ Eingabefeld „Begriffe ausschließen" in der Filter-Leiste. Eingaben werden mit
 ### Per-Term Preisschwelle
 `search_terms.max_price INTEGER NULL` speichert eine optionale Preisobergrenze pro Suchbegriff. In `run_crawl()` wird `term_row.get("max_price")` gegen `price_within_limit()` aus `scrapers/base.py` geprüft – zu teure Anzeigen werden vor dem Speichern herausgefiltert. In der Sidebar per Inline-Edit setzbar (Stift-Icon → Eingabefeld → ENTER). Route: `POST /terms/<id>/max-price`.
 
+### Mehrbenutzer-Profile
+`profiles`-Tabelle speichert `name`, `emoji` und `last_seen_at` pro Person. Wenn Profile existieren und kein Profil in der Flask-Session → automatischer Redirect zu `/profiles/select` (Netflix-Stil). Beim Auswählen eines Profils wird `session["profile_last_seen"]` auf den alten `last_seen_at`-Wert gesetzt, danach `last_seen_at` in DB auf `NOW()` aktualisiert. `is_new`-Flag im Dashboard und in `/api/listings`: `found_at > profile_last_seen`. **Suchbegriffe sind global geteilt**, kein Per-Profil-Filtering. Verwaltung im neuen Settings-Tab „Profile" (anlegen, bearbeiten via AJAX, löschen via AJAX). Aktives Profil + Wechsel-Button in der Navbar.
+
 ### Settings-Seite: 3-Tab-Layout
-Die Einstellungsseite ist in drei Tabs unterteilt: **Plattformen**, **Benachrichtigungen**, **Crawler & Daten**. `switchTab(tabId)` blendet Panels ein/aus und setzt `active-tab`-CSS. Aktiver Tab wird in `localStorage` gespeichert.
+Die Einstellungsseite ist in vier Tabs unterteilt: **Plattformen**, **Benachrichtigungen**, **Crawler & Daten**, **Profile**. `switchTab(tabId)` blendet Panels ein/aus und setzt `active-tab`-CSS. Aktiver Tab wird in `localStorage` gespeichert.
 
 ### Settings-Seite: UX-Verbesserungen
 - **Plattform-Dimming**: Deaktivierte Plattformblöcke werden visuell gedimmt (`data-platform-section` / `data-platform-fields`, `initPlatformDimming()`).
@@ -246,6 +252,12 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 | GET | `/api/platforms` | Distinct Plattformen der gespeicherten Anzeigen (JSON Array) |
 | POST | `/api/test-scraper` | Scraper-Verbindung testen (JSON: `{"platform": "kleinanzeigen"}`) |
 | POST | `/api/clear-listings-by-age` | Anzeigen löschen + dismissen die älter als `hours` sind (JSON body: `{"hours": N}`) |
+| GET | `/profiles/select` | Profil-Auswahl-Seite (nur wenn Profile existieren) |
+| POST | `/profiles/select/<id>` | Profil aktivieren, `last_seen_at` in DB aktualisieren, Session setzen |
+| POST | `/profiles/logout` | Session leeren, zurück zur Profilauswahl |
+| POST | `/profiles` | Neues Profil anlegen (form: `name`, `emoji`) |
+| POST | `/profiles/<id>/update` | Profil umbenennen/Emoji ändern (JSON: `{"name": "...", "emoji": "..."}`) |
+| POST | `/profiles/<id>/delete` | Profil löschen (JSON response) |
 
 ## Bekannte Einschränkungen
 

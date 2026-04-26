@@ -133,6 +133,13 @@ def init_db():
             listing_id   TEXT PRIMARY KEY,
             dismissed_at TEXT DEFAULT (datetime('now'))
         );
+        CREATE TABLE IF NOT EXISTS profiles (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            name         TEXT NOT NULL,
+            emoji        TEXT NOT NULL DEFAULT '👤',
+            last_seen_at TEXT,
+            created_at   TEXT DEFAULT (datetime('now'))
+        );
     """)
     conn.commit()
 
@@ -588,5 +595,53 @@ def save_geocache(location_text: str, lat: float, lon: float):
         conn.execute(
             "INSERT OR REPLACE INTO geocache(location_text, lat, lon, cached_at) VALUES (?,?,?,datetime('now'))",
             (location_text, lat, lon),
+        )
+        conn.commit()
+
+
+# ── Profile ──────────────────────────────────────────────────
+
+def get_profiles() -> List[Dict]:
+    with _db() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM profiles ORDER BY created_at"
+        ).fetchall()]
+
+
+def get_profile(profile_id: int) -> Optional[Dict]:
+    with _db() as conn:
+        row = conn.execute("SELECT * FROM profiles WHERE id=?", (profile_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def create_profile(name: str, emoji: str = "👤") -> int:
+    with _db() as conn:
+        cur = conn.execute(
+            "INSERT INTO profiles (name, emoji) VALUES (?, ?)", (name.strip(), emoji.strip())
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def update_profile(profile_id: int, name: str, emoji: str):
+    with _db() as conn:
+        conn.execute(
+            "UPDATE profiles SET name=?, emoji=? WHERE id=?",
+            (name.strip(), emoji.strip(), profile_id),
+        )
+        conn.commit()
+
+
+def delete_profile(profile_id: int):
+    with _db() as conn:
+        conn.execute("DELETE FROM profiles WHERE id=?", (profile_id,))
+        conn.commit()
+
+
+def update_profile_last_seen(profile_id: int):
+    with _db() as conn:
+        conn.execute(
+            "UPDATE profiles SET last_seen_at=datetime('now') WHERE id=?",
+            (profile_id,),
         )
         conn.commit()

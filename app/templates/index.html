@@ -501,6 +501,7 @@ function cardHtml(l) {
   const img=l.image_url
     ?`<img src="${l.image_url}" alt="" referrerpolicy="no-referrer" class="w-full h-40 object-cover bg-slate-100">`
     :`<div class="w-full h-40 bg-slate-100 flex items-center justify-center text-4xl">🛍️</div>`;
+  const newBadge=l.is_new?`<span class="text-xs bg-brand-500 text-white px-2 py-0.5 rounded-full font-bold">✨ Neu</span>`:'';
   const freeBadge=l.is_free?`<span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">🎁 Gratis</span>`:'';
   const distBadge=l.distance_km!=null?`<span class="text-xs text-slate-400">${Math.round(l.distance_km)} km</span>`:'';
   const dupBadge=l.potential_duplicate?`<span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">📋 auch auf ${l.potential_duplicate}</span>`:'';
@@ -520,7 +521,7 @@ function cardHtml(l) {
         </div>
         <div class="font-semibold text-slate-800 text-sm leading-tight mb-1 pr-5">${l.title}</div>
         <div class="flex items-center flex-wrap gap-1 mb-1">
-          <span class="text-green-700 font-bold">${l.price}</span>${freeBadge}${distBadge}${dupBadge}
+          <span class="text-green-700 font-bold">${l.price}</span>${newBadge}${freeBadge}${distBadge}${dupBadge}
         </div>
         <div class="text-xs text-slate-500 truncate">📍 ${l.location}</div>
         <div class="found-at-ts text-xs text-slate-400 mt-1" data-found-at="${l.found_at}" title="${absTs}">${relTs}</div>

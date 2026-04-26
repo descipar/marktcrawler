@@ -291,20 +291,20 @@
       </div>
       <div class="p-5">
         <p class="text-xs text-slate-400 mb-4">Suchbegriffe gelten für alle Profile gemeinsam.</p>
-        <form method="POST" action="/profiles" class="flex items-end gap-3 flex-wrap">
+        <div class="flex items-end gap-3 flex-wrap">
           {% call field("Emoji") %}
-            <input type="text" name="emoji" maxlength="4" value="👤"
+            <input type="text" id="new-profile-emoji" maxlength="4" value="👤"
               class="input-field text-2xl text-center w-16">
           {% endcall %}
           {% call field("Name") %}
-            <input type="text" name="name" maxlength="50" placeholder="z.B. Kai" required
+            <input type="text" id="new-profile-name" maxlength="50" placeholder="z.B. Kai"
               class="input-field">
           {% endcall %}
-          <button type="submit"
+          <button type="button" onclick="createProfile()"
             class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg transition-colors shrink-0">
             Anlegen
           </button>
-        </form>
+        </div>
       </div>
     </div>
 
@@ -531,6 +531,23 @@ function runAvailabilityCheck() {
 }
 
 // ── Profile ──────────────────────────────────────────────────
+async function createProfile() {
+  const name = document.getElementById('new-profile-name').value.trim();
+  const emoji = document.getElementById('new-profile-emoji').value.trim() || '👤';
+  if (!name) { alert('Bitte einen Namen eingeben.'); return; }
+  const res = await fetch('/profiles', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({name, emoji}).toString()
+  });
+  if (res.ok) {
+    localStorage.setItem('settingsTab', 'profiles');
+    window.location.href = '/settings';
+  } else {
+    alert('Fehler beim Anlegen des Profils.');
+  }
+}
+
 async function editProfile(id, btn) {
   const li = btn.closest('li');
   const nameEl = li.querySelector('.profile-name');

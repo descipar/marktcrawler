@@ -541,6 +541,7 @@ async function createProfile() {
     body: new URLSearchParams({name, emoji}).toString()
   });
   if (res.ok) {
+    _formDirty = false;
     localStorage.setItem('settingsTab', 'profiles');
     window.location.href = '/settings';
   } else {

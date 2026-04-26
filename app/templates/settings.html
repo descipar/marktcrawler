@@ -406,6 +406,7 @@ const TOAST_DURATION_MS = 8000;
 
 // ── Task 1: Tab-Wechsel ──────────────────────────────────
 function switchTab(name) {
+  if (!document.getElementById('tab-' + name)) name = 'platforms';
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
   document.getElementById('tab-' + name).classList.remove('hidden');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active-tab', b.dataset.tab === name));

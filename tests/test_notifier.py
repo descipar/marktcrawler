@@ -2,8 +2,10 @@
 
 import pytest
 from dataclasses import asdict
+from email.mime.text import MIMEText
+from unittest.mock import patch, MagicMock
 
-from app.notifier import _card_html, _html_from_dicts, _text_from_dicts
+from app.notifier import _card_html, _html_from_dicts, _text_from_dicts, _smtp_send
 from app.scrapers.base import Listing
 
 
@@ -183,3 +185,44 @@ class TestTextFromDicts:
         listings = [make_listing_dict(is_free=True)]
         text = _text_from_dicts(listings)
         assert "GRATIS" in text
+
+
+# ── _smtp_send ────────────────────────────────────────────────
+
+class TestSmtpSend:
+
+    def _make_msg(self):
+        msg = MIMEText("test", "plain", "utf-8")
+        msg["Subject"] = "Test"
+        msg["From"] = "a@example.com"
+        msg["To"] = "b@example.com"
+        return msg
+
+    def _mock_smtp(self):
+        mock_ctx = MagicMock()
+        mock_smtp = MagicMock()
+        mock_smtp.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+        mock_smtp.return_value.__exit__ = MagicMock(return_value=False)
+        return mock_smtp, mock_ctx
+
+    def test_leerer_port_string_verwendet_fallback_587(self):
+        """Leerer smtp_port-String darf keinen ValueError auslösen."""
+        mock_smtp, _ = self._mock_smtp()
+        settings = {"email_smtp_server": "smtp.example.com", "email_smtp_port": ""}
+        with patch("smtplib.SMTP", mock_smtp):
+            _smtp_send(self._make_msg(), "a@example.com", "pw", ["b@example.com"], settings)
+        mock_smtp.assert_called_with("smtp.example.com", 587)
+
+    def test_gueltiger_port_wird_verwendet(self):
+        mock_smtp, _ = self._mock_smtp()
+        settings = {"email_smtp_server": "smtp.example.com", "email_smtp_port": "465"}
+        with patch("smtplib.SMTP", mock_smtp):
+            _smtp_send(self._make_msg(), "a@example.com", "pw", ["b@example.com"], settings)
+        mock_smtp.assert_called_with("smtp.example.com", 465)
+
+    def test_fehlende_port_einstellung_verwendet_fallback_587(self):
+        mock_smtp, _ = self._mock_smtp()
+        settings = {"email_smtp_server": "smtp.example.com"}
+        with patch("smtplib.SMTP", mock_smtp):
+            _smtp_send(self._make_msg(), "a@example.com", "pw", ["b@example.com"], settings)
+        mock_smtp.assert_called_with("smtp.example.com", 587)

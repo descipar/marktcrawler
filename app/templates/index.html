@@ -273,6 +273,7 @@ const PAGE_SIZE = 30;
 const LOG_POLL_INTERVAL_MS = 2000;
 const EXCLUDE_DEBOUNCE_MS = 400;
 const TOAST_DURATION_MS = 5000;
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 let activeTerms=new Set(), platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false, distanceFilter=null, sortBy='date_desc', excludeText=null;
 let currentOffset=0, allLoaded=false, totalCount=0;
 let _excludeTimer=null;
@@ -327,11 +328,13 @@ function toggleLog() {
 }
 
 async function refreshLog() {
-  const lines = await (await fetch('/api/log')).json();
-  const out = document.getElementById('log-output');
-  if (!lines.length) return;
-  out.textContent = lines.join('\n');
-  out.scrollTop = out.scrollHeight;
+  try {
+    const lines = await (await fetch('/api/log')).json();
+    const out = document.getElementById('log-output');
+    if (!lines.length) return;
+    out.textContent = lines.join('\n');
+    out.scrollTop = out.scrollHeight;
+  } catch(e) {}
 }
 
 function startLogPolling() {
@@ -470,7 +473,14 @@ async function fetchListings(offset) {
   if(favFilter)      url+='&favorites=1';
   if(distanceFilter) url+='&max_distance='+distanceFilter;
   if(excludeText)    url+='&exclude='+encodeURIComponent(excludeText);
-  return await(await fetch(url)).json();
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    return await resp.json();
+  } catch(e) {
+    showToast('Anzeigen konnten nicht geladen werden.');
+    return [];
+  }
 }
 
 function applySort(v){sortBy=v;loadListings();}
@@ -501,7 +511,7 @@ function getPlatformBadgeClass(platform) {
 function cardHtml(l) {
   const pc = getPlatformBadgeClass(l.platform);
   const img=l.image_url
-    ?`<img src="${l.image_url}" alt="" referrerpolicy="no-referrer" class="w-full h-40 object-cover bg-slate-100">`
+    ?`<img src="${escHtml(l.image_url)}" alt="" referrerpolicy="no-referrer" class="w-full h-40 object-cover bg-slate-100">`
     :`<div class="w-full h-40 bg-slate-100 flex items-center justify-center text-4xl">🛍️</div>`;
   const newBadge=l.is_new?`<span class="text-xs bg-brand-500 text-white px-2 py-0.5 rounded-full font-bold">✨ Neu</span>`:'';
   const freeBadge=l.is_free?`<span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">🎁 Gratis</span>`:'';
@@ -514,18 +524,18 @@ function cardHtml(l) {
   return `<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative" data-id="${l.id}" onclick="handleCardClick(event,${l.id})">
     <button onclick="dismissListing(${l.id},this)" aria-label="Anzeige ausblenden" class="absolute top-2 left-2 z-10 text-base leading-none text-slate-200 hover:text-red-400 transition-colors" title="Ausblenden">✕</button>
     <button onclick="toggleFav(${l.id},this)" aria-label="${l.is_favorite?'Favorit entfernen':'Als Favorit markieren'}" class="absolute top-2 right-2 z-10 text-xl leading-none ${favCls}">★</button>
-    <a href="${l.url}" target="_blank" rel="noopener" class="block">
+    <a href="${escHtml(l.url)}" target="_blank" rel="noopener" class="block">
       ${img}
       <div class="p-3">
         <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
-          <span class="text-xs px-1.5 py-0.5 rounded font-medium ${pc}">${l.platform}</span>
-          <span class="text-xs text-slate-400 truncate">${l.search_term}</span>
+          <span class="text-xs px-1.5 py-0.5 rounded font-medium ${pc}">${escHtml(l.platform)}</span>
+          <span class="text-xs text-slate-400 truncate">${escHtml(l.search_term)}</span>
         </div>
-        <div class="font-semibold text-slate-800 text-sm leading-tight mb-1 pr-5">${l.title}</div>
+        <div class="font-semibold text-slate-800 text-sm leading-tight mb-1 pr-5">${escHtml(l.title)}</div>
         <div class="flex items-center flex-wrap gap-1 mb-1">
-          <span class="text-green-700 font-bold">${l.price}</span>${newBadge}${freeBadge}${distBadge}${dupBadge}
+          <span class="text-green-700 font-bold">${escHtml(l.price)}</span>${newBadge}${freeBadge}${distBadge}${dupBadge}
         </div>
-        <div class="text-xs text-slate-500 truncate">📍 ${l.location}</div>
+        <div class="text-xs text-slate-500 truncate">📍 ${escHtml(l.location)}</div>
         <div class="found-at-ts text-xs text-slate-400 mt-1" data-found-at="${l.found_at}" title="${absTs}">${relTs}</div>
         ${notesBadge}
       </div>
@@ -632,11 +642,11 @@ function openModal(id) {
   const absTs = (l.found_at||'').replace('T',' ');
   const relTs = relativeTime(l.found_at);
   const img = l.image_url
-    ? `<img src="${l.image_url}" alt="" referrerpolicy="no-referrer" class="w-full max-h-64 object-contain bg-slate-100 rounded-t-xl">`
+    ? `<img src="${escHtml(l.image_url)}" alt="" referrerpolicy="no-referrer" class="w-full max-h-64 object-contain bg-slate-100 rounded-t-xl">`
     : `<div class="w-full h-32 bg-slate-100 flex items-center justify-center text-5xl rounded-t-xl">🛍️</div>`;
   const pc = getPlatformBadgeClass(l.platform);
   const distTxt = l.distance_km != null ? `<span class="text-xs text-slate-500">${Math.round(l.distance_km)} km entfernt</span>` : '';
-  const descTxt = l.description ? `<div class="text-sm text-slate-600 mt-3 border-t pt-3 whitespace-pre-wrap">${l.description.substring(0,800)}${l.description.length>800?'…':''}</div>` : '';
+  const descTxt = l.description ? `<div class="text-sm text-slate-600 mt-3 border-t pt-3 whitespace-pre-wrap">${escHtml(l.description.substring(0,800))}${l.description.length>800?'…':''}</div>` : '';
   const dupBadge = l.potential_duplicate ? `<div class="text-xs text-amber-600 mt-1">📋 Möglicherweise auch auf ${l.potential_duplicate}</div>` : '';
   const favCls = l.is_favorite ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50';
   const favText = l.is_favorite ? '★ Favorit' : '☆ Favorit';
@@ -646,16 +656,16 @@ function openModal(id) {
     ${img}
     <div class="p-5">
       <div class="flex items-center gap-2 mb-2 flex-wrap">
-        <span class="text-xs px-1.5 py-0.5 rounded font-medium ${pc}">${l.platform}</span>
-        <span class="text-xs text-slate-400">${l.search_term}</span>
+        <span class="text-xs px-1.5 py-0.5 rounded font-medium ${pc}">${escHtml(l.platform)}</span>
+        <span class="text-xs text-slate-400">${escHtml(l.search_term)}</span>
         ${distTxt}
       </div>
-      <h2 class="font-bold text-slate-800 text-base leading-tight mb-2">${l.title}</h2>
+      <h2 class="font-bold text-slate-800 text-base leading-tight mb-2">${escHtml(l.title)}</h2>
       <div class="flex items-center gap-2 mb-2 flex-wrap">
-        <span class="text-lg font-bold text-green-700">${l.price}</span>
+        <span class="text-lg font-bold text-green-700">${escHtml(l.price)}</span>
         ${l.is_free ? '<span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">🎁 Gratis</span>' : ''}
       </div>
-      <div class="text-xs text-slate-500 mb-1">📍 ${l.location}</div>
+      <div class="text-xs text-slate-500 mb-1">📍 ${escHtml(l.location)}</div>
       <div class="text-xs text-slate-400" title="${absTs}">🕐 ${relTs}</div>
       ${dupBadge}
       ${descTxt}
@@ -664,10 +674,10 @@ function openModal(id) {
         <label class="block text-xs font-medium text-slate-500 mb-1">💬 Notiz</label>
         <textarea id="modal-notes" rows="2"
           class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400 resize-y"
-          placeholder="Persönliche Notiz…">${l.notes || ''}</textarea>
+          placeholder="Persönliche Notiz…">${escHtml(l.notes || '')}</textarea>
       </div>
       <div class="flex items-center gap-2 mt-3 flex-wrap">
-        <a href="${l.url}" target="_blank" rel="noopener"
+        <a href="${escHtml(l.url)}" target="_blank" rel="noopener"
           class="flex-1 text-center bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
           🔗 Anzeige öffnen
         </a>
@@ -807,7 +817,8 @@ function updatePlatformCounts(counts) {
 
 // pollStatus erweitern
 async function pollStatus() {
-  const d = await (await fetch('/api/status')).json();
+  let d;
+  try { d = await (await fetch('/api/status')).json(); } catch(e) { setTimeout(pollStatus,5000); return; }
   const badge = document.getElementById('status-badge'), btn = document.getElementById('crawl-btn-top'), msg = document.getElementById('crawl-msg');
   if (d.is_running) {
     badge.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-run';

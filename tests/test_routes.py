@@ -523,6 +523,22 @@ class TestApiClearListings:
                            content_type="application/json")
         assert resp.status_code == 400
 
+    def test_clear_listings_by_age_kein_json_body(self, client):
+        """Leerer Body mit JSON Content-Type darf keinen 500 auslösen."""
+        resp = client.post("/api/clear-listings-by-age",
+                           data=b"", content_type="application/json")
+        assert resp.status_code == 400
+
+    def test_clear_listings_by_age_negativer_wert(self, client):
+        resp = client.post("/api/clear-listings-by-age", json={"hours": -1},
+                           content_type="application/json")
+        assert resp.status_code == 400
+
+    def test_clear_listings_by_age_string_wert(self, client):
+        resp = client.post("/api/clear-listings-by-age", json={"hours": "abc"},
+                           content_type="application/json")
+        assert resp.status_code == 400
+
     def test_clear_listings(self, client, app):
         from app.scrapers.base import Listing
         import app.database as db

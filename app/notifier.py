@@ -118,7 +118,7 @@ def _get_email_config(settings: dict):
 
 def _smtp_send(msg, sender: str, password: str, recipients: list, settings: dict) -> bool:
     smtp_server = settings.get("email_smtp_server", "smtp.gmail.com")
-    smtp_port = int(settings.get("email_smtp_port", 587))
+    smtp_port = int(settings.get("email_smtp_port") or 587)
     try:
         with smtplib.SMTP(smtp_server, smtp_port) as srv:
             srv.ehlo()

@@ -262,7 +262,7 @@ def api_availability_check():
 @bp.route("/api/clear-listings-by-age", methods=["POST"])
 def api_clear_listings_by_age():
     try:
-        hours = int(request.json.get("hours", 0))
+        hours = int((request.get_json(silent=True) or {}).get("hours", 0))
         if hours <= 0:
             raise ValueError
     except (TypeError, ValueError, AttributeError):

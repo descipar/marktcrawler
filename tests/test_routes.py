@@ -222,11 +222,13 @@ class TestApiCrawl:
     def test_crawl_startet(self, client):
         with patch("app.routes.is_running", return_value=False), \
              patch("app.routes.run_crawl_async") as mock_run:
-            resp = client.post("/api/crawl")
+            resp = client.post("/api/crawl",
+                               data=json.dumps({"platform": "kleinanzeigen"}),
+                               content_type="application/json")
             assert resp.status_code == 200
             data = json.loads(resp.data)
             assert data["status"] == "started"
-            mock_run.assert_called_once()
+            mock_run.assert_called_once_with("kleinanzeigen", manual=True)
 
     def test_crawl_bereits_laufend(self, client):
         with patch("app.routes.is_running", return_value=True):

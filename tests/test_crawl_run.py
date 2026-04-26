@@ -1,7 +1,7 @@
 """Tests für app/crawler.py: run_crawl() Orchestrierung."""
 
 import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 from app.scrapers.base import Listing
 import app.crawler as crawler_module
 
@@ -27,53 +27,52 @@ def patched_db(tmp_path, monkeypatch):
 
 # ── Basis-Orchestrierung ─────────────────────────────────────
 
+_BASE_SETTINGS = {
+    "kleinanzeigen_enabled": "1",
+    "shpock_enabled": "0", "facebook_enabled": "0",
+    "vinted_enabled": "0", "ebay_enabled": "0",
+    "crawler_delay": "0", "crawler_max_results": "5",
+    "crawler_blacklist": "",
+}
+
+
 class TestRunCrawlOrchestration:
 
     def test_kein_suchbegriff_gibt_no_terms_zurueck(self, patched_db):
-        patched_db.init_db()
-        # Alle Default-Suchbegriffe deaktivieren/löschen
+        patched_db.set_setting("kleinanzeigen_enabled", "1")
         for t in patched_db.get_search_terms():
             patched_db.delete_search_term(t["id"])
 
-        result = crawler_module.run_crawl()
+        with patch("app.crawler.db.get_settings", return_value=_BASE_SETTINGS), \
+             patch("app.crawler.db.get_search_terms", return_value=[]), \
+             patch("app.crawler.db.set_setting"):
+            result = crawler_module.run_crawl("kleinanzeigen")
         assert result["status"] == "no_terms"
 
     def test_keine_plattform_gibt_no_platforms_zurueck(self, patched_db):
-        patched_db.set_setting("kleinanzeigen_enabled", "0")
-        patched_db.set_setting("shpock_enabled", "0")
-        patched_db.set_setting("facebook_enabled", "0")
-        patched_db.set_setting("vinted_enabled", "0")
-        patched_db.set_setting("ebay_enabled", "0")
-
-        result = crawler_module.run_crawl()
+        with patch("app.crawler.db.get_settings", return_value={
+            **_BASE_SETTINGS, "kleinanzeigen_enabled": "0"
+        }), patch("app.crawler.db.set_setting"):
+            result = crawler_module.run_crawl("kleinanzeigen")
         assert result["status"] == "no_platforms"
 
     def test_crawl_setzt_status_auf_running_dann_idle(self, patched_db):
         statuses = []
 
-        original_set_setting = patched_db.set_setting
         def tracking_set_setting(key, value):
             if key == "crawl_status":
                 statuses.append(value)
-            original_set_setting(key, value)
 
         mock_scraper = MagicMock()
         mock_scraper.search.return_value = []
 
-        with patch.object(patched_db, "set_setting", side_effect=tracking_set_setting), \
-             patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
-             patch("app.crawler.db.get_settings", return_value={
-                 "kleinanzeigen_enabled": "1",
-                 "shpock_enabled": "0", "facebook_enabled": "0",
-                 "vinted_enabled": "0", "ebay_enabled": "0",
-                 "crawler_delay": "0", "crawler_max_results": "5",
-                 "crawler_blacklist": "",
-             }), \
+        with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
+             patch("app.crawler.db.get_settings", return_value=_BASE_SETTINGS), \
              patch("app.crawler.db.get_search_terms", return_value=[{"term": "kinderwagen"}]), \
              patch("app.crawler.db.save_listing", return_value=False), \
              patch("app.crawler.db.clear_old_listings"), \
              patch("app.crawler.db.set_setting", side_effect=tracking_set_setting):
-            crawler_module.run_crawl()
+            crawler_module.run_crawl("kleinanzeigen")
 
         assert "running" in statuses
         assert statuses[-1] == "idle"
@@ -84,20 +83,14 @@ class TestRunCrawlOrchestration:
         mock_scraper.search.return_value = [listing]
 
         with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
-             patch("app.crawler.db.get_settings", return_value={
-                 "kleinanzeigen_enabled": "1",
-                 "shpock_enabled": "0", "facebook_enabled": "0",
-                 "vinted_enabled": "0", "ebay_enabled": "0",
-                 "crawler_delay": "0", "crawler_max_results": "5",
-                 "crawler_blacklist": "",
-             }), \
+             patch("app.crawler.db.get_settings", return_value=_BASE_SETTINGS), \
              patch("app.crawler.db.get_search_terms", return_value=[{"term": "kinderwagen"}]), \
              patch("app.crawler.db.save_listing", return_value=True) as mock_save, \
              patch("app.crawler.db.clear_old_listings"), \
              patch("app.crawler.db.set_setting"), \
              patch("app.crawler.db.update_listing_distance"), \
              patch("app.crawler.notify"):
-            result = crawler_module.run_crawl()
+            result = crawler_module.run_crawl("kleinanzeigen")
 
         assert result["new"] == 1
         mock_save.assert_called_once()
@@ -108,19 +101,13 @@ class TestRunCrawlOrchestration:
         mock_scraper.search.return_value = [listing]
 
         with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
-             patch("app.crawler.db.get_settings", return_value={
-                 "kleinanzeigen_enabled": "1",
-                 "shpock_enabled": "0", "facebook_enabled": "0",
-                 "vinted_enabled": "0", "ebay_enabled": "0",
-                 "crawler_delay": "0", "crawler_max_results": "5",
-                 "crawler_blacklist": "defekt",
-             }), \
+             patch("app.crawler.db.get_settings", return_value={**_BASE_SETTINGS, "crawler_blacklist": "defekt"}), \
              patch("app.crawler.db.get_search_terms", return_value=[{"term": "kinderwagen"}]), \
              patch("app.crawler.db.save_listing", return_value=True) as mock_save, \
              patch("app.crawler.db.clear_old_listings"), \
              patch("app.crawler.db.set_setting"), \
              patch("app.crawler.notify"):
-            result = crawler_module.run_crawl()
+            result = crawler_module.run_crawl("kleinanzeigen")
 
         assert result["new"] == 0
         assert result["skipped_blacklist"] == 1
@@ -132,20 +119,14 @@ class TestRunCrawlOrchestration:
         mock_scraper.search.return_value = [listing]
 
         with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
-             patch("app.crawler.db.get_settings", return_value={
-                 "kleinanzeigen_enabled": "1",
-                 "shpock_enabled": "0", "facebook_enabled": "0",
-                 "vinted_enabled": "0", "ebay_enabled": "0",
-                 "crawler_delay": "0", "crawler_max_results": "5",
-                 "crawler_blacklist": "",
-             }), \
+             patch("app.crawler.db.get_settings", return_value=_BASE_SETTINGS), \
              patch("app.crawler.db.get_search_terms", return_value=[{"term": "kinderwagen"}]), \
              patch("app.crawler.db.save_listing", return_value=True), \
              patch("app.crawler.db.clear_old_listings"), \
              patch("app.crawler.db.set_setting"), \
              patch("app.crawler.db.update_listing_distance"), \
              patch("app.crawler.notify"):
-            result = crawler_module.run_crawl()
+            result = crawler_module.run_crawl("kleinanzeigen")
 
         assert result["free"] >= 1
 
@@ -154,19 +135,13 @@ class TestRunCrawlOrchestration:
         mock_scraper.search.side_effect = RuntimeError("API kaputt")
 
         with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
-             patch("app.crawler.db.get_settings", return_value={
-                 "kleinanzeigen_enabled": "1",
-                 "shpock_enabled": "0", "facebook_enabled": "0",
-                 "vinted_enabled": "0", "ebay_enabled": "0",
-                 "crawler_delay": "0", "crawler_max_results": "5",
-                 "crawler_blacklist": "",
-             }), \
+             patch("app.crawler.db.get_settings", return_value=_BASE_SETTINGS), \
              patch("app.crawler.db.get_search_terms", return_value=[{"term": "kinderwagen"}]), \
              patch("app.crawler.db.save_listing", return_value=False), \
              patch("app.crawler.db.clear_old_listings"), \
              patch("app.crawler.db.set_setting"), \
              patch("app.crawler.notify"):
-            result = crawler_module.run_crawl()
+            result = crawler_module.run_crawl("kleinanzeigen")
 
         assert result["errors"] >= 1
         assert result["status"] == "ok"
@@ -176,19 +151,13 @@ class TestRunCrawlOrchestration:
         mock_scraper.search.return_value = []
 
         with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
-             patch("app.crawler.db.get_settings", return_value={
-                 "kleinanzeigen_enabled": "1",
-                 "shpock_enabled": "0", "facebook_enabled": "0",
-                 "vinted_enabled": "0", "ebay_enabled": "0",
-                 "crawler_delay": "0", "crawler_max_results": "5",
-                 "crawler_blacklist": "",
-             }), \
+             patch("app.crawler.db.get_settings", return_value=_BASE_SETTINGS), \
              patch("app.crawler.db.get_search_terms", return_value=[{"term": "kinderwagen"}]), \
              patch("app.crawler.db.save_listing", return_value=False), \
              patch("app.crawler.db.clear_old_listings"), \
              patch("app.crawler.db.set_setting"), \
              patch("app.crawler.notify") as mock_notify:
-            crawler_module.run_crawl()
+            crawler_module.run_crawl("kleinanzeigen")
 
         mock_notify.assert_not_called()
 
@@ -198,20 +167,14 @@ class TestRunCrawlOrchestration:
         mock_scraper.search.return_value = [listing]
 
         with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
-             patch("app.crawler.db.get_settings", return_value={
-                 "kleinanzeigen_enabled": "1",
-                 "shpock_enabled": "0", "facebook_enabled": "0",
-                 "vinted_enabled": "0", "ebay_enabled": "0",
-                 "crawler_delay": "0", "crawler_max_results": "5",
-                 "crawler_blacklist": "",
-             }), \
+             patch("app.crawler.db.get_settings", return_value=_BASE_SETTINGS), \
              patch("app.crawler.db.get_search_terms", return_value=[{"term": "kinderwagen"}]), \
              patch("app.crawler.db.save_listing", return_value=True), \
              patch("app.crawler.db.clear_old_listings"), \
              patch("app.crawler.db.set_setting"), \
              patch("app.crawler.db.update_listing_distance"), \
              patch("app.crawler.notify") as mock_notify:
-            crawler_module.run_crawl()
+            crawler_module.run_crawl("kleinanzeigen")
 
         mock_notify.assert_called_once()
 
@@ -221,13 +184,7 @@ class TestRunCrawlOrchestration:
         mock_scraper.search.return_value = [listing]
 
         with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
-             patch("app.crawler.db.get_settings", return_value={
-                 "kleinanzeigen_enabled": "1",
-                 "shpock_enabled": "0", "facebook_enabled": "0",
-                 "vinted_enabled": "0", "ebay_enabled": "0",
-                 "crawler_delay": "0", "crawler_max_results": "5",
-                 "crawler_blacklist": "",
-             }), \
+             patch("app.crawler.db.get_settings", return_value=_BASE_SETTINGS), \
              patch("app.crawler.db.get_search_terms", return_value=[{"term": "kinderwagen"}]), \
              patch("app.crawler.db.save_listing", return_value=True), \
              patch("app.crawler.db.clear_old_listings"), \
@@ -235,7 +192,7 @@ class TestRunCrawlOrchestration:
              patch("app.crawler.distance_to_home", return_value=55.3) as mock_dist, \
              patch("app.crawler.db.update_listing_distance") as mock_update, \
              patch("app.crawler.notify"):
-            crawler_module.run_crawl()
+            crawler_module.run_crawl("kleinanzeigen")
 
         mock_dist.assert_called_once()
         mock_update.assert_called_once()
@@ -246,20 +203,14 @@ class TestRunCrawlOrchestration:
         mock_scraper.search.return_value = [listing]
 
         with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
-             patch("app.crawler.db.get_settings", return_value={
-                 "kleinanzeigen_enabled": "1",
-                 "shpock_enabled": "0", "facebook_enabled": "0",
-                 "vinted_enabled": "0", "ebay_enabled": "0",
-                 "crawler_delay": "0", "crawler_max_results": "5",
-                 "crawler_blacklist": "",
-             }), \
+             patch("app.crawler.db.get_settings", return_value=_BASE_SETTINGS), \
              patch("app.crawler.db.get_search_terms", return_value=[{"term": "kinderwagen"}]), \
              patch("app.crawler.db.save_listing", return_value=True), \
              patch("app.crawler.db.clear_old_listings"), \
              patch("app.crawler.db.set_setting"), \
              patch("app.crawler.distance_to_home", side_effect=RuntimeError("Geo kaputt")), \
              patch("app.crawler.notify"):
-            result = crawler_module.run_crawl()
+            result = crawler_module.run_crawl("kleinanzeigen")
 
         assert result["new"] == 1
 
@@ -267,14 +218,6 @@ class TestRunCrawlOrchestration:
 # ── Per-Term Preisfilter ──────────────────────────────────────
 
 class TestPerTermPreisfilter:
-
-    _SETTINGS = {
-        "kleinanzeigen_enabled": "1",
-        "shpock_enabled": "0", "facebook_enabled": "0",
-        "vinted_enabled": "0", "ebay_enabled": "0",
-        "crawler_delay": "0", "crawler_max_results": "5",
-        "crawler_blacklist": "",
-    }
 
     def _run_with_listing(self, listing, term_max_price=None):
         mock_scraper = MagicMock()
@@ -284,14 +227,14 @@ class TestPerTermPreisfilter:
             term["max_price"] = term_max_price
 
         with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
-             patch("app.crawler.db.get_settings", return_value=self._SETTINGS), \
+             patch("app.crawler.db.get_settings", return_value=_BASE_SETTINGS), \
              patch("app.crawler.db.get_search_terms", return_value=[term]), \
              patch("app.crawler.db.save_listing", return_value=True) as mock_save, \
              patch("app.crawler.db.clear_old_listings"), \
              patch("app.crawler.db.set_setting"), \
              patch("app.crawler.db.update_listing_distance"), \
              patch("app.crawler.notify"):
-            result = crawler_module.run_crawl()
+            result = crawler_module.run_crawl("kleinanzeigen")
         return result, mock_save
 
     def test_kein_limit_speichert_alle(self, patched_db):
@@ -302,7 +245,7 @@ class TestPerTermPreisfilter:
 
     def test_listing_unter_limit_gespeichert(self, patched_db):
         listing = make_listing(price="30 €", listing_id="price-ok-1")
-        result, mock_save = self._run_with_listing(listing, term_max_price=50)
+        result, _ = self._run_with_listing(listing, term_max_price=50)
         assert result["new"] == 1
 
     def test_listing_ueber_limit_wird_gefiltert(self, patched_db):
@@ -324,24 +267,29 @@ class TestRunCrawlLock:
     def test_is_running_false_initial(self):
         assert crawler_module.is_running() is False
 
+    def test_is_running_mit_plattform_false_initial(self):
+        assert crawler_module.is_running("kleinanzeigen") is False
+
+    def test_bereits_laufend_gibt_already_running_zurueck(self, patched_db):
+        crawler_module._running.add("kleinanzeigen")
+        try:
+            result = crawler_module.run_crawl("kleinanzeigen")
+            assert result["status"] == "already_running"
+        finally:
+            crawler_module._running.discard("kleinanzeigen")
+
     def test_run_crawl_async_gibt_thread_zurueck(self, patched_db):
         import threading
         mock_scraper = MagicMock()
         mock_scraper.search.return_value = []
 
         with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
-             patch("app.crawler.db.get_settings", return_value={
-                 "kleinanzeigen_enabled": "1",
-                 "shpock_enabled": "0", "facebook_enabled": "0",
-                 "vinted_enabled": "0", "ebay_enabled": "0",
-                 "crawler_delay": "0", "crawler_max_results": "5",
-                 "crawler_blacklist": "",
-             }), \
+             patch("app.crawler.db.get_settings", return_value=_BASE_SETTINGS), \
              patch("app.crawler.db.get_search_terms", return_value=[{"term": "kinderwagen"}]), \
              patch("app.crawler.db.save_listing", return_value=False), \
              patch("app.crawler.db.clear_old_listings"), \
              patch("app.crawler.db.set_setting"), \
              patch("app.crawler.notify"):
-            t = crawler_module.run_crawl_async()
+            t = crawler_module.run_crawl_async("kleinanzeigen")
             assert isinstance(t, threading.Thread)
             t.join(timeout=5)

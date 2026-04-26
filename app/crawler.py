@@ -1,4 +1,4 @@
-"""Orchestriert einen Crawl-Durchlauf über alle aktivierten Plattformen."""
+"""Orchestriert einen Crawl-Durchlauf pro Plattform."""
 
 import logging
 import re
@@ -16,8 +16,34 @@ from .scrapers.base import Listing, price_within_limit
 
 logger = logging.getLogger(__name__)
 
+PLATFORM_SCRAPER_MAP = {
+    "kleinanzeigen": KleinanzeigenScraper,
+    "shpock": ShpockScraper,
+    "facebook": FacebookScraper,
+    "vinted": VintedScraper,
+    "ebay": EbayScraper,
+}
+
+# Separate name-map so tests can patch the class names in module globals
+_PLATFORM_CLASS_NAMES = {
+    "kleinanzeigen": "KleinanzeigenScraper",
+    "shpock": "ShpockScraper",
+    "facebook": "FacebookScraper",
+    "vinted": "VintedScraper",
+    "ebay": "EbayScraper",
+}
+
+# Standardintervalle (Minuten) – Fallback wenn kein DB-Wert vorhanden
+DEFAULT_INTERVALS = {
+    "kleinanzeigen": 15,
+    "shpock": 30,
+    "facebook": 60,
+    "vinted": 30,
+    "ebay": 60,
+}
+
+_running: set = set()  # Menge der gerade laufenden Plattform-Namen
 _lock = threading.Lock()
-_running = False
 
 _FREE_PRICE_RE = re.compile(
     r"^\s*(0\s*€?|0,00\s*€?|kostenlos|gratis|umsonst|zu\s+verschenken|verschenken|free)\s*$",
@@ -27,20 +53,17 @@ _FREE_TEXT_RE = re.compile(
     r"\b(zu\s+verschenken|verschenke|kostenlos|gratis|umsonst|zu\s+vergeben)\b",
     re.IGNORECASE,
 )
-# Matches a real positive price like "5 €", "44.00 €", "1,50 €"
 _POSITIVE_PRICE_RE = re.compile(r"\b[1-9]\d*([.,]\d+)?\s*€")
 
 
-def is_running() -> bool:
+def is_running(platform: str = None) -> bool:
     with _lock:
-        return _running
+        return (platform in _running) if platform else bool(_running)
 
 
 def _is_free(listing: Listing) -> bool:
     if _FREE_PRICE_RE.match(listing.price or ""):
         return True
-    # Real positive numeric price takes precedence – text keywords are then incidental
-    # ("gratis Zubehör dabei", "kostenloser Versand", etc.)
     if _POSITIVE_PRICE_RE.search(listing.price or ""):
         return False
     if _FREE_TEXT_RE.search(listing.title or ""):
@@ -57,112 +80,99 @@ def _is_blacklisted(listing: Listing, blacklist: List[str]) -> bool:
     return any(term.lower() in text for term in blacklist)
 
 
-def run_crawl(manual: bool = False) -> dict:
-    global _running
-
+def run_crawl(platform: str, manual: bool = False) -> dict:
     with _lock:
-        if _running:
-            logger.warning("Crawl läuft bereits – übersprungen.")
+        if platform in _running:
+            logger.warning(f"[{platform}] Crawl läuft bereits – übersprungen.")
             return {"status": "already_running", "new": 0}
-        _running = True
+        _running.add(platform)
+        is_first = len(_running) == 1
 
-    clear_log()
     stats = {"new": 0, "total": 0, "errors": 0, "skipped_blacklist": 0, "free": 0}
-    db.set_setting("crawl_status", "running")
-    db.set_setting("last_crawl_start", datetime.now().isoformat(timespec="seconds"))
-
     try:
+        if is_first:
+            clear_log()
+            db.set_setting("crawl_status", "running")
+        db.set_setting("last_crawl_start", datetime.now().isoformat(timespec="seconds"))
+
         settings = db.get_settings()
+
+        if settings.get(f"{platform}_enabled") != "1":
+            logger.warning(f"[{platform}] Plattform nicht aktiviert – übersprungen.")
+            return {"status": "no_platforms", "new": 0}
+
+        cls_name = _PLATFORM_CLASS_NAMES.get(platform)
+        scraper_cls = globals().get(cls_name) if cls_name else None
+        if not scraper_cls:
+            logger.error(f"[{platform}] Unbekannte Plattform.")
+            return {"status": "unknown_platform", "new": 0}
+
         search_terms = db.get_search_terms(enabled_only=True)
+        if not search_terms:
+            logger.warning("Keine aktiven Suchbegriffe.")
+            return {"status": "no_terms", "new": 0}
+
         delay = float(settings.get("crawler_delay", 2))
         max_results = int(settings.get("crawler_max_results", 20))
-
         raw_blacklist = settings.get("crawler_blacklist", "")
-        # Textarea sendet Zeilenumbrüche; Komma als Fallback für alte Daten
         blacklist = [w.strip() for w in re.split(r"[\n,]", raw_blacklist) if w.strip()]
 
         # Verspätungs-Warnung
-        last_end = settings.get("last_crawl_end")
-        interval_min = int(settings.get("crawler_interval", 60))
+        last_end = settings.get(f"{platform}_last_crawl_end")
+        interval_min = int(settings.get(f"{platform}_interval", DEFAULT_INTERVALS.get(platform, 30)))
         if last_end and not manual:
             try:
                 elapsed_min = (datetime.now() - datetime.fromisoformat(last_end)).total_seconds() / 60
                 if elapsed_min > interval_min * 1.5:
                     logger.warning(
-                        f"⚠️ Crawl-Verzögerung: letzter Lauf vor {elapsed_min:.0f} Min. "
-                        f"(Intervall: {interval_min} Min.) – "
-                        f"mögliche Ursache: App-Neustart oder vorheriger Crawl dauerte zu lange."
+                        f"⚠️ [{platform}] Crawl-Verzögerung: letzter Lauf vor {elapsed_min:.0f} Min. "
+                        f"(Intervall: {interval_min} Min.)"
                     )
             except (ValueError, TypeError):
                 pass
 
-        if not search_terms:
-            logger.warning("Keine aktiven Suchbegriffe.")
-            return {"status": "no_terms", "new": 0}
-
-        scrapers = []
-        if settings.get("kleinanzeigen_enabled") == "1":
-            scrapers.append(KleinanzeigenScraper(settings))
-        if settings.get("shpock_enabled") == "1":
-            scrapers.append(ShpockScraper(settings))
-        if settings.get("facebook_enabled") == "1":
-            scrapers.append(FacebookScraper(settings))
-        if settings.get("vinted_enabled") == "1":
-            scrapers.append(VintedScraper(settings))
-        if settings.get("ebay_enabled") == "1":
-            scrapers.append(EbayScraper(settings))
-
-        if not scrapers:
-            logger.warning("Keine Plattform aktiviert.")
-            return {"status": "no_platforms", "new": 0}
-
-        logger.info(
-            f"Crawl startet: {len(search_terms)} Begriffe × {len(scrapers)} Plattform(en)"
-        )
+        scraper = scraper_cls(settings)
+        logger.info(f"[{platform}] Crawl startet: {len(search_terms)} Suchbegriff(e)")
 
         new_listings: List[Listing] = []
+        for term_row in search_terms:
+            term = term_row["term"]
+            term_max_price = term_row.get("max_price")
+            try:
+                listings = scraper.search(term, max_results=max_results)
+                stats["total"] += len(listings)
 
-        for scraper in scrapers:
-            for term_row in search_terms:
-                term = term_row["term"]
-                term_max_price = term_row.get("max_price")  # per-term override
-                try:
-                    listings = scraper.search(term, max_results=max_results)
-                    stats["total"] += len(listings)
+                for listing in listings:
+                    if _is_blacklisted(listing, blacklist):
+                        stats["skipped_blacklist"] += 1
+                        logger.debug(f"Blacklist: '{listing.title}'")
+                        continue
 
-                    for listing in listings:
-                        if _is_blacklisted(listing, blacklist):
-                            stats["skipped_blacklist"] += 1
-                            logger.debug(f"Blacklist: '{listing.title}'")
+                    if term_max_price:
+                        if not price_within_limit(listing.price or "", float(term_max_price)):
                             continue
 
-                        # Per-term Preisfilter (überschreibt Plattform-Limit wenn gesetzt)
-                        if term_max_price:
-                            if not price_within_limit(listing.price or "", float(term_max_price)):
-                                continue
+                    listing.is_free = _is_free(listing)
+                    if listing.is_free:
+                        stats["free"] += 1
 
-                        listing.is_free = _is_free(listing)
-                        if listing.is_free:
-                            stats["free"] += 1
+                    if db.save_listing(listing):
+                        stats["new"] += 1
+                        new_listings.append(listing)
 
-                        if db.save_listing(listing):
-                            stats["new"] += 1
-                            new_listings.append(listing)
+                        if listing.location:
+                            try:
+                                dist = distance_to_home(listing.location, settings)
+                                if dist is not None:
+                                    db.update_listing_distance(listing.listing_id, dist)
+                                    listing.distance_km = round(dist, 1)
+                            except Exception as e:
+                                logger.warning(f"Entfernungsberechnung für '{listing.location}' fehlgeschlagen: {e}")
 
-                            # Entfernung berechnen und speichern
-                            if listing.location:
-                                try:
-                                    dist = distance_to_home(listing.location, settings)
-                                    if dist is not None:
-                                        db.update_listing_distance(listing.listing_id, dist)
-                                        listing.distance_km = round(dist, 1)
-                                except Exception as e:
-                                    logger.warning(f"Entfernungsberechnung für '{listing.location}' fehlgeschlagen: {e}")
-
-                except Exception as e:
-                    logger.error(f"Fehler bei {scraper.__class__.__name__} / '{term}': {e}")
-                    stats["errors"] += 1
-                time.sleep(delay)
+            except Exception as e:
+                logger.error(f"[{platform}] Fehler bei '{term}': {e}")
+                stats["errors"] += 1
+            time.sleep(delay)
 
         db.clear_old_listings(days=30)
 
@@ -170,25 +180,33 @@ def run_crawl(manual: bool = False) -> dict:
             notify(new_listings, settings, force=manual)
 
         logger.info(
-            f"Crawl beendet: {stats['new']} neu / {stats['total']} gesamt / "
+            f"[{platform}] Crawl beendet: {stats['new']} neu / {stats['total']} gesamt / "
             f"{stats['skipped_blacklist']} Blacklist / {stats['free']} gratis / "
             f"{stats['errors']} Fehler"
         )
 
     except Exception as e:
-        logger.error(f"Unerwarteter Crawl-Fehler: {e}", exc_info=True)
+        logger.error(f"[{platform}] Unerwarteter Crawl-Fehler: {e}", exc_info=True)
         stats["errors"] += 1
     finally:
+        now_str = datetime.now().isoformat(timespec="seconds")
         with _lock:
-            _running = False
-        db.set_setting("crawl_status", "idle")
-        db.set_setting("last_crawl_end", datetime.now().isoformat(timespec="seconds"))
+            _running.discard(platform)
+            is_last = not _running
+        if is_last:
+            db.set_setting("crawl_status", "idle")
+        db.set_setting(f"{platform}_last_crawl_end", now_str)
+        db.set_setting(f"{platform}_last_crawl_found", str(stats["new"]))
+        db.set_setting("last_crawl_end", now_str)
         db.set_setting("last_crawl_found", str(stats["new"]))
 
     return {"status": "ok", **stats}
 
 
-def run_crawl_async(manual: bool = False) -> threading.Thread:
-    t = threading.Thread(target=run_crawl, args=(manual,), daemon=True, name="crawler")
+def run_crawl_async(platform: str, manual: bool = False) -> threading.Thread:
+    t = threading.Thread(
+        target=run_crawl, args=(platform,), kwargs={"manual": manual},
+        daemon=True, name=f"crawler-{platform}",
+    )
     t.start()
     return t

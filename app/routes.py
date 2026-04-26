@@ -8,7 +8,10 @@ from . import database as db
 
 logger = logging.getLogger(__name__)
 from .crawler import run_crawl_async, is_running
-from .scheduler import get_next_run, update_interval, update_digest_schedule, update_availability_schedule
+from .scheduler import (
+    get_next_run, get_next_runs, PLATFORMS,
+    update_platform_schedules, update_digest_schedule, update_availability_schedule,
+)
 
 bp = Blueprint("main", __name__)
 
@@ -130,12 +133,12 @@ def settings_page():
 def save_settings():
     allowed_keys = {
         "kleinanzeigen_enabled", "kleinanzeigen_max_price",
-        "kleinanzeigen_location", "kleinanzeigen_radius",
+        "kleinanzeigen_location", "kleinanzeigen_radius", "kleinanzeigen_interval",
         "shpock_enabled", "shpock_max_price",
-        "shpock_location", "shpock_radius",
-        "facebook_enabled", "facebook_max_price", "facebook_location",
-        "vinted_enabled", "vinted_max_price", "vinted_location", "vinted_radius",
-        "ebay_enabled", "ebay_max_price", "ebay_location", "ebay_radius",
+        "shpock_location", "shpock_radius", "shpock_interval",
+        "facebook_enabled", "facebook_max_price", "facebook_location", "facebook_interval",
+        "vinted_enabled", "vinted_max_price", "vinted_location", "vinted_radius", "vinted_interval",
+        "ebay_enabled", "ebay_max_price", "ebay_location", "ebay_radius", "ebay_interval",
         "email_enabled", "email_subject_alert", "email_subject_digest",
         "email_smtp_server", "email_smtp_port",
         "email_sender", "email_password", "email_recipient",
@@ -156,14 +159,7 @@ def save_settings():
 
     db.save_settings(data)
 
-    try:
-        interval = int(data.get("crawler_interval", 15))
-        if not 1 <= interval <= 1440:
-            raise ValueError
-        update_interval(interval)
-    except (ValueError, TypeError):
-        flash("Ungültiges Crawl-Intervall (1–1440 Minuten).", "warning")
-
+    update_platform_schedules()
     update_digest_schedule()
     update_availability_schedule()
 
@@ -175,10 +171,24 @@ def save_settings():
 
 @bp.route("/api/crawl", methods=["POST"])
 def api_crawl():
-    if is_running():
-        return jsonify({"status": "already_running", "message": "Crawl läuft bereits."}), 409
-    run_crawl_async(manual=True)
-    return jsonify({"status": "started", "message": "Crawl gestartet."})
+    data = request.get_json(silent=True) or {}
+    platform = data.get("platform", "all")
+
+    if platform == "all":
+        settings = db.get_settings()
+        started = [p for p in PLATFORMS if settings.get(f"{p}_enabled") == "1" and not is_running(p)]
+        if not started:
+            return jsonify({"status": "already_running", "message": "Alle aktiven Crawls laufen bereits."}), 409
+        for p in started:
+            run_crawl_async(p, manual=True)
+        return jsonify({"status": "started", "message": f"Gestartet: {', '.join(started)}"})
+
+    if platform not in PLATFORMS:
+        return jsonify({"status": "error", "message": "Unbekannte Plattform."}), 400
+    if is_running(platform):
+        return jsonify({"status": "already_running", "message": f"{platform} läuft bereits."}), 409
+    run_crawl_async(platform, manual=True)
+    return jsonify({"status": "started", "message": f"{platform} gestartet."})
 
 
 @bp.route("/api/status")
@@ -188,6 +198,7 @@ def api_status():
         "crawl_status": settings.get("crawl_status", "idle"),
         "last_crawl": settings.get("last_crawl_end", ""),
         "next_crawl": get_next_run(),
+        "next_runs": get_next_runs(),
         "last_found": settings.get("last_crawl_found", "0"),
         "total_listings": db.get_listing_count(),
         "is_running": is_running(),

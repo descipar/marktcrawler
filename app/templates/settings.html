@@ -11,7 +11,7 @@
 </div>
 {% endmacro %}
 
-{% macro platform_section(title, key, color, cb_color=none, has_radius=true, radius_min=5, radius_hint='', standort_label='Standort', standort_placeholder='z.B. Dortmund') %}
+{% macro platform_section(title, key, color, cb_color=none, has_radius=true, radius_min=5, radius_hint='', standort_label='Standort', standort_placeholder='z.B. Dortmund', default_interval=30) %}
 {% set cbcolor = cb_color or color %}
 <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
   <div class="px-5 py-3 bg-{{ color }}-50 border-b border-slate-200 flex items-center justify-between">
@@ -42,6 +42,11 @@
       {% if radius_hint %}<p class="text-xs text-slate-400 mt-1">{{ radius_hint }}</p>{% endif %}
     {% endcall %}
     {% endif %}
+    {% call field("Intervall (Min.)") %}
+      <input type="number" name="{{ key }}_interval"
+        value="{{ s[key ~ '_interval'] or default_interval }}"
+        min="5" max="1440" class="input-field">
+    {% endcall %}
   </div>
   {{ caller() }}
 </div>
@@ -82,20 +87,20 @@
   <!-- ── Tab: Plattformen ────────────────────────────────── -->
   <div id="tab-platforms" class="tab-panel space-y-4 pt-4">
 
-    {% call platform_section('Kleinanzeigen.de', 'kleinanzeigen', 'green') %}{% endcall %}
+    {% call platform_section('Kleinanzeigen.de', 'kleinanzeigen', 'green', default_interval=15) %}{% endcall %}
 
-    {% call platform_section('Shpock', 'shpock', 'orange', cb_color='blue', radius_min=0, radius_hint='0 = kein Entfernungsfilter') %}{% endcall %}
+    {% call platform_section('Shpock', 'shpock', 'orange', cb_color='blue', radius_min=0, radius_hint='0 = kein Entfernungsfilter', default_interval=30) %}{% endcall %}
 
-    {% call platform_section('Facebook Marketplace', 'facebook', 'indigo', has_radius=false) %}
+    {% call platform_section('Facebook Marketplace', 'facebook', 'indigo', has_radius=false, default_interval=60) %}
     <div class="px-5 pb-4 text-xs text-amber-700 bg-amber-50 border-t border-amber-100 py-2">
       ⚠️ Facebook benötigt einen einmaligen Login. Nach dem Start:
       <code class="bg-amber-100 px-1 rounded">docker exec -it baby-crawler python -c "from app.scrapers.facebook import FacebookScraper; FacebookScraper({}).interactive_login()"</code>
     </div>
     {% endcall %}
 
-    {% call platform_section('Vinted', 'vinted', 'teal', radius_min=0, radius_hint='0 = kein Entfernungsfilter', standort_placeholder='z.B. München') %}{% endcall %}
+    {% call platform_section('Vinted', 'vinted', 'teal', radius_min=0, radius_hint='0 = kein Entfernungsfilter', standort_placeholder='z.B. München', default_interval=30) %}{% endcall %}
 
-    {% call platform_section('eBay', 'ebay', 'amber', standort_label='Standort (PLZ oder Stadt)', standort_placeholder='z.B. 80331 oder München') %}{% endcall %}
+    {% call platform_section('eBay', 'ebay', 'amber', standort_label='Standort (PLZ oder Stadt)', standort_placeholder='z.B. 80331 oder München', default_interval=60) %}{% endcall %}
 
   </div><!-- /tab-platforms -->
 

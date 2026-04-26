@@ -30,12 +30,21 @@
     <div id="total-listings" class="text-2xl font-bold text-brand-600">{{ stats.total_listings }}</div>
     <div id="platform-counts" class="text-xs text-slate-400 mt-0.5"></div>
   </div>
-  <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-center">
+  <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-center gap-1.5">
+    <select id="crawl-platform-select"
+      class="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 bg-white">
+      <option value="all">Alle aktiven Plattformen</option>
+      <option value="kleinanzeigen">Kleinanzeigen</option>
+      <option value="shpock">Shpock</option>
+      <option value="vinted">Vinted</option>
+      <option value="ebay">eBay</option>
+      <option value="facebook">Facebook</option>
+    </select>
     <button id="crawl-btn-top" onclick="startCrawl()"
       class="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white py-2 rounded-lg text-sm font-semibold transition-colors">
       🚀 Jetzt crawlen
     </button>
-    <p id="crawl-msg" class="text-xs text-slate-500 text-center mt-1 hidden"></p>
+    <p id="crawl-msg" class="text-xs text-slate-500 text-center hidden"></p>
   </div>
 </div>
 
@@ -427,9 +436,12 @@ if(window.innerWidth < 1024) {
 
 async function startCrawl() {
   const btn=document.getElementById('crawl-btn-top'), msg=document.getElementById('crawl-msg');
+  const platform=document.getElementById('crawl-platform-select').value;
   btn.disabled=true; btn.textContent='⟳ Läuft…';
   msg.textContent='Crawl gestartet…'; msg.classList.remove('hidden');
-  try { await fetch('/api/crawl',{method:'POST'}); } catch(e){ showToast('Crawl konnte nicht gestartet werden.'); }
+  try {
+    await fetch('/api/crawl',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({platform})});
+  } catch(e){ showToast('Crawl konnte nicht gestartet werden.'); }
   startLogPolling();
   pollStatus();
 }

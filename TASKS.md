@@ -16,9 +16,22 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") ode
 
 ---
 
+### Code-Qualität & Robustheit
+
+- [ ] **27** – Magic Numbers in `index.html` als benannte JS-Konstanten (`PAGE_SIZE`, `LOG_POLL_INTERVAL_MS`, `EXCLUDE_DEBOUNCE_MS`, `TOAST_DURATION_MS`)
+- [ ] **28** – `cardHtml()` aufteilen: Helper `getPlatformBadgeClass(platform)` extrahieren, HTML-String lesbarer strukturieren
+- [ ] **29** – `settings.html`: Jinja2-Macro für Plattform-Sektionen (5× identisches HTML-Pattern → 1 Macro)
+- [ ] **30** – `geo.py`: `0.0, 0.0`-Koordinaten semantisch korrekt als „nicht konfiguriert" behandeln statt `if not home_lat`
+- [ ] **31** – JS `fetch()`-Fehler nicht mehr still ignorieren: Netzwerkfehler als sichtbaren Toast anzeigen
+- [ ] **32** – `notifier.py`: `distance_km` None-Check vor Formatierung absichern
+- [ ] **33** – `checker.py`: Erwartete Laufzeit zu Beginn loggen, einzelne Delete-Logs auf `debug()` senken
+- [ ] **26** (Badge) – Badge-Klassen-Logik zentralisieren: 3-fach dupliziert in `_listing_card.html`, `index.html` und `notifier.py`; Vinted + eBay fehlen in `_PLATFORM_COLORS`
+
+---
+
 ### Features – KI-Integration
 
-- [ ] **26** – KI-Anfragetext-Generator: auf Wunsch pro Anzeige einen Verkäufer-Text per Knopfdruck generieren; bei VB-Anzeigen automatisch einen sinnvollen Preisvorschlag einbauen (basiert auf `price_stats` der eigenen Daten); API-Key konfigurierbar (Claude, OpenAI, oder andere); Text wird immer in einer editierbaren Textarea angezeigt, kein direktes Absenden; Modell + API-Key in Einstellungen hinterlegbar
+- [ ] **KI** – KI-Anfragetext-Generator: auf Wunsch pro Anzeige einen Verkäufer-Text per Knopfdruck generieren; bei VB-Anzeigen automatisch einen sinnvollen Preisvorschlag einbauen (basiert auf `price_stats` der eigenen Daten); API-Key konfigurierbar (Claude, OpenAI, oder andere); Text wird immer in einer editierbaren Textarea angezeigt, kein direktes Absenden; Modell + API-Key in Einstellungen hinterlegbar
 
 ---
 

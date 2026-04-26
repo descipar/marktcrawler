@@ -29,6 +29,13 @@ def db_with_listings(tmp_path, monkeypatch):
     fav_id = next(l["id"] for l in db.get_listings() if l["listing_id"] == "gone-fav-1")
     db.toggle_favorite(fav_id)
 
+    # Anzeigen auf 2 Stunden alt setzen damit min_age_minutes-Filter greift
+    import sqlite3
+    conn = sqlite3.connect(str(db.DB_PATH))
+    conn.execute("UPDATE listings SET found_at = datetime('now', '-120 minutes')")
+    conn.commit()
+    conn.close()
+
     return db
 
 
@@ -123,6 +130,29 @@ class TestRunAvailabilityCheck:
         assert "deleted" in result
         assert "errors" in result
         assert result["checked"] == 3
+
+
+class TestRunningGuard:
+
+    def test_concurrent_check_wird_abgelehnt(self, db_with_listings):
+        """Zweiter Aufruf während laufendem Check gibt already_running zurück."""
+        import app.checker as chk
+
+        # _running von außen auf True setzen (simuliert laufenden Check)
+        with chk._lock:
+            chk._running = True
+
+        try:
+            result = chk.run_availability_check()
+            assert result["status"] == "already_running"
+            assert result["checked"] == 0
+        finally:
+            with chk._lock:
+                chk._running = False
+
+    def test_is_running_false_initial(self):
+        import app.checker as chk
+        assert chk.is_running() is False
 
 
 class TestDbAvailabilityFunctions:

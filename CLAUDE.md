@@ -49,19 +49,26 @@ baby-crawler-v2/
 Vier Tabellen in `$DATA_DIR/baby_crawler.db` (Standard: `/data/`):
 
 ```sql
-search_terms (id, term TEXT UNIQUE, enabled INT, created_at)
+search_terms (id, term TEXT UNIQUE, enabled INT, created_at,
+              max_price INTEGER NULL)
 
 settings     (key TEXT PRIMARY KEY, value TEXT)
 
 listings     (id, listing_id TEXT UNIQUE, platform, title, price,
               location, url, image_url, description, search_term,
               found_at, is_favorite INT DEFAULT 0,
-              is_free INT DEFAULT 0, distance_km REAL)
+              is_free INT DEFAULT 0, distance_km REAL,
+              notes TEXT, potential_duplicate TEXT)
 
 geocache     (location_text TEXT PRIMARY KEY, lat REAL, lon REAL, cached_at)
+
+dismissed_listings (listing_id TEXT PRIMARY KEY, dismissed_at TEXT)
 ```
 
-**Migration**: `database.py._migrate_listings()` ergänzt fehlende Spalten in bestehenden DBs via `PRAGMA table_info` – keine Datenverluste bei Updates.
+**Migration**: Drei separate Migrations-Funktionen ergänzen fehlende Spalten in bestehenden DBs via `PRAGMA table_info` – keine Datenverluste bei Updates:
+- `_migrate_listings()`: `is_favorite`, `is_free`, `distance_km`, `notes`, `potential_duplicate`
+- `_migrate_search_terms()`: `max_price`
+- `_migrate_settings_values()`: Umbenennung `crawler_max_age_hours` → `display_max_age_hours`, Standort-Defaults
 
 ### Alle Settings-Keys
 
@@ -100,7 +107,7 @@ geocache     (location_text TEXT PRIMARY KEY, lat REAL, lon REAL, cached_at)
 | `crawler_max_results` | `20` | Max. Ergebnisse pro Suche |
 | `crawler_delay` | `2` | Pause zwischen Anfragen s |
 | `crawler_blacklist` | `` | Ausschluss-Wörter, je Zeile eins |
-| `crawler_max_age_hours` | `0` | Max. Alter h (0 = alle) |
+| `display_max_age_hours` | `0` | Anzeigefilter: Anzeigen älter als X h ausblenden (0 = alle) |
 | `digest_enabled` | `0` | Tages-Digest aktiv |
 | `digest_time` | `19:00` | Uhrzeit für Digest HH:MM |
 | `home_latitude` | `` | Heimstandort lat (für Distanz) |
@@ -126,8 +133,8 @@ Täglich zur konfigurierten Uhrzeit (CronTrigger) sendet `notifier.send_digest()
 ### Preisstatistik
 `GET /api/stats` liefert Avg/Min/Max-Preis und Gratis-Zähler pro Suchbegriff. Im Dashboard als aufklappbare Tabelle.
 
-### Max-Alter-Filter
-`crawler_max_age_hours` filtert in `db.get_listings()` ältere Einträge heraus. Auch per Dropdown im Dashboard wählbar (Letzte 3h / 6h / Heute / 48h).
+### Max-Alter-Filter (Anzeigefilter)
+`display_max_age_hours` filtert in `db.get_listings()` ältere Einträge aus der Anzeige heraus – die Daten bleiben in der DB. Auch per Dropdown im Dashboard wählbar (Letzte 3h / 6h / Heute / 48h).
 
 ### Pagination
 `db.get_listings()` akzeptiert `limit` und `offset`. `/api/listings` liefert standardmäßig 30 Einträge. Das Dashboard lädt weitere Seiten per „Mehr laden"-Button (`loadMore()` in `index.html`). Server-seitig gerenderte Karten + JS-geladene Seiten fügen sich nahtlos zusammen.
@@ -136,7 +143,7 @@ Täglich zur konfigurierten Uhrzeit (CronTrigger) sendet `notifier.send_digest()
 `db.get_listings(sort_by=...)` unterstützt: `date_desc` (Standard), `date_asc`, `price_asc`, `price_desc`, `distance_asc`. Preise werden via `CASE WHEN price GLOB '*[0-9]*'` auf numerischen Wert gecastet – Textwerte (k.A., Kostenlos) ergeben NULL und landen beim Sortieren immer am Ende. Favoriten stehen unabhängig von der Sortierung immer oben (`ORDER BY is_favorite DESC, ...`). `/api/listings?sort=` mit Whitelist-Validierung.
 
 ### Verfügbarkeits-Check
-`checker.py.run_availability_check()` iteriert alle Anzeigen aus `db.get_all_listing_urls()`, sendet pro URL einen HEAD-Request (8s Timeout, 0,5s Delay zwischen Anfragen). HTTP 404/410 → `db.delete_listing_by_listing_id()` löscht den Eintrag **inkl. Favoriten**. Netzwerkfehler und andere Status-Codes (200, 301, 403) lassen den Eintrag unangetastet. Wird vom Scheduler alle N Stunden ausgeführt (`availability_job`, `IntervalTrigger`). Einstellungen: `availability_check_enabled` (0/1), `availability_check_interval_hours` (Default 3). Manuell auslösbar über `POST /api/availability-check`.
+`checker.py.run_availability_check()` iteriert alle Anzeigen aus `db.get_all_listing_urls(min_age_minutes=60)` – Anzeigen jünger als 60 Minuten werden übersprungen. Sendet pro URL einen HEAD-Request (8s Timeout, 0,5s Delay). HTTP 404/410 → `db.delete_listing_by_listing_id()` löscht den Eintrag **inkl. Favoriten**. Hat einen `_running`-Guard (wie der Crawler) gegen parallele Ausführung. Wird vom Scheduler alle N Stunden ausgeführt (`availability_job`, `IntervalTrigger`). Einstellungen: `availability_check_enabled` (0/1), `availability_check_interval_hours` (Default 3). Manuell auslösbar über `POST /api/availability-check`.
 
 ### E-Mail bei manuellem Crawl
 `run_crawl_async(manual=True)` wird vom `/api/crawl`-Endpoint aufgerufen. `run_crawl(manual=True)` reicht `force=True` an `notify()` weiter, das dann das Rate-Limit überspringt. Automatische Crawls übergeben `force=False` (Standard) — das Rate-Limit gilt weiterhin.
@@ -156,13 +163,44 @@ Eingabefeld „Begriffe ausschließen" in der Filter-Leiste. Eingaben werden mit
 ### Suchbegriff-Löschen löscht auch Anzeigen
 `db.delete_search_term(term_id)` holt zuerst den Text des Suchbegriffs, löscht dann alle `listings` mit `search_term = <text>`, danach den Suchbegriff selbst – alles in einer Transaktion.
 
+### Notizfeld pro Anzeige
+`POST /listings/<id>/note` (JSON `{"note": "..."}`) ruft `db.update_listing_note(db_id, note)` auf. Leerstring → `NULL`. Im Modal editierbar (Textarea + Auto-Save). Karten mit Notiz zeigen ein 💬-Badge.
+
+### Duplikat-Erkennung (plattformübergreifend)
+`db.find_duplicate_platform(title, platform)` sucht nach einem Listing mit identischem Titelanfang (LOWER(SUBSTR(title,1,50))) auf einer anderen Plattform (letzte 30 Tage, min. 5 Zeichen). Wird in `save_listing()` nach jedem INSERT aufgerufen. Treffer werden in `listings.potential_duplicate` gespeichert. Im Dashboard als Amber-Badge „📋 auch auf Shpock" angezeigt.
+
+### Per-Term Preisschwelle
+`search_terms.max_price INTEGER NULL` speichert eine optionale Preisobergrenze pro Suchbegriff. In `run_crawl()` wird `term_row.get("max_price")` gegen `price_within_limit()` aus `scrapers/base.py` geprüft – zu teure Anzeigen werden vor dem Speichern herausgefiltert. In der Sidebar per Inline-Edit setzbar (Stift-Icon → Eingabefeld → ENTER). Route: `POST /terms/<id>/max-price`.
+
+### Settings-Seite: 3-Tab-Layout
+Die Einstellungsseite ist in drei Tabs unterteilt: **Plattformen**, **Benachrichtigungen**, **Crawler & Daten**. `switchTab(tabId)` blendet Panels ein/aus und setzt `active-tab`-CSS. Aktiver Tab wird in `localStorage` gespeichert.
+
+### Settings-Seite: UX-Verbesserungen
+- **Plattform-Dimming**: Deaktivierte Plattformblöcke werden visuell gedimmt (`data-platform-section` / `data-platform-fields`, `initPlatformDimming()`).
+- **Sticky Save-Button**: Speichern-Button klebt am Seitenende (`sticky bottom-4 z-20`).
+- **Unsaved-Changes-Warnung**: `beforeunload`-Handler solange `_formDirty = true`.
+- **Inline-Validierung**: `showFieldError()` zeigt Fehler direkt am Feld, wechselt zum richtigen Tab.
+- **Test-Buttons**: Pro Plattform ein „Verbindung testen"-Button ruft `POST /api/test-scraper` auf und zeigt Ergebnis inline.
+
+### Dashboard: Filter-Panel
+Filterbereich ist ein- und ausklappbar (`toggleFilterPanel()`). Anzahl aktiver Filter wird als Badge am Toggle-Button angezeigt. Zustand wird in `localStorage` gespeichert.
+
+### Dashboard: Relative Zeitangaben
+`relativeTime(isoStr)` rechnet ISO-Timestamps in „vor 2h" / „vor 30 Min" um. Wird via `initRelativeTimes()` auf alle `.found-at-ts[data-found-at]`-Elemente angewendet.
+
+### Dashboard: Listing-Modal
+Klick auf eine Karte öffnet `#detail-modal` mit Vollbild-Details (Bild, Preis, Standort, Beschreibung, Notiz-Textarea). Daten kommen aus `listingsCache` (JS-Map, aus Jinja-`<script>`-Block befüllt). `handleCardClick(event, id)` unterscheidet zwischen Karte und Buttons.
+
+### Dashboard: Plattform-Filter & Status-Bar
+`loadPlatformOptions()` befüllt das Plattform-Dropdown aus `GET /api/platforms` (nur tatsächlich vorhandene Plattformen). `updatePlatformCounts()` zeigt „KA 120 · Shp 45" unter dem Gesamt-Zähler.
+
 ## Wichtige Konventionen
 
 - **Scraper-Interface**: Jeder Scraper hat `__init__(self, settings: dict)` und `search(self, term: str, max_results: int) -> List[Listing]`. `settings` ist das komplette Dict aus `db.get_settings()`.
 - **Neuen Scraper hinzufügen**: Neue Klasse in `app/scrapers/`, in `crawler.py` in die Scraper-Liste eintragen, in `routes.py` und `settings.html` entsprechende Felder ergänzen.
 - **Kein ORM**: Alle DB-Zugriffe direkt mit `sqlite3` in `database.py`. Neue Abfragen dort als Funktion anlegen.
 - **Kein JS-Build**: Tailwind via CDN. Kein npm. JS direkt in den Templates als `<script>`-Blöcke.
-- **Thread-Safety**: `crawler.py` nutzt `threading.Lock` + globales `_running`-Flag. Nie direkt `run_crawl()` aufrufen – immer `run_crawl_async()`.
+- **Thread-Safety**: `crawler.py` und `checker.py` nutzen je ein eigenes `threading.Lock` + `_running`-Flag. Nie direkt `run_crawl()` aufrufen – immer `run_crawl_async()`.
 - **Settings-Checkboxen**: In HTML-Forms senden Checkboxen keinen Wert wenn nicht angehakt. `routes.py → save_settings()` behandelt das explizit mit `"1" if request.form.get(key) else "0"`.
 - **Datenbankpfad**: `DATA_DIR`-Umgebungsvariable (Default `/data`). Lokal via `.env`: `DATA_DIR=./data`.
 
@@ -190,7 +228,7 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 ## API-Endpunkte
 
 | Method | URL | Beschreibung |
-|--------|-----|-------------|
+|--------|-----|--------------|
 | GET | `/` | Dashboard |
 | POST | `/terms` | Suchbegriff hinzufügen (`form: term`) |
 | POST | `/terms/<id>/delete` | Suchbegriff löschen |
@@ -203,6 +241,11 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 | GET | `/api/listings` | Anzeigen als JSON (`?term=`, `?platform=`, `?limit=30`, `?offset=0`, `?favorites=1`, `?free=1`, `?max_age=`, `?max_distance=`, `?sort=date_desc`, `?exclude=`) |
 | GET | `/api/stats` | Preisstatistik pro Suchbegriff (JSON) |
 | POST | `/listings/<id>/dismiss` | Anzeige dauerhaft ausblenden (JSON) |
+| POST | `/listings/<id>/note` | Notiz setzen/löschen (JSON: `{"note": "..."}`) |
+| POST | `/terms/<id>/max-price` | Preis-Schwelle für Term setzen (JSON: `{"max_price": N}`) |
+| GET | `/api/platforms` | Distinct Plattformen der gespeicherten Anzeigen (JSON Array) |
+| POST | `/api/test-scraper` | Scraper-Verbindung testen (JSON: `{"platform": "kleinanzeigen"}`) |
+| POST | `/api/clear-listings-by-age` | Anzeigen löschen + dismissen die älter als `hours` sind (JSON body: `{"hours": N}`) |
 
 ## Bekannte Einschränkungen
 

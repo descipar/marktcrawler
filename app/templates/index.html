@@ -14,8 +14,11 @@
   </div>
   <div class="bg-white rounded-xl border border-slate-200 p-4">
     <div class="text-xs text-slate-500 mb-1">Letzter Lauf</div>
-    <div id="last-crawl" class="text-sm font-semibold text-slate-700 truncate">
-      {{ stats.last_crawl | replace('T', ' ') if stats.last_crawl != 'Noch kein Lauf' else 'Noch kein Lauf' }}
+    <div id="last-crawl" class="text-sm font-semibold text-slate-700 truncate"
+      {% if stats.last_crawl and stats.last_crawl != 'Noch kein Lauf' %}title="{{ stats.last_crawl | replace('T', ' ') }}"{% endif %}>
+      {% if stats.last_crawl and stats.last_crawl != 'Noch kein Lauf' %}
+        <span class="last-crawl-rel" data-ts="{{ stats.last_crawl }}">{{ stats.last_crawl | replace('T', ' ') }}</span>
+      {% else %}Noch kein Lauf{% endif %}
     </div>
   </div>
   <div class="bg-white rounded-xl border border-slate-200 p-4">
@@ -25,6 +28,7 @@
   <div class="bg-white rounded-xl border border-slate-200 p-4">
     <div class="text-xs text-slate-500 mb-1">Anzeigen gesamt</div>
     <div id="total-listings" class="text-2xl font-bold text-brand-600">{{ stats.total_listings }}</div>
+    <div id="platform-counts" class="text-xs text-slate-400 mt-0.5"></div>
   </div>
   <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-center">
     <button id="crawl-btn-top" onclick="startCrawl()"
@@ -107,6 +111,13 @@
             <button onclick="toggleTermFilter('{{ t.term }}')" data-term="{{ t.term }}"
               class="term-filter-btn flex-1 text-sm text-left {% if not t.enabled %}text-slate-400 line-through{% else %}text-slate-700 hover:text-brand-600{% endif %} truncate transition-colors"
               title="Nach '{{ t.term }}' filtern">{{ t.term }}</button>
+            <!-- Preis-Badge (Task 25) -->
+            <span class="price-badge-wrap relative" data-term-id="{{ t.id }}" data-max-price="{{ t.max_price or '' }}">
+              <span class="price-badge text-xs px-1.5 py-0.5 rounded-full cursor-pointer transition-all
+                {% if t.max_price %}bg-green-100 text-green-700 font-medium{% else %}opacity-0 group-hover:opacity-100 bg-slate-100 text-slate-400{% endif %}"
+                onclick="startPriceEdit(event, {{ t.id }}, '{{ t.max_price or '' }}')"
+                title="Preis-Limit setzen">{% if t.max_price %}≤{{ t.max_price }}€{% else %}+€{% endif %}</span>
+            </span>
             <form method="POST" action="/terms/{{ t.id }}/delete" onsubmit="return confirm('\'{{ t.term }}\' und alle {{ t.term }}-Anzeigen löschen?')">
               <button type="submit" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all text-lg leading-none">×</button>
             </form>
@@ -122,8 +133,9 @@
   <!-- Rechte Spalte: Anzeigen -->
   <div class="flex-1 min-w-0">
     <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      <!-- Filter-Leiste -->
+      <!-- Filter-Leiste (Task 4: ausklappbar) -->
       <div class="px-4 py-3 border-b border-slate-100">
+        <!-- Immer sichtbare Zeile -->
         <div class="flex items-center justify-between mb-2">
           <h2 class="font-semibold text-slate-800 text-sm">📋 Gefundene Anzeigen
             <span id="listing-count" class="text-xs font-normal text-slate-400 ml-1"></span>
@@ -133,8 +145,8 @@
             <button id="filter-clear" onclick="clearFilter()" class="text-xs text-slate-400 hover:text-slate-600 hidden">✕ Filter</button>
           </div>
         </div>
-        <!-- Scrollbare Filter-Zeile auf Mobile -->
-        <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        <!-- Immer sichtbar: Sort + aktive Filter-Badges + Toggle-Button -->
+        <div class="flex items-center gap-2 flex-wrap">
           <select id="sort-select" onchange="applySort(this.value)"
             class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none bg-white font-medium">
             <option value="date_desc">🕐 Neueste</option>
@@ -143,50 +155,54 @@
             <option value="price_desc">💶 Preis ↓</option>
             <option value="distance_asc">📍 Entfernung</option>
           </select>
-          <div class="w-px h-4 bg-slate-200 flex-shrink-0"></div>
-          <select id="age-filter" onchange="applyAgeFilter(this.value)"
-            class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none bg-white">
-            <option value="0">Alle Zeit</option>
-            <option value="3">Letzte 3h</option>
-            <option value="6">Letzte 6h</option>
-            <option value="24">Heute</option>
-            <option value="48">48 Std.</option>
-          </select>
-          <select id="platform-filter" onchange="applyPlatformFilter(this.value)"
-            class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none bg-white">
-            <option value="">Alle Plattformen</option>
-            <option value="Kleinanzeigen">Kleinanzeigen</option>
-            <option value="Shpock">Shpock</option>
-            <option value="Vinted">Vinted</option>
-            <option value="eBay">eBay</option>
-            <option value="Facebook">Facebook</option>
-          </select>
-          <select id="distance-filter" onchange="applyDistanceFilter(this.value)"
-            class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none bg-white">
-            <option value="">Alle Entfernungen</option>
-            <option value="10">≤ 10 km</option>
-            <option value="25">≤ 25 km</option>
-            <option value="50">≤ 50 km</option>
-            <option value="100">≤ 100 km</option>
-          </select>
-          <button id="free-btn" onclick="toggleFreeFilter()"
-            class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors whitespace-nowrap">
-            🎁 Gratis
+          <button id="filter-toggle-btn" onclick="toggleFilterPanel()"
+            class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 hover:bg-slate-50 transition-colors">
+            Filter <span id="filter-toggle-count" class="hidden text-brand-600 font-bold"></span> <span id="filter-toggle-arrow">▼</span>
           </button>
-          <button id="fav-btn" onclick="toggleFavFilter()"
-            class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 hover:bg-yellow-50 hover:border-yellow-300 hover:text-yellow-700 transition-colors whitespace-nowrap">
-            ★ Favoriten
-          </button>
-          <div class="w-px h-4 bg-slate-200 flex-shrink-0"></div>
-          <div class="flex-shrink-0 flex items-center gap-1">
-            <input id="exclude-input" type="text" placeholder="🚫 Ausblenden…"
-              oninput="scheduleExclude(this.value)"
-              class="text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none focus:border-red-300 w-32 bg-white">
-            <button id="exclude-clear" onclick="clearExclude()" class="text-slate-300 hover:text-red-400 hidden text-base leading-none" title="Ausblend-Filter löschen">✕</button>
+        </div>
+        <!-- Ausklappbarer Filter-Bereich -->
+        <div id="extended-filter-panel" class="hidden mt-2">
+          <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <select id="age-filter" onchange="applyAgeFilter(this.value)"
+              class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none bg-white">
+              <option value="0">Alle Zeit</option>
+              <option value="3">Letzte 3h</option>
+              <option value="6">Letzte 6h</option>
+              <option value="24">Heute</option>
+              <option value="48">48 Std.</option>
+            </select>
+            <select id="platform-filter" onchange="applyPlatformFilter(this.value)"
+              class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none bg-white">
+              <option value="">Alle Plattformen</option>
+            </select>
+            <select id="distance-filter" onchange="applyDistanceFilter(this.value)"
+              class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none bg-white">
+              <option value="">Alle Entfernungen</option>
+              <option value="10">≤ 10 km</option>
+              <option value="25">≤ 25 km</option>
+              <option value="50">≤ 50 km</option>
+              <option value="100">≤ 100 km</option>
+            </select>
+            <button id="free-btn" onclick="toggleFreeFilter()"
+              class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors whitespace-nowrap">
+              🎁 Gratis
+            </button>
+            <button id="fav-btn" onclick="toggleFavFilter()"
+              class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 hover:bg-yellow-50 hover:border-yellow-300 hover:text-yellow-700 transition-colors whitespace-nowrap">
+              ★ Favoriten
+            </button>
+            <div class="w-px h-4 bg-slate-200 flex-shrink-0"></div>
+            <div class="flex-shrink-0 flex items-center gap-1">
+              <input id="exclude-input" type="text" placeholder="🚫 Ausblenden…"
+                oninput="scheduleExclude(this.value)"
+                class="text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none focus:border-red-300 w-32 bg-white">
+              <button id="exclude-clear" onclick="clearExclude()" class="text-slate-300 hover:text-red-400 hidden text-base leading-none" title="Ausblend-Filter löschen">✕</button>
+            </div>
           </div>
         </div>
       </div>
 
+      <!-- Listings-Grid: initial server-rendered, danach JS-geladen -->
       <div id="listings-grid" class="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {% for l in listings %}
         {% include '_listing_card.html' %}
@@ -214,15 +230,40 @@
   <div class="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700">
     <span class="text-xs font-mono text-slate-300">📋 Crawler-Log</span>
     <button onclick="toggleLog()" id="log-toggle"
-      class="text-xs text-slate-400 hover:text-slate-200 transition-colors">▼ ausblenden</button>
+      class="text-xs text-slate-400 hover:text-slate-200 transition-colors">▶ anzeigen</button>
   </div>
-  <div id="log-panel">
+  <div id="log-panel" class="hidden">
     <div id="log-output"
       class="font-mono text-xs text-green-400 p-4 h-48 overflow-y-auto whitespace-pre-wrap leading-5">
       <span class="text-slate-500">Warte auf Crawl-Start…</span>
     </div>
   </div>
 </div>
+
+<!-- ── Detail-Modal (Task 6) ─────────────────────────────── -->
+<div id="detail-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/50" onclick="closeModal()"></div>
+  <div id="modal-content" class="relative bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto z-10">
+  </div>
+</div>
+
+<!-- ── Inline Preis-Edit Popup ──────────────────────────── -->
+<div id="price-edit-popup" class="hidden fixed z-50 bg-white border border-slate-200 rounded-lg shadow-lg p-3" style="min-width:160px">
+  <div class="text-xs text-slate-500 mb-1">Preis-Limit (€) für diesen Begriff</div>
+  <div class="flex gap-1">
+    <input id="price-edit-input" type="number" min="0" placeholder="z.B. 50"
+      class="flex-1 text-sm border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-400 w-20">
+    <button onclick="savePriceEdit()" class="bg-brand-600 text-white text-xs px-2 py-1 rounded hover:bg-brand-700">OK</button>
+    <button onclick="cancelPriceEdit()" class="text-slate-400 hover:text-slate-600 text-base leading-none px-1">✕</button>
+  </div>
+  <button onclick="clearPriceLimit()" class="text-xs text-red-400 hover:text-red-600 mt-1">Limit entfernen</button>
+</div>
+
+<!-- Listings-Cache für Modal (Task 6) -->
+<script>
+const listingsCache = {};
+{% for l in listings %}listingsCache[{{ l.id }}] = {{ l | tojson | safe }};{% endfor %}
+</script>
 
 <!-- ── JavaScript ────────────────────────────────────────── -->
 <script>
@@ -231,14 +272,140 @@ let activeTerms=new Set(), platformFilter=null, ageFilter=0, freeFilter=false, f
 let currentOffset=0, allLoaded=false, totalCount=0;
 let _excludeTimer=null;
 
-// Suchbegriff-Sidebar auf Mobile kollabierbar
+// ── Task 5: Relative Zeitangaben ─────────────────────────
+function relativeTime(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr.replace(' ', 'T'));
+  if (isNaN(d)) return isoStr;
+  const diff = Math.round((Date.now() - d.getTime()) / 1000);
+  if (diff < 60)  return 'gerade eben';
+  if (diff < 3600) return `vor ${Math.round(diff/60)}min`;
+  if (diff < 86400) return `vor ${Math.round(diff/3600)}h`;
+  if (diff < 172800) return 'gestern';
+  return `vor ${Math.round(diff/86400)} Tagen`;
+}
+
+function initRelativeTimes() {
+  document.querySelectorAll('.found-at-ts').forEach(el => {
+    const ts = el.dataset.foundAt;
+    if (ts) el.textContent = relativeTime(ts);
+  });
+  // Status-Bar letzter Lauf
+  document.querySelectorAll('.last-crawl-rel').forEach(el => {
+    const ts = el.dataset.ts;
+    if (ts) el.textContent = relativeTime(ts);
+  });
+}
+initRelativeTimes();
+
+// ── Task 7: Log-Terminal ─────────────────────────────────
+let logVisible = (localStorage.getItem('logVisible') === 'true');
+let logPollInterval = null;
+
+(function initLogPanel() {
+  const panel = document.getElementById('log-panel');
+  const btn = document.getElementById('log-toggle');
+  if (logVisible) {
+    panel.classList.remove('hidden');
+    btn.textContent = '▼ ausblenden';
+  } else {
+    panel.classList.add('hidden');
+    btn.textContent = '▶ anzeigen';
+  }
+})();
+
+function toggleLog() {
+  logVisible = !logVisible;
+  localStorage.setItem('logVisible', logVisible);
+  document.getElementById('log-panel').classList.toggle('hidden', !logVisible);
+  document.getElementById('log-toggle').textContent = logVisible ? '▼ ausblenden' : '▶ anzeigen';
+}
+
+async function refreshLog() {
+  const lines = await (await fetch('/api/log')).json();
+  const out = document.getElementById('log-output');
+  if (!lines.length) return;
+  out.textContent = lines.join('\n');
+  out.scrollTop = out.scrollHeight;
+}
+
+function startLogPolling() {
+  if (logPollInterval) return;
+  // Öffne Log-Panel wenn Crawl startet
+  if (!logVisible) {
+    logVisible = true;
+    localStorage.setItem('logVisible', 'true');
+    document.getElementById('log-panel').classList.remove('hidden');
+    document.getElementById('log-toggle').textContent = '▼ ausblenden';
+  }
+  logPollInterval = setInterval(refreshLog, 2000);
+  refreshLog();
+}
+
+function stopLogPolling() {
+  clearInterval(logPollInterval);
+  logPollInterval = null;
+  refreshLog();
+}
+
+// ── Task 4: Filter-Panel ausklappbar ─────────────────────
+let filterPanelOpen = (localStorage.getItem('filterPanelOpen') === 'true');
+
+(function initFilterPanel() {
+  const panel = document.getElementById('extended-filter-panel');
+  const arrow = document.getElementById('filter-toggle-arrow');
+  if (filterPanelOpen) {
+    panel.classList.remove('hidden');
+    arrow.textContent = '▲';
+  } else {
+    panel.classList.add('hidden');
+    arrow.textContent = '▼';
+  }
+})();
+
+function toggleFilterPanel() {
+  filterPanelOpen = !filterPanelOpen;
+  localStorage.setItem('filterPanelOpen', filterPanelOpen);
+  document.getElementById('extended-filter-panel').classList.toggle('hidden', !filterPanelOpen);
+  document.getElementById('filter-toggle-arrow').textContent = filterPanelOpen ? '▲' : '▼';
+}
+
+function updateFilterCount() {
+  let n = 0;
+  if (platformFilter) n++;
+  if (ageFilter) n++;
+  if (freeFilter) n++;
+  if (favFilter) n++;
+  if (distanceFilter) n++;
+  if (excludeText) n++;
+  const el = document.getElementById('filter-toggle-count');
+  if (n > 0) { el.textContent = n; el.classList.remove('hidden'); }
+  else { el.classList.add('hidden'); }
+}
+
+// ── Task 17: Plattform-Dropdown dynamisch befüllen ────────
+async function loadPlatformOptions() {
+  try {
+    const platforms = await (await fetch('/api/platforms')).json();
+    const sel = document.getElementById('platform-filter');
+    // Behalte erste Option "Alle Plattformen"
+    while (sel.options.length > 1) sel.remove(1);
+    platforms.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p; opt.textContent = p;
+      sel.appendChild(opt);
+    });
+  } catch(e) {}
+}
+loadPlatformOptions();
+
+// ── Suchbegriff-Sidebar auf Mobile kollabierbar ──────────
 function toggleTerms() {
-  if(window.innerWidth >= 1024) return; // lg: immer sichtbar
+  if(window.innerWidth >= 1024) return;
   const panel=document.getElementById('terms-panel'), chev=document.getElementById('terms-chevron');
   panel.classList.toggle('hidden');
   chev.textContent=panel.classList.contains('hidden')?'▼':'▲';
 }
-// Auf Mobile initial einklappen
 if(window.innerWidth < 1024) {
   document.getElementById('terms-panel').classList.add('hidden');
 }
@@ -262,20 +429,24 @@ async function loadListings() {
     updateLoadMore(0);
     return;
   }
+  listings.forEach(l => { listingsCache[l.id] = l; });
   grid.innerHTML=listings.map(l=>cardHtml(l)).join('');
   currentOffset = listings.length;
   updateLoadMore(listings.length);
+  initRelativeTimes();
 }
 
 async function loadMore() {
   const btn=document.getElementById('load-more-btn');
   btn.disabled=true; btn.textContent='Laden…';
   const listings = await fetchListings(currentOffset);
+  listings.forEach(l => { listingsCache[l.id] = l; });
   const grid=document.getElementById('listings-grid');
   grid.insertAdjacentHTML('beforeend', listings.map(l=>cardHtml(l)).join(''));
   currentOffset += listings.length;
   btn.disabled=false; btn.textContent='↓ Mehr laden';
   updateLoadMore(listings.length);
+  initRelativeTimes();
 }
 
 function updateLoadMore(fetchedCount) {
@@ -304,6 +475,7 @@ function scheduleExclude(v) {
   _excludeTimer = setTimeout(() => {
     excludeText = v.trim() || null;
     document.getElementById('exclude-clear').classList.toggle('hidden', !excludeText);
+    updateFilterCount();
     loadListings();
   }, 400);
 }
@@ -312,6 +484,7 @@ function clearExclude() {
   excludeText = null;
   document.getElementById('exclude-input').value = '';
   document.getElementById('exclude-clear').classList.add('hidden');
+  updateFilterCount();
   loadListings();
 }
 
@@ -322,8 +495,12 @@ function cardHtml(l) {
     :`<div class="w-full h-40 bg-slate-100 flex items-center justify-center text-4xl">🛍️</div>`;
   const freeBadge=l.is_free?`<span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">🎁 Gratis</span>`:'';
   const distBadge=l.distance_km!=null?`<span class="text-xs text-slate-400">${Math.round(l.distance_km)} km</span>`:'';
+  const dupBadge=l.potential_duplicate?`<span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">📋 auch auf ${l.potential_duplicate}</span>`:'';
   const favCls=l.is_favorite?'text-yellow-400':'text-slate-200 hover:text-yellow-300';
-  return `<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative">
+  const relTs = relativeTime(l.found_at);
+  const absTs = (l.found_at||'').replace('T',' ');
+  const notesBadge = l.notes ? `<span class="text-xs text-slate-400">💬 Notiz</span>` : '';
+  return `<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative" data-id="${l.id}" onclick="handleCardClick(event,${l.id})">
     <button onclick="dismissListing(${l.id},this)" class="absolute top-2 left-2 z-10 text-base leading-none text-slate-200 hover:text-red-400 transition-colors" title="Ausblenden">✕</button>
     <button onclick="toggleFav(${l.id},this)" class="absolute top-2 right-2 z-10 text-xl leading-none ${favCls}">★</button>
     <a href="${l.url}" target="_blank" rel="noopener" class="block">
@@ -335,10 +512,11 @@ function cardHtml(l) {
         </div>
         <div class="font-semibold text-slate-800 text-sm leading-tight mb-1 pr-5">${l.title}</div>
         <div class="flex items-center flex-wrap gap-1 mb-1">
-          <span class="text-green-700 font-bold">${l.price}</span>${freeBadge}${distBadge}
+          <span class="text-green-700 font-bold">${l.price}</span>${freeBadge}${distBadge}${dupBadge}
         </div>
         <div class="text-xs text-slate-500 truncate">📍 ${l.location}</div>
-        <div class="text-xs text-slate-400 mt-1">${(l.found_at||'').replace('T',' ')}</div>
+        <div class="found-at-ts text-xs text-slate-400 mt-1" data-found-at="${l.found_at}" title="${absTs}">${relTs}</div>
+        ${notesBadge}
       </div>
     </a>
   </div>`;
@@ -393,15 +571,16 @@ function clearFilter() {
   document.getElementById('exclude-input').value='';
   document.getElementById('exclude-clear').classList.add('hidden');
   setBtn('free-btn',false,'green'); setBtn('fav-btn',false,'yellow');
+  updateFilterCount();
   loadListings();
 }
 
-function applyPlatformFilter(v){platformFilter=v||null;loadListings();}
-function applyAgeFilter(v){ageFilter=parseInt(v)||0;loadListings();}
-function applyDistanceFilter(v){distanceFilter=v||null;loadListings();}
+function applyPlatformFilter(v){platformFilter=v||null;updateFilterCount();loadListings();}
+function applyAgeFilter(v){ageFilter=parseInt(v)||0;updateFilterCount();loadListings();}
+function applyDistanceFilter(v){distanceFilter=v||null;updateFilterCount();loadListings();}
 
-function toggleFreeFilter(){freeFilter=!freeFilter;setBtn('free-btn',freeFilter,'green');loadListings();}
-function toggleFavFilter(){favFilter=!favFilter;setBtn('fav-btn',favFilter,'yellow');loadListings();}
+function toggleFreeFilter(){freeFilter=!freeFilter;setBtn('free-btn',freeFilter,'green');updateFilterCount();loadListings();}
+function toggleFavFilter(){favFilter=!favFilter;setBtn('fav-btn',favFilter,'yellow');updateFilterCount();loadListings();}
 
 function setBtn(id,on,color){
   const btn=document.getElementById(id);
@@ -416,36 +595,222 @@ function toggleStats(){
   c.textContent=p.classList.contains('hidden')?'▼ anzeigen':'▲ schließen';
 }
 
+// ── Task 6: Listing-Detailansicht per Modal ───────────────
+function handleCardClick(event, id) {
+  // Nicht öffnen wenn Klick auf Link, Button oder deren Kinder
+  const tag = event.target.tagName;
+  if (tag === 'A' || tag === 'BUTTON' || event.target.closest('a') || event.target.closest('button')) return;
+  openModal(id);
+}
+
+function openModal(id) {
+  const l = listingsCache[id];
+  if (!l) return;
+  const modal = document.getElementById('detail-modal');
+  const content = document.getElementById('modal-content');
+  const absTs = (l.found_at||'').replace('T',' ');
+  const relTs = relativeTime(l.found_at);
+  const img = l.image_url
+    ? `<img src="${l.image_url}" alt="" referrerpolicy="no-referrer" class="w-full max-h-64 object-contain bg-slate-100 rounded-t-xl">`
+    : `<div class="w-full h-32 bg-slate-100 flex items-center justify-center text-5xl rounded-t-xl">🛍️</div>`;
+  const pc = l.platform==='Kleinanzeigen'?'badge-ka':l.platform==='Shpock'?'badge-sp':'badge-fb';
+  const distTxt = l.distance_km != null ? `<span class="text-xs text-slate-500">${Math.round(l.distance_km)} km entfernt</span>` : '';
+  const descTxt = l.description ? `<div class="text-sm text-slate-600 mt-3 border-t pt-3 whitespace-pre-wrap">${l.description.substring(0,800)}${l.description.length>800?'…':''}</div>` : '';
+  const dupBadge = l.potential_duplicate ? `<div class="text-xs text-amber-600 mt-1">📋 Möglicherweise auch auf ${l.potential_duplicate}</div>` : '';
+  const favCls = l.is_favorite ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50';
+  const favText = l.is_favorite ? '★ Favorit' : '☆ Favorit';
+
+  content.innerHTML = `
+    <button onclick="closeModal()" class="absolute top-3 right-3 z-10 text-slate-300 hover:text-slate-600 text-xl leading-none">✕</button>
+    ${img}
+    <div class="p-5">
+      <div class="flex items-center gap-2 mb-2 flex-wrap">
+        <span class="text-xs px-1.5 py-0.5 rounded font-medium ${pc}">${l.platform}</span>
+        <span class="text-xs text-slate-400">${l.search_term}</span>
+        ${distTxt}
+      </div>
+      <h2 class="font-bold text-slate-800 text-base leading-tight mb-2">${l.title}</h2>
+      <div class="flex items-center gap-2 mb-2 flex-wrap">
+        <span class="text-lg font-bold text-green-700">${l.price}</span>
+        ${l.is_free ? '<span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">🎁 Gratis</span>' : ''}
+      </div>
+      <div class="text-xs text-slate-500 mb-1">📍 ${l.location}</div>
+      <div class="text-xs text-slate-400" title="${absTs}">🕐 ${relTs}</div>
+      ${dupBadge}
+      ${descTxt}
+      <!-- Notizfeld (Task 24) -->
+      <div class="mt-3 border-t pt-3">
+        <label class="block text-xs font-medium text-slate-500 mb-1">💬 Notiz</label>
+        <textarea id="modal-notes" rows="2"
+          class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400 resize-y"
+          placeholder="Persönliche Notiz…">${l.notes || ''}</textarea>
+      </div>
+      <div class="flex items-center gap-2 mt-3 flex-wrap">
+        <a href="${l.url}" target="_blank" rel="noopener"
+          class="flex-1 text-center bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+          🔗 Anzeige öffnen
+        </a>
+        <button id="modal-fav-btn" onclick="modalToggleFav(${l.id})"
+          class="text-sm border ${favCls} px-3 py-2 rounded-lg transition-colors">${favText}</button>
+        <button onclick="modalDismiss(${l.id})"
+          class="text-sm border border-red-200 text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors">✕ Ausblenden</button>
+      </div>
+    </div>`;
+
+  // Notiz auto-save bei blur
+  const notesEl = document.getElementById('modal-notes');
+  notesEl.addEventListener('blur', () => saveModalNote(l.id, notesEl.value));
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeModal() {
+  const modal = document.getElementById('detail-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+async function saveModalNote(id, note) {
+  await fetch(`/listings/${id}/note`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({note})
+  });
+  if (listingsCache[id]) listingsCache[id].notes = note.trim() || null;
+}
+
+async function modalToggleFav(id) {
+  await fetch(`/listings/${id}/favorite`, {method:'POST'});
+  const l = listingsCache[id];
+  if (l) { l.is_favorite = !l.is_favorite; }
+  const btn = document.getElementById('modal-fav-btn');
+  const isFav = l && l.is_favorite;
+  btn.className = `text-sm border ${isFav?'bg-yellow-50 border-yellow-200 text-yellow-700':'border-slate-200 text-slate-600 hover:bg-slate-50'} px-3 py-2 rounded-lg transition-colors`;
+  btn.textContent = isFav ? '★ Favorit' : '☆ Favorit';
+  // Update card button
+  const card = document.querySelector(`.listing-card[data-id="${id}"] button.text-xl`);
+  if (card) card.className = `absolute top-2 right-2 z-10 text-xl leading-none ${isFav?'text-yellow-400':'text-slate-200 hover:text-yellow-300'}`;
+}
+
+async function modalDismiss(id) {
+  await fetch(`/listings/${id}/dismiss`, {method:'POST'});
+  closeModal();
+  const card = document.querySelector(`.listing-card[data-id="${id}"]`);
+  if (card) { card.remove(); currentOffset=Math.max(0,currentOffset-1); updateLoadMore(0); }
+}
+
+// Escape-Key schließt Modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// ── Task 25: Preis-Schwelle Inline-Edit ──────────────────
+let _priceEditTermId = null;
+let _priceEditWrap = null;
+
+function startPriceEdit(event, termId, currentPrice) {
+  event.stopPropagation();
+  _priceEditTermId = termId;
+  _priceEditWrap = event.target.closest('.price-badge-wrap');
+  const popup = document.getElementById('price-edit-popup');
+  const input = document.getElementById('price-edit-input');
+  input.value = currentPrice;
+  // Popup position
+  const rect = event.target.getBoundingClientRect();
+  popup.style.top = (window.scrollY + rect.bottom + 4) + 'px';
+  popup.style.left = Math.min(rect.left, window.innerWidth - 180) + 'px';
+  popup.classList.remove('hidden');
+  input.focus();
+}
+
+function cancelPriceEdit() {
+  document.getElementById('price-edit-popup').classList.add('hidden');
+  _priceEditTermId = null;
+  _priceEditWrap = null;
+}
+
+async function savePriceEdit() {
+  const val = document.getElementById('price-edit-input').value.trim();
+  const price = val === '' ? null : parseInt(val);
+  await fetch(`/terms/${_priceEditTermId}/max-price`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({max_price: price})
+  });
+  _updatePriceBadge(price);
+  cancelPriceEdit();
+}
+
+async function clearPriceLimit() {
+  await fetch(`/terms/${_priceEditTermId}/max-price`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({max_price: null})
+  });
+  _updatePriceBadge(null);
+  cancelPriceEdit();
+}
+
+function _updatePriceBadge(price) {
+  if (!_priceEditWrap) return;
+  const badge = _priceEditWrap.querySelector('.price-badge');
+  _priceEditWrap.dataset.maxPrice = price || '';
+  if (price) {
+    badge.textContent = `≤${price}€`;
+    badge.className = 'price-badge text-xs px-1.5 py-0.5 rounded-full cursor-pointer transition-all bg-green-100 text-green-700 font-medium';
+  } else {
+    badge.textContent = '+€';
+    badge.className = 'price-badge text-xs px-1.5 py-0.5 rounded-full cursor-pointer transition-all opacity-0 group-hover:opacity-100 bg-slate-100 text-slate-400';
+  }
+}
+
+// Klick außerhalb schließt Preis-Popup
+document.addEventListener('click', e => {
+  const popup = document.getElementById('price-edit-popup');
+  if (!popup.classList.contains('hidden') && !popup.contains(e.target) && !e.target.classList.contains('price-badge')) {
+    cancelPriceEdit();
+  }
+});
+
+// ── Task 18: Status-Bar mit platform_counts ──────────────
+function updatePlatformCounts(counts) {
+  const el = document.getElementById('platform-counts');
+  if (!counts || !Object.keys(counts).length) { el.textContent = ''; return; }
+  const abbr = {'Kleinanzeigen':'KA','Shpock':'Shp','Vinted':'VT','eBay':'eBay','Facebook':'FB'};
+  const parts = Object.entries(counts).map(([p,n]) => `${abbr[p]||p} ${n}`);
+  el.textContent = parts.join(' · ');
+}
+
 {% if stats.crawl_status == 'running' %}setTimeout(pollStatus,3000);{% endif %}
 
-// ── Log-Terminal ──────────────────────────────────────────
-let logVisible = true;
-let logPollInterval = null;
-
-function toggleLog() {
-  logVisible = !logVisible;
-  document.getElementById('log-panel').classList.toggle('hidden', !logVisible);
-  document.getElementById('log-toggle').textContent = logVisible ? '▼ ausblenden' : '▶ anzeigen';
-}
-
-async function refreshLog() {
-  const lines = await (await fetch('/api/log')).json();
-  const out = document.getElementById('log-output');
-  if (!lines.length) return;
-  out.textContent = lines.join('\n');
-  out.scrollTop = out.scrollHeight;
-}
-
-function startLogPolling() {
-  if (logPollInterval) return;
-  logPollInterval = setInterval(refreshLog, 2000);
-  refreshLog();
-}
-
-function stopLogPolling() {
-  clearInterval(logPollInterval);
-  logPollInterval = null;
-  refreshLog(); // letzte Zeilen noch holen
+// pollStatus erweitern
+async function pollStatus() {
+  const d = await (await fetch('/api/status')).json();
+  const badge = document.getElementById('status-badge'), btn = document.getElementById('crawl-btn-top'), msg = document.getElementById('crawl-msg');
+  if (d.is_running) {
+    badge.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-run';
+    badge.innerHTML = '<span class="spinner">⟳</span> Läuft…';
+    btn.disabled = true; btn.textContent = '⟳ Läuft…';
+    startLogPolling();
+    setTimeout(pollStatus, 3000);
+  } else {
+    badge.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-idle';
+    badge.innerHTML = '✓ Bereit'; btn.disabled = false; btn.textContent = '🚀 Jetzt crawlen';
+    if (msg) msg.textContent = `Fertig! ${d.last_found} neue Anzeige(n).`;
+    // letzter Lauf: relative Zeit mit tooltip
+    const lc = document.getElementById('last-crawl');
+    if (d.last_crawl) {
+      lc.title = d.last_crawl.replace('T',' ');
+      lc.innerHTML = `<span class="last-crawl-rel" data-ts="${d.last_crawl}">${relativeTime(d.last_crawl)}</span>`;
+    }
+    document.getElementById('next-crawl').textContent = d.next_crawl;
+    document.getElementById('total-listings').textContent = d.total_listings;
+    updatePlatformCounts(d.platform_counts || {});
+    stopLogPolling();
+    loadListings();
+    loadPlatformOptions();
+  }
 }
 
 // Initialen "Mehr laden"-Button nach Server-Render setzen
@@ -462,27 +827,12 @@ startLogPolling();
 refreshLog();
 {% endif %}
 
-// pollStatus erweitern: Log-Polling an Crawl-Status koppeln
-const _origPollStatus = pollStatus;
-async function pollStatus() {
-  const d = await (await fetch('/api/status')).json();
-  const badge = document.getElementById('status-badge'), btn = document.getElementById('crawl-btn-top'), msg = document.getElementById('crawl-msg');
-  if (d.is_running) {
-    badge.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-run';
-    badge.innerHTML = '<span class="spinner">⟳</span> Läuft…';
-    btn.disabled = true; btn.textContent = '⟳ Läuft…';
-    startLogPolling();
-    setTimeout(pollStatus, 3000);
-  } else {
-    badge.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-idle';
-    badge.innerHTML = '✓ Bereit'; btn.disabled = false; btn.textContent = '🚀 Jetzt crawlen';
-    if (msg) msg.textContent = `Fertig! ${d.last_found} neue Anzeige(n).`;
-    document.getElementById('last-crawl').textContent = (d.last_crawl || '').replace('T', ' ');
-    document.getElementById('next-crawl').textContent = d.next_crawl;
-    document.getElementById('total-listings').textContent = d.total_listings;
-    stopLogPolling();
-    loadListings();
-  }
-}
+// Initiale platform_counts anzeigen (aus Status-API)
+(async function() {
+  try {
+    const d = await (await fetch('/api/status')).json();
+    updatePlatformCounts(d.platform_counts || {});
+  } catch(e) {}
+})();
 </script>
 {% endblock %}

@@ -469,6 +469,155 @@ class TestExcludeFilter:
         assert "g" in ids
 
 
+class TestNotesAndDuplicates:
+
+    def _save(self, temp_db, lid, title="Kinderwagen", platform="Kleinanzeigen"):
+        from app.scrapers.base import Listing
+        l = Listing(
+            platform=platform, title=title, price="30 €",
+            location="München", url=f"https://example.com/{lid}",
+            listing_id=lid, search_term="test",
+        )
+        temp_db.save_listing(l)
+        return next(x["id"] for x in temp_db.get_listings() if x["listing_id"] == lid)
+
+    def test_update_listing_note_speichert(self, temp_db):
+        db_id = self._save(temp_db, "note-1")
+        temp_db.update_listing_note(db_id, "Schaut gut aus!")
+        l = next(x for x in temp_db.get_listings() if x["listing_id"] == "note-1")
+        assert l["notes"] == "Schaut gut aus!"
+
+    def test_update_listing_note_loescht(self, temp_db):
+        db_id = self._save(temp_db, "note-2")
+        temp_db.update_listing_note(db_id, "Notiz")
+        temp_db.update_listing_note(db_id, "")
+        l = next(x for x in temp_db.get_listings() if x["listing_id"] == "note-2")
+        assert l["notes"] is None
+
+    def test_find_duplicate_platform_findet_anderen_plattform(self, temp_db):
+        self._save(temp_db, "dup-ka", title="Kinderwagen Bugaboo Fox 3", platform="Kleinanzeigen")
+        result = temp_db.find_duplicate_platform("Kinderwagen Bugaboo Fox 3", "Shpock")
+        assert result == "Kleinanzeigen"
+
+    def test_find_duplicate_gleiche_plattform_ignoriert(self, temp_db):
+        self._save(temp_db, "dup-same", title="Kinderwagen Bugaboo Fox 3", platform="Kleinanzeigen")
+        result = temp_db.find_duplicate_platform("Kinderwagen Bugaboo Fox 3", "Kleinanzeigen")
+        assert result is None
+
+    def test_find_duplicate_zu_kurzer_titel(self, temp_db):
+        self._save(temp_db, "dup-short", title="ABC", platform="Kleinanzeigen")
+        result = temp_db.find_duplicate_platform("ABC", "Shpock")
+        assert result is None
+
+    def test_find_duplicate_kein_treffer(self, temp_db):
+        result = temp_db.find_duplicate_platform("Ganz einzigartiger Titel XY", "Kleinanzeigen")
+        assert result is None
+
+
+class TestPlatformCounts:
+
+    def _save(self, temp_db, lid, platform):
+        from app.scrapers.base import Listing
+        temp_db.save_listing(Listing(
+            platform=platform, title=lid, price="10 €",
+            location="München", url=f"https://example.com/{lid}",
+            listing_id=lid, search_term="test",
+        ))
+
+    def test_get_distinct_platforms(self, temp_db):
+        self._save(temp_db, "p1", "Kleinanzeigen")
+        self._save(temp_db, "p2", "Shpock")
+        self._save(temp_db, "p3", "Kleinanzeigen")
+        platforms = temp_db.get_distinct_platforms()
+        assert set(platforms) == {"Kleinanzeigen", "Shpock"}
+
+    def test_get_distinct_platforms_leer(self, temp_db):
+        assert temp_db.get_distinct_platforms() == []
+
+    def test_get_platform_counts(self, temp_db):
+        self._save(temp_db, "c1", "Kleinanzeigen")
+        self._save(temp_db, "c2", "Kleinanzeigen")
+        self._save(temp_db, "c3", "Shpock")
+        counts = temp_db.get_platform_counts()
+        assert counts["Kleinanzeigen"] == 2
+        assert counts["Shpock"] == 1
+
+    def test_get_platform_counts_leer(self, temp_db):
+        assert temp_db.get_platform_counts() == {}
+
+
+class TestTermMaxPrice:
+
+    def test_update_term_max_price_setzen(self, temp_db):
+        temp_db.add_search_term("pricetest")
+        terms = temp_db.get_search_terms()
+        tid = next(t["id"] for t in terms if t["term"] == "pricetest")
+        temp_db.update_term_max_price(tid, 50)
+        terms = temp_db.get_search_terms()
+        t = next(t for t in terms if t["term"] == "pricetest")
+        assert t["max_price"] == 50
+
+    def test_update_term_max_price_auf_none(self, temp_db):
+        temp_db.add_search_term("pricenone")
+        terms = temp_db.get_search_terms()
+        tid = next(t["id"] for t in terms if t["term"] == "pricenone")
+        temp_db.update_term_max_price(tid, 100)
+        temp_db.update_term_max_price(tid, None)
+        terms = temp_db.get_search_terms()
+        t = next(t for t in terms if t["term"] == "pricenone")
+        assert t["max_price"] is None
+
+
+class TestClearListingsOlderThan:
+
+    def _save_old(self, temp_db, lid, hours=25):
+        import sqlite3
+        from app.scrapers.base import Listing
+        temp_db.save_listing(Listing(
+            platform="Test", title=lid, price="10 €",
+            location="München", url=f"https://example.com/{lid}",
+            listing_id=lid, search_term="test",
+        ))
+        conn = sqlite3.connect(str(temp_db.DB_PATH))
+        conn.execute(
+            "UPDATE listings SET found_at=datetime('now', ? || ' hours') WHERE listing_id=?",
+            (f"-{hours}", lid),
+        )
+        conn.commit()
+        conn.close()
+
+    def test_loescht_alte_listings(self, temp_db):
+        self._save_old(temp_db, "old-1", hours=25)
+        deleted = temp_db.clear_listings_older_than(24)
+        assert deleted == 1
+        assert temp_db.get_listing_count() == 0
+
+    def test_belaesst_neue_listings(self, temp_db):
+        self._save_old(temp_db, "new-1", hours=1)
+        deleted = temp_db.clear_listings_older_than(24)
+        assert deleted == 0
+        assert temp_db.get_listing_count() == 1
+
+    def test_schont_favoriten(self, temp_db):
+        self._save_old(temp_db, "fav-old", hours=25)
+        db_id = next(x["id"] for x in temp_db.get_listings() if x["listing_id"] == "fav-old")
+        temp_db.toggle_favorite(db_id)
+        deleted = temp_db.clear_listings_older_than(24)
+        assert deleted == 0
+        assert temp_db.get_listing_count() == 1
+
+    def test_dismissed_nach_loeschen(self, temp_db):
+        self._save_old(temp_db, "dismiss-old", hours=25)
+        temp_db.clear_listings_older_than(24)
+        assert temp_db.is_dismissed("dismiss-old") is True
+
+    def test_gibt_anzahl_zurueck(self, temp_db):
+        self._save_old(temp_db, "count-1", hours=25)
+        self._save_old(temp_db, "count-2", hours=25)
+        deleted = temp_db.clear_listings_older_than(24)
+        assert deleted == 2
+
+
 class TestMigration:
 
     def test_migration_fuegt_fehlende_spalten_hinzu(self, tmp_path, monkeypatch):
@@ -517,3 +666,38 @@ class TestMigration:
         assert "is_favorite" in cols
         assert "is_free" in cols
         assert "distance_km" in cols
+        assert "notes" in cols
+        assert "potential_duplicate" in cols
+
+    def test_migration_search_terms_max_price(self, tmp_path, monkeypatch):
+        """search_terms.max_price wird ergänzt wenn nicht vorhanden."""
+        import sqlite3
+        import app.database as db
+
+        old_db = tmp_path / "old2.db"
+        monkeypatch.setattr(db, "DB_PATH", old_db)
+
+        conn = sqlite3.connect(str(old_db))
+        conn.executescript("""
+            CREATE TABLE search_terms (
+                id INTEGER PRIMARY KEY, term TEXT UNIQUE, enabled INTEGER DEFAULT 1
+            );
+            CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+            CREATE TABLE listings (
+                id INTEGER PRIMARY KEY, listing_id TEXT UNIQUE, platform TEXT,
+                title TEXT, price TEXT, location TEXT, url TEXT,
+                found_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE geocache (
+                location_text TEXT PRIMARY KEY, lat REAL, lon REAL
+            );
+        """)
+        conn.commit()
+        conn.close()
+
+        db.init_db()
+
+        conn = sqlite3.connect(str(old_db))
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(search_terms)")}
+        conn.close()
+        assert "max_price" in cols

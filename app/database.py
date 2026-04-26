@@ -54,7 +54,7 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "crawler_max_results": "20",
     "crawler_delay": "2",
     "crawler_blacklist": "defekt\nbastler\nersatzteile\nbeschädigt\nkaputt\nschlachtfest",
-    "crawler_max_age_hours": "0",   # 0 = kein Filter
+    "display_max_age_hours": "0",   # 0 = kein Filter
     # Tages-Digest
     "digest_enabled": "0",
     "digest_time": "19:00",
@@ -139,6 +139,7 @@ def init_db():
     # Migrationen für bestehende Datenbanken
     _migrate_settings_values(conn)
     _migrate_listings(conn)
+    _migrate_search_terms(conn)
 
     # Default-Settings nur eintragen wenn noch nicht vorhanden
     for key, value in DEFAULT_SETTINGS.items():
@@ -174,6 +175,12 @@ def _migrate_settings_values(conn: sqlite3.Connection):
     ]
     for key, old, new in coord_migrations:
         conn.execute("UPDATE settings SET value=? WHERE key=? AND value=?", (new, key, old))
+    # crawler_max_age_hours → display_max_age_hours
+    conn.execute(
+        "INSERT OR IGNORE INTO settings (key, value) "
+        "SELECT 'display_max_age_hours', value FROM settings WHERE key='crawler_max_age_hours'"
+    )
+    conn.execute("DELETE FROM settings WHERE key='crawler_max_age_hours'")
     conn.commit()
 
 
@@ -181,9 +188,11 @@ def _migrate_listings(conn: sqlite3.Connection):
     """Ergänzt neue Spalten falls sie noch nicht existieren (für Updates)."""
     existing = {row[1] for row in conn.execute("PRAGMA table_info(listings)")}
     new_cols = [
-        ("is_favorite", "INTEGER DEFAULT 0"),
-        ("is_free",     "INTEGER DEFAULT 0"),
-        ("distance_km", "REAL"),
+        ("is_favorite",         "INTEGER DEFAULT 0"),
+        ("is_free",             "INTEGER DEFAULT 0"),
+        ("distance_km",         "REAL"),
+        ("notes",               "TEXT"),
+        ("potential_duplicate", "TEXT"),
     ]
     for col, definition in new_cols:
         if col not in existing:
@@ -193,6 +202,14 @@ def _migrate_listings(conn: sqlite3.Connection):
     if "cached_at" not in existing_geo:
         conn.execute("ALTER TABLE geocache ADD COLUMN cached_at TEXT DEFAULT (datetime('now'))")
 
+    conn.commit()
+
+
+def _migrate_search_terms(conn: sqlite3.Connection):
+    """Ergänzt neue Spalten in search_terms falls sie noch nicht existieren."""
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(search_terms)")}
+    if "max_price" not in existing:
+        conn.execute("ALTER TABLE search_terms ADD COLUMN max_price INTEGER NULL")
     conn.commit()
 
 
@@ -234,6 +251,12 @@ def toggle_search_term(term_id: int):
             "UPDATE search_terms SET enabled = CASE WHEN enabled=1 THEN 0 ELSE 1 END WHERE id = ?",
             (term_id,),
         )
+        conn.commit()
+
+
+def update_term_max_price(term_id: int, max_price: Optional[int]):
+    with _db() as conn:
+        conn.execute("UPDATE search_terms SET max_price=? WHERE id=?", (max_price, term_id))
         conn.commit()
 
 
@@ -308,6 +331,15 @@ def save_listing(listing: "Listing") -> bool:
                  listing.search_term, int(getattr(listing, "is_free", False))),
             )
             conn.commit()
+        # Duplikat-Erkennung nach erfolgreichem INSERT
+        dup_platform = find_duplicate_platform(listing.title, listing.platform)
+        if dup_platform:
+            with _db() as conn:
+                conn.execute(
+                    "UPDATE listings SET potential_duplicate=? WHERE listing_id=?",
+                    (dup_platform, listing.listing_id)
+                )
+                conn.commit()
         return True
     except sqlite3.IntegrityError:
         return False
@@ -329,6 +361,47 @@ def toggle_favorite(listing_id: int):
             (listing_id,),
         )
         conn.commit()
+
+
+def update_listing_note(db_id: int, note: str):
+    with _db() as conn:
+        conn.execute("UPDATE listings SET notes=? WHERE id=?", (note.strip() or None, db_id))
+        conn.commit()
+
+
+def find_duplicate_platform(title: str, platform: str) -> Optional[str]:
+    """Sucht nach ähnlichem Listing auf anderer Plattform (letzte 30 Tage)."""
+    normalized = title.lower().strip()[:50] if title else ""
+    if len(normalized) < 5:
+        return None
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT platform FROM listings "
+            "WHERE platform != ? "
+            "AND found_at >= datetime('now', '-30 days') "
+            "AND LOWER(SUBSTR(title,1,50)) = ? "
+            "LIMIT 1",
+            (platform, normalized),
+        ).fetchone()
+    return row["platform"] if row else None
+
+
+def get_distinct_platforms() -> List[str]:
+    """Gibt alle distinct Plattformen zurück, die in listings vorhanden sind."""
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT platform FROM listings ORDER BY platform"
+        ).fetchall()
+    return [r["platform"] for r in rows if r["platform"]]
+
+
+def get_platform_counts() -> Dict[str, int]:
+    """Gibt die Anzahl der Anzeigen pro Plattform zurück."""
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT platform, COUNT(*) as count FROM listings GROUP BY platform"
+        ).fetchall()
+    return {r["platform"]: r["count"] for r in rows if r["platform"]}
 
 
 # GLOB '*[0-9]*' erkennt ob eine Ziffer vorhanden ist;
@@ -439,6 +512,33 @@ def clear_old_listings(days: int = 30):
         conn.commit()
 
 
+def clear_listings_older_than(hours: int) -> int:
+    """Löscht Anzeigen (außer Favoriten) die älter als `hours` Stunden sind.
+    Trägt alle gelöschten listing_ids in dismissed_listings ein,
+    damit sie beim nächsten Crawl nicht erneut gespeichert werden.
+    Gibt die Anzahl der gelöschten Einträge zurück.
+    """
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT listing_id FROM listings "
+            "WHERE is_favorite = 0 AND found_at < datetime('now', ? || ' hours')",
+            (f"-{hours}",),
+        ).fetchall()
+        if not rows:
+            return 0
+        ids = [r["listing_id"] for r in rows]
+        conn.executemany(
+            "INSERT OR IGNORE INTO dismissed_listings(listing_id) VALUES(?)",
+            [(lid,) for lid in ids],
+        )
+        conn.execute(
+            "DELETE FROM listings WHERE is_favorite = 0 AND found_at < datetime('now', ? || ' hours')",
+            (f"-{hours}",),
+        )
+        conn.commit()
+    return len(ids)
+
+
 def clear_all_listings():
     """Löscht alle Anzeigen (außer Favoriten) und leert den Geocache."""
     with _db() as conn:
@@ -447,12 +547,22 @@ def clear_all_listings():
         conn.commit()
 
 
-def get_all_listing_urls() -> List[Dict]:
-    """Gibt id, listing_id, url und title aller Anzeigen zurück (für Verfügbarkeits-Check)."""
+def get_all_listing_urls(min_age_minutes: int = 0) -> List[Dict]:
+    """Gibt listing_id, url und title aller Anzeigen zurück (für Verfügbarkeits-Check).
+    min_age_minutes: nur Anzeigen die mindestens so alt sind zurückgeben (0 = alle).
+    """
     with _db() as conn:
-        rows = conn.execute(
-            "SELECT listing_id, url, title FROM listings ORDER BY found_at DESC"
-        ).fetchall()
+        if min_age_minutes > 0:
+            rows = conn.execute(
+                "SELECT listing_id, url, title FROM listings "
+                "WHERE found_at <= datetime('now', ? || ' minutes') "
+                "ORDER BY found_at DESC",
+                (f"-{min_age_minutes}",),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT listing_id, url, title FROM listings ORDER BY found_at DESC"
+            ).fetchall()
     return [dict(r) for r in rows]
 
 

@@ -350,6 +350,129 @@ class TestApiListings:
         assert "multi-c" not in ids
 
 
+# ── Note-Route ───────────────────────────────────────────────
+
+class TestNoteRoute:
+
+    def _save_and_get_id(self, app, lid="note-route-1"):
+        from app.scrapers.base import Listing
+        import app.database as db
+        listing = Listing(
+            platform="Test", title="N", price="5 €", location="München",
+            url=f"https://example.com/{lid}", listing_id=lid,
+        )
+        with app.app_context():
+            db.save_listing(listing)
+            return next(l["id"] for l in db.get_listings() if l["listing_id"] == lid)
+
+    def test_set_note(self, client, app):
+        lid = self._save_and_get_id(app)
+        resp = client.post(f"/listings/{lid}/note",
+                           json={"note": "Schaut gut aus"},
+                           content_type="application/json")
+        assert resp.status_code == 200
+        assert json.loads(resp.data)["status"] == "ok"
+
+    def test_clear_note(self, client, app):
+        lid = self._save_and_get_id(app, "note-route-2")
+        client.post(f"/listings/{lid}/note", json={"note": "Notiz"},
+                    content_type="application/json")
+        resp = client.post(f"/listings/{lid}/note", json={"note": ""},
+                           content_type="application/json")
+        assert resp.status_code == 200
+
+
+# ── Term-MaxPrice-Route ───────────────────────────────────────
+
+class TestTermMaxPriceRoute:
+
+    def _get_term_id(self, app, term="kinderwagen"):
+        import app.database as db
+        with app.app_context():
+            terms = db.get_search_terms()
+            return next(t["id"] for t in terms if t["term"] == term)
+
+    def test_set_max_price(self, client, app):
+        tid = self._get_term_id(app)
+        resp = client.post(f"/terms/{tid}/max-price",
+                           json={"max_price": 50},
+                           content_type="application/json")
+        assert resp.status_code == 200
+        assert json.loads(resp.data)["status"] == "ok"
+
+    def test_clear_max_price(self, client, app):
+        tid = self._get_term_id(app)
+        client.post(f"/terms/{tid}/max-price", json={"max_price": 100},
+                    content_type="application/json")
+        resp = client.post(f"/terms/{tid}/max-price",
+                           json={"max_price": None},
+                           content_type="application/json")
+        assert resp.status_code == 200
+
+
+# ── Platforms-API ─────────────────────────────────────────────
+
+class TestApiPlatforms:
+
+    def test_platforms_leer(self, client):
+        resp = client.get("/api/platforms")
+        assert resp.status_code == 200
+        assert json.loads(resp.data) == []
+
+    def test_platforms_mit_eintraegen(self, client, app):
+        from app.scrapers.base import Listing
+        import app.database as db
+        with app.app_context():
+            db.save_listing(Listing(
+                platform="Kleinanzeigen", title="A", price="10 €",
+                location="München", url="https://example.com/plat-1", listing_id="plat-1",
+            ))
+            db.save_listing(Listing(
+                platform="Shpock", title="B", price="20 €",
+                location="München", url="https://example.com/plat-2", listing_id="plat-2",
+            ))
+        resp = client.get("/api/platforms")
+        data = json.loads(resp.data)
+        assert set(data) == {"Kleinanzeigen", "Shpock"}
+
+
+# ── Status platform_counts ────────────────────────────────────
+
+class TestApiStatusPlatformCounts:
+
+    def test_status_enthaelt_platform_counts(self, client):
+        resp = client.get("/api/status")
+        data = json.loads(resp.data)
+        assert "platform_counts" in data
+        assert isinstance(data["platform_counts"], dict)
+
+
+# ── Test-Scraper-API ──────────────────────────────────────────
+
+class TestApiTestScraper:
+
+    def test_unbekannte_plattform(self, client):
+        resp = client.post("/api/test-scraper",
+                           json={"platform": "gibtesnicht"},
+                           content_type="application/json")
+        assert resp.status_code == 400
+        data = json.loads(resp.data)
+        assert data["status"] == "error"
+
+    def test_bekannte_plattform_ruft_scraper_auf(self, client):
+        from unittest.mock import patch, MagicMock
+        mock_scraper = MagicMock()
+        mock_scraper.search.return_value = []
+        with patch("app.scrapers.KleinanzeigenScraper", return_value=mock_scraper):
+            resp = client.post("/api/test-scraper",
+                               json={"platform": "kleinanzeigen"},
+                               content_type="application/json")
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data["status"] == "ok"
+        assert data["count"] == 0
+
+
 # ── Stats-API ─────────────────────────────────────────────────
 
 class TestApiStats:
@@ -373,6 +496,32 @@ class TestApiLog:
 # ── Clear-Listings-API ────────────────────────────────────────
 
 class TestApiClearListings:
+
+    def test_clear_listings_by_age_loescht(self, client, app):
+        import sqlite3
+        from app.scrapers.base import Listing
+        import app.database as db
+        with app.app_context():
+            db.save_listing(Listing(
+                platform="Test", title="Alt", price="5 €",
+                location="München", url="https://example.com/old", listing_id="age-del-1",
+            ))
+            conn = sqlite3.connect(str(db.DB_PATH))
+            conn.execute("UPDATE listings SET found_at=datetime('now', '-25 hours') WHERE listing_id='age-del-1'")
+            conn.commit()
+            conn.close()
+
+        resp = client.post("/api/clear-listings-by-age", json={"hours": 24},
+                           content_type="application/json")
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data["status"] == "ok"
+        assert data["deleted"] >= 1
+
+    def test_clear_listings_by_age_ungueltig(self, client):
+        resp = client.post("/api/clear-listings-by-age", json={"hours": 0},
+                           content_type="application/json")
+        assert resp.status_code == 400
 
     def test_clear_listings(self, client, app):
         from app.scrapers.base import Listing

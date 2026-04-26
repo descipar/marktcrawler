@@ -5,7 +5,7 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-218%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-259%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
@@ -42,6 +42,11 @@ Admin-UI aufrufen: **`http://localhost:5000`**
 - **📍 Entfernungsanzeige** – Luftlinie vom eigenen Standort zu jeder Anzeige (via OpenStreetMap)
 - **Sortierung** – nach Datum, Preis (auf-/absteigend) oder Entfernung
 - **Pagination** – 30 Anzeigen pro Seite, „Mehr laden"-Button
+- **📋 Duplikat-Erkennung** – plattformübergreifend: gleicher Titel auf anderer Plattform wird als Amber-Badge markiert
+- **💬 Notizfeld** – pro Anzeige eine private Notiz hinterlegen (editierbar im Detail-Modal)
+- **💰 Preis-Schwelle pro Suchbegriff** – optionales Preislimit direkt am Suchbegriff, überschreibt Plattform-Limit
+- **🔍 Detail-Modal** – Klick auf eine Karte öffnet Detailansicht mit Vollbild-Bild, Beschreibung und Notiz
+- **⏱ Relative Zeitangaben** – „vor 2h" statt rohem Timestamp auf jeder Karte
 
 ### Benachrichtigungen & Automatisierung
 - **E-Mail-Alert** – Sofort-Benachrichtigung bei neuen Treffern (konfigurierbar)
@@ -107,21 +112,28 @@ Die `.env`-Datei setzt `DATA_DIR=./data`. Optional: `SECRET_KEY=<langer-string>`
 | Status-Leiste | Crawl-Status, letzter/nächster Lauf, Gesamtzahl |
 | 🚀 Jetzt crawlen | Startet manuellen Crawl mit Live-Log; E-Mail bei neuen Treffern |
 | 📊 Preisstatistik | Aufklappbare Tabelle mit Avg/Min/Max pro Suchbegriff |
+| Detail-Modal | Vollbild-Ansicht mit Bild, Beschreibung, Notiz-Textarea |
+| Log-Terminal | Ein-/ausklappbar, startet automatisch beim manuellen Crawl |
+| Filter-Panel | Aus-/einklappbar; aktive Filter-Anzahl als Badge |
+| Status-Bar | Anzeigen pro Plattform, relativer Zeitstempel letzter Lauf |
 
 ### Einstellungen (`/settings`)
 
-| Bereich | Konfigurierbar |
-|---------|---------------|
-| Kleinanzeigen.de | Aktiviert, Max. Preis, Standort, Radius |
-| Shpock | Aktiviert, Max. Preis, Standort, Radius (0 = kein Filter) |
-| Vinted | Aktiviert, Max. Preis, Standort, Radius (0 = kein Filter) |
-| eBay | Aktiviert, Max. Preis, Standort (PLZ oder Stadt), Radius |
-| Facebook Marketplace | Aktiviert, Max. Preis, Standort |
-| E-Mail | SMTP-Server/-Port, Absender, Empfänger (kommagetrennt), App-Passwort, Betreff |
-| Tages-Digest | Aktiviert, Uhrzeit (z.B. `19:00`) |
-| Crawler | Intervall (Min.), Max. Ergebnisse, Pause zw. Anfragen, Blacklist, Max. Alter |
-| Verfügbarkeits-Check | Aktiviert, Intervall (Stunden), „Jetzt prüfen"-Button |
-| Heimstandort | Stadt für Entfernungsberechnung |
+Die Einstellungsseite ist in drei Tabs gegliedert: **Plattformen**, **Benachrichtigungen**, **Crawler & Daten**. Deaktivierte Plattformen werden optisch gedimmt. Der Speichern-Button ist sticky am Seitenende. Ungespeicherte Änderungen werden beim Verlassen der Seite mit einem Browser-Dialog gewarnt.
+
+| Bereich | Tab | Konfigurierbar |
+|---------|-----|---------------|
+| Kleinanzeigen.de | Plattformen | Aktiviert, Max. Preis, Standort, Radius, Test-Button |
+| Shpock | Plattformen | Aktiviert, Max. Preis, Standort, Radius (0 = kein Filter), Test-Button |
+| Vinted | Plattformen | Aktiviert, Max. Preis, Standort, Radius (0 = kein Filter), Test-Button |
+| eBay | Plattformen | Aktiviert, Max. Preis, Standort (PLZ oder Stadt), Radius, Test-Button |
+| Facebook Marketplace | Plattformen | Aktiviert, Max. Preis, Standort |
+| E-Mail | Benachrichtigungen | SMTP-Server/-Port, Absender, Empfänger (kommagetrennt), App-Passwort, Betreff |
+| Tages-Digest | Benachrichtigungen | Aktiviert, Uhrzeit (z.B. `19:00`) |
+| Crawler | Crawler & Daten | Intervall (Min.), Max. Ergebnisse, Pause zw. Anfragen, Blacklist |
+| Anzeigen-Verwaltung | Crawler & Daten | Altersfilter (Anzeige), Anzeigen löschen die älter als X Stunden sind |
+| Verfügbarkeits-Check | Crawler & Daten | Aktiviert, Intervall (Stunden), „Jetzt prüfen"-Button |
+| Heimstandort | Crawler & Daten | Stadt für Entfernungsberechnung |
 
 ---
 
@@ -169,15 +181,16 @@ baby-crawler/
 ├── requirements.txt / pytest.ini
 ├── run.py                  # Einstiegspunkt
 ├── data/                   # SQLite-DB (persistentes Volume)
-├── tests/                  # 218 Unit-Tests
+├── tests/                  # 259 Unit-Tests
 │   ├── conftest.py
-│   ├── test_crawler.py     # _is_free(), _is_blacklisted(), run_crawl()
-│   ├── test_database.py    # CRUD, Migration, Dismiss, Sortierung
+│   ├── test_crawler.py     # _is_free(), _is_blacklisted()
+│   ├── test_crawl_run.py   # run_crawl() inkl. per-term Preisfilter
+│   ├── test_database.py    # CRUD, Migration, Notizen, Duplikate, Plattformzähler
 │   ├── test_geo.py         # Haversine, Geocoding-Cache
 │   ├── test_notifier.py    # E-Mail-Builder, Badges
 │   ├── test_routes.py      # Alle Flask-Routen und REST-API
 │   ├── test_scrapers.py    # Vinted, Shpock, eBay
-│   └── test_checker.py     # Verfügbarkeits-Check
+│   └── test_checker.py     # Verfügbarkeits-Check, Running-Guard
 └── app/
     ├── __init__.py         # Flask App Factory
     ├── database.py         # SQLite-Schicht (kein ORM, inkl. Migration)

@@ -16,7 +16,7 @@ def index():
     search_terms = db.get_search_terms()
     settings = db.get_settings()
 
-    max_age = int(settings.get("crawler_max_age_hours", 0) or 0)
+    max_age = int(settings.get("display_max_age_hours", 0) or 0)
     only_fav = request.args.get("favorites") == "1"
     only_free = request.args.get("free") == "1"
 
@@ -73,6 +73,14 @@ def toggle_term(term_id):
     return redirect(url_for("main.index"))
 
 
+@bp.route("/terms/<int:term_id>/max-price", methods=["POST"])
+def update_term_price(term_id):
+    val = (request.json or {}).get("max_price")
+    price = int(val) if val is not None and val != "" else None
+    db.update_term_max_price(term_id, price)
+    return jsonify({"status": "ok"})
+
+
 # ── Favoriten ────────────────────────────────────────────────
 
 @bp.route("/listings/<int:listing_id>/favorite", methods=["POST"])
@@ -84,6 +92,13 @@ def toggle_favorite(listing_id):
 @bp.route("/listings/<int:listing_id>/dismiss", methods=["POST"])
 def dismiss_listing(listing_id):
     db.dismiss_listing(listing_id)
+    return jsonify({"status": "ok"})
+
+
+@bp.route("/listings/<int:listing_id>/note", methods=["POST"])
+def update_note(listing_id):
+    note = (request.json or {}).get("note", "")
+    db.update_listing_note(listing_id, note)
     return jsonify({"status": "ok"})
 
 
@@ -109,7 +124,7 @@ def save_settings():
         "email_smtp_server", "email_smtp_port",
         "email_sender", "email_password", "email_recipient",
         "crawler_interval", "crawler_max_results", "crawler_delay",
-        "crawler_blacklist", "crawler_max_age_hours",
+        "crawler_blacklist", "display_max_age_hours",
         "digest_enabled", "digest_time",
         "home_location",
         "availability_check_enabled", "availability_check_interval_hours",
@@ -160,7 +175,13 @@ def api_status():
         "last_found": settings.get("last_crawl_found", "0"),
         "total_listings": db.get_listing_count(),
         "is_running": is_running(),
+        "platform_counts": db.get_platform_counts(),
     })
+
+
+@bp.route("/api/platforms")
+def api_platforms():
+    return jsonify(db.get_distinct_platforms())
 
 
 _VALID_SORTS = {"date_desc", "date_asc", "price_asc", "price_desc", "distance_asc"}
@@ -217,3 +238,43 @@ def api_availability_check():
     t = threading.Thread(target=run_availability_check, daemon=True, name="availability-check")
     t.start()
     return jsonify({"status": "started", "message": "Verfügbarkeits-Check gestartet."})
+
+
+@bp.route("/api/clear-listings-by-age", methods=["POST"])
+def api_clear_listings_by_age():
+    try:
+        hours = int(request.json.get("hours", 0))
+        if hours <= 0:
+            raise ValueError
+    except (TypeError, ValueError, AttributeError):
+        return jsonify({"error": "Ungültiger Wert für hours."}), 400
+    deleted = db.clear_listings_older_than(hours)
+    return jsonify({"status": "ok", "deleted": deleted,
+                    "message": f"{deleted} Anzeigen gelöscht (älter als {hours}h)."})
+
+
+@bp.route("/api/test-scraper", methods=["POST"])
+def api_test_scraper():
+    platform = (request.json or {}).get("platform", "")
+    settings = db.get_settings()
+    terms = db.get_search_terms(enabled_only=True)
+    test_term = terms[0]["term"] if terms else "baby"
+    scraper_map = {
+        "kleinanzeigen": "KleinanzeigenScraper",
+        "shpock": "ShpockScraper",
+        "vinted": "VintedScraper",
+        "ebay": "EbayScraper",
+        "facebook": "FacebookScraper",
+    }
+    cls_name = scraper_map.get(platform)
+    if not cls_name:
+        return jsonify({"status": "error", "message": "Unbekannte Plattform."}), 400
+    try:
+        from . import scrapers as _scrapers
+        scraper_cls = getattr(_scrapers, cls_name)
+        scraper = scraper_cls(settings)
+        results = scraper.search(test_term, max_results=3)
+        return jsonify({"status": "ok", "count": len(results),
+                        "message": f"✓ {len(results)} Ergebnis(se) für \"{test_term}\""})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)[:300]}), 500

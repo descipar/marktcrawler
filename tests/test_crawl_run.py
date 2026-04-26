@@ -264,6 +264,59 @@ class TestRunCrawlOrchestration:
         assert result["new"] == 1
 
 
+# ── Per-Term Preisfilter ──────────────────────────────────────
+
+class TestPerTermPreisfilter:
+
+    _SETTINGS = {
+        "kleinanzeigen_enabled": "1",
+        "shpock_enabled": "0", "facebook_enabled": "0",
+        "vinted_enabled": "0", "ebay_enabled": "0",
+        "crawler_delay": "0", "crawler_max_results": "5",
+        "crawler_blacklist": "",
+    }
+
+    def _run_with_listing(self, listing, term_max_price=None):
+        mock_scraper = MagicMock()
+        mock_scraper.search.return_value = [listing]
+        term = {"term": "kinderwagen"}
+        if term_max_price is not None:
+            term["max_price"] = term_max_price
+
+        with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
+             patch("app.crawler.db.get_settings", return_value=self._SETTINGS), \
+             patch("app.crawler.db.get_search_terms", return_value=[term]), \
+             patch("app.crawler.db.save_listing", return_value=True) as mock_save, \
+             patch("app.crawler.db.clear_old_listings"), \
+             patch("app.crawler.db.set_setting"), \
+             patch("app.crawler.db.update_listing_distance"), \
+             patch("app.crawler.notify"):
+            result = crawler_module.run_crawl()
+        return result, mock_save
+
+    def test_kein_limit_speichert_alle(self, patched_db):
+        listing = make_listing(price="200 €", listing_id="price-none-1")
+        result, mock_save = self._run_with_listing(listing, term_max_price=None)
+        assert result["new"] == 1
+        mock_save.assert_called_once()
+
+    def test_listing_unter_limit_gespeichert(self, patched_db):
+        listing = make_listing(price="30 €", listing_id="price-ok-1")
+        result, mock_save = self._run_with_listing(listing, term_max_price=50)
+        assert result["new"] == 1
+
+    def test_listing_ueber_limit_wird_gefiltert(self, patched_db):
+        listing = make_listing(price="80 €", listing_id="price-skip-1")
+        result, mock_save = self._run_with_listing(listing, term_max_price=50)
+        assert result["new"] == 0
+        mock_save.assert_not_called()
+
+    def test_gratispreis_passiert_filter(self, patched_db):
+        listing = make_listing(price="0 €", listing_id="price-free-1")
+        result, _ = self._run_with_listing(listing, term_max_price=50)
+        assert result["new"] == 1
+
+
 # ── Double-Run-Schutz ─────────────────────────────────────────
 
 class TestRunCrawlLock:

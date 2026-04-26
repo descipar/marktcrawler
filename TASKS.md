@@ -93,23 +93,95 @@
 
 ## 🔜 Geplant
 
-### Benachrichtigungen
-- [ ] **Telegram-Bot** – Sofort-Benachrichtigung via Bot-API als Alternative zu E-Mail
-- [ ] Push-Benachrichtigungen (ntfy.sh oder Gotify, self-hosted)
+Aufgaben sind nummeriert – zum Umsetzen einfach die Nummer nennen (z.B. „mach Task 1 und 4").
 
-### Scraper
-- [x] **eBay** – Scraper für eBay-Auktionen und Sofortkauf
-- [x] **Vinted** – Scraper für Kinderkleidung auf Vinted
-- [ ] Preishistorie pro Anzeige speichern (Preisentwicklung verfolgen)
+---
 
-### UI & Filterung
-- [ ] Anzeigen als „gesehen" markieren (Badge ausblenden ohne zu favorisieren)
-- [ ] Direktlink zu gefilterter Ansicht per URL teilen
-- [ ] Dunkelmodus
+### Settings-Seite – Struktur
 
-### Infrastruktur
-- [ ] Automatisches Backup der SQLite-DB (z.B. tägliches `cp` per Cron)
-- [ ] Health-Check-Endpoint (`/health`) für Docker / Uptime-Monitoring
+| # | Aufgabe | Status |
+|---|---------|--------|
+| 1 | Settings in 3 Tabs: **Plattformen** / **Benachrichtigungen** / **Crawler & Daten** | [ ] |
+
+### Settings-Seite – UX
+
+| # | Aufgabe | Status |
+|---|---------|--------|
+| 2 | Deaktivierte Plattformen optisch dimmen (Felder ausgegraut, nicht editierbar) | [ ] |
+| 3 | Speichern-Button sticky + Unsaved-Changes-Warnung beim Verlassen | [ ] |
+| 15 | Inline-Validierung statt `alert()` bei Fehleingaben | [ ] |
+| 16 | „Verbindung testen"-Button pro Plattform (Mini-Crawl, 1 Ergebnis) | [ ] |
+
+---
+
+### , Dashboard – Filter & Ansicht
+
+| # | Aufgabe | Status |
+|---|---------|--------|
+| 4 | Filter-Controls in ausklappbares Panel – aktive Filter als Badge-Zeile | [ ] |
+| 17 | Plattform-Filter zeigt nur Plattformen für die Anzeigen vorhanden sind | [ ] |
+| 18 | Status-Bar: relative Zeit („vor 12 Min."), Anzeigen-Anzahl pro Plattform | [ ] |
+
+### Dashboard – Listing-Karten
+
+| # | Aufgabe | Status |
+|---|---------|--------|
+| 5 | Relative Zeitangaben („vor 2h") statt ISO-Timestamp, Tooltip mit absolutem Datum | [ ] |
+| 6 | Listing-Detailansicht per Modal (Bild groß, Beschreibung, alle Metadaten) | [ ] |
+| 24 | Notizfeld pro Anzeige (inline editierbar, visuelles Kennzeichen auf Karte) | [ ] |
+
+### Dashboard – Sonstiges
+
+| # | Aufgabe | Status |
+|---|---------|--------|
+| 7 | Log-Terminal standardmäßig eingeklappt, öffnet sich nur bei aktivem Crawl | [ ] |
+
+---
+
+### Accessibility
+
+| # | Aufgabe | Status |
+|---|---------|--------|
+| 8 | `aria-label` auf Icon-Buttons (✕, ★), `label[for]`-Verknüpfung, `aria-live` für Listings, Skip-Nav-Link | [ ] |
+| 9 | Kontrast-Fixes: `slate-400` → `slate-500/600` an Hint-Texten und Metadaten | [ ] |
+| 19 | `alert()`/`confirm()` durch barrierefreie Inline-Meldungen und eigenes Confirm-Modal ersetzen | [ ] |
+
+---
+
+### Features – Benachrichtigungen
+
+| # | Aufgabe | Status |
+|---|---------|--------|
+| 12 | Telegram-Bot als Alternative zu SMTP (Bot-Token + Chat-ID, Alert + Digest) | [ ] |
+| 20 | Browser Push Notifications (Web Push API, kein E-Mail-Setup nötig) | [ ] |
+
+### Features – Mehrbenutzer
+
+| # | Aufgabe | Status |
+|---|---------|--------|
+| 10 | Profil-System à la Netflix – „Neu"-Badge pro Person, `last_seen_at` pro Profil | [ ] |
+
+### Features – Suche & Filterung
+
+| # | Aufgabe | Status |
+|---|---------|--------|
+| 25 | Preis-Schwelle pro Suchbegriff (überschreibt globalen Plattform-Max-Preis) | [ ] |
+| 14 | Duplikat-Erkennung plattformübergreifend (gleicher Titel + Preis + Ort) | [ ] |
+
+### Features – Daten & Export
+
+| # | Aufgabe | Status |
+|---|---------|--------|
+| 13 | CSV/JSON-Export der aktuell gefilterten Anzeigen (clientseitiger Download) | [ ] |
+| 23 | Settings-Backup: Import/Export als JSON | [ ] |
+
+### Features – Komfort & Bedienung
+
+| # | Aufgabe | Status |
+|---|---------|--------|
+| 11 | Tastaturkürzel (j/k navigieren, f favorisieren, d dismisssen, / suchen, ? Hilfe) | [ ] |
+| 21 | Dark Mode (`prefers-color-scheme` + manueller Toggle) | [ ] |
+| 22 | PWA-Manifest: App auf Smartphone installierbar | [ ] |
 
 ---
 

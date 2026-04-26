@@ -1,4 +1,4 @@
-<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative">
+<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative" data-id="{{ l.id }}" onclick="handleCardClick(event, {{ l.id }})">
   <button onclick="dismissListing({{ l.id }}, this)"
     class="absolute top-2 left-2 z-10 text-base leading-none text-slate-200 hover:text-red-400 transition-colors"
     title="Ausblenden">✕</button>
@@ -23,9 +23,11 @@
         <span class="text-green-700 font-bold">{{ l.price }}</span>
         {% if l.is_free %}<span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">🎁 Gratis</span>{% endif %}
         {% if l.distance_km is not none %}<span class="text-xs text-slate-400">{{ l.distance_km | round | int }} km</span>{% endif %}
+        {% if l.potential_duplicate %}<span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">📋 auch auf {{ l.potential_duplicate }}</span>{% endif %}
       </div>
       <div class="text-xs text-slate-500 truncate">📍 {{ l.location }}</div>
-      <div class="text-xs text-slate-400 mt-1">{{ l.found_at | replace('T', ' ') }}</div>
+      <div class="found-at-ts text-xs text-slate-400 mt-1" data-found-at="{{ l.found_at }}" title="{{ l.found_at | replace('T', ' ') }}">{{ l.found_at | replace('T', ' ') }}</div>
+      {% if l.notes %}<div class="text-xs text-slate-400 mt-0.5">💬 Notiz</div>{% endif %}
     </div>
   </a>
 </div>

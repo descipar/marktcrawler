@@ -12,7 +12,7 @@ from .geo import distance_to_home
 from .logbuffer import clear as clear_log
 from .notifier import notify
 from .scrapers import KleinanzeigenScraper, ShpockScraper, FacebookScraper, VintedScraper, EbayScraper
-from .scrapers.base import Listing
+from .scrapers.base import Listing, price_within_limit
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +110,7 @@ def run_crawl(manual: bool = False) -> dict:
         for scraper in scrapers:
             for term_row in search_terms:
                 term = term_row["term"]
+                term_max_price = term_row.get("max_price")  # per-term override
                 try:
                     listings = scraper.search(term, max_results=max_results)
                     stats["total"] += len(listings)
@@ -119,6 +120,11 @@ def run_crawl(manual: bool = False) -> dict:
                             stats["skipped_blacklist"] += 1
                             logger.debug(f"Blacklist: '{listing.title}'")
                             continue
+
+                        # Per-term Preisfilter (überschreibt Plattform-Limit wenn gesetzt)
+                        if term_max_price:
+                            if not price_within_limit(listing.price or "", float(term_max_price)):
+                                continue
 
                         listing.is_free = _is_free(listing)
                         if listing.is_free:

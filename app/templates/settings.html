@@ -9,313 +9,382 @@
 </div>
 {% endmacro %}
 
-<form method="POST" action="/settings">
+<style>
+  .input-field {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+    outline: none;
+    transition: box-shadow .15s;
+  }
+  .input-field:focus { box-shadow: 0 0 0 2px #a855f7; }
+  .tab-btn { padding: .5rem 1.25rem; font-size:.875rem; font-weight:500; color:#64748b; border-bottom:2px solid transparent; transition:all .15s; }
+  .tab-btn:hover { color:#1e293b; }
+  .active-tab { color:#9333ea; border-bottom-color:#9333ea; }
+</style>
 
-<div class="max-w-2xl mx-auto space-y-6">
+<form method="POST" action="/settings" id="settings-form">
 
-  <div class="flex items-center justify-between">
+<div class="max-w-2xl mx-auto space-y-0">
+
+  <div class="flex items-center justify-between mb-4">
     <h1 class="text-xl font-bold text-slate-800">⚙️ Einstellungen</h1>
+  </div>
+
+  <!-- ── Tab-Navigation ──────────────────────────────────── -->
+  <div class="bg-white rounded-t-xl border border-slate-200 border-b-0 flex overflow-x-auto scrollbar-hide">
+    <button type="button" class="tab-btn active-tab" data-tab="platforms" onclick="switchTab('platforms')">🏪 Plattformen</button>
+    <button type="button" class="tab-btn" data-tab="notifications" onclick="switchTab('notifications')">📧 Benachrichtigungen</button>
+    <button type="button" class="tab-btn" data-tab="crawler" onclick="switchTab('crawler')">🤖 Crawler &amp; Daten</button>
+  </div>
+
+  <!-- ── Tab: Plattformen ────────────────────────────────── -->
+  <div id="tab-platforms" class="tab-panel space-y-4 pt-4">
+
+    <!-- Kleinanzeigen -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
+      <div class="px-5 py-3 bg-green-50 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="font-semibold text-green-800">Kleinanzeigen.de</h2>
+        <div class="flex items-center gap-3">
+          <button type="button" class="test-btn text-xs border border-green-200 text-green-700 hover:bg-green-100 px-2 py-1 rounded transition-colors" data-platform="kleinanzeigen">Testen</button>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <span class="text-sm text-slate-600">Aktiviert</span>
+            <input type="checkbox" name="kleinanzeigen_enabled" value="1"
+              {% if s.kleinanzeigen_enabled == '1' %}checked{% endif %}
+              class="w-4 h-4 accent-green-600">
+          </label>
+        </div>
+      </div>
+      <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
+        {% call field("Max. Preis (€)") %}
+          <input type="number" name="kleinanzeigen_max_price" value="{{ s.kleinanzeigen_max_price }}"
+            min="0" class="input-field">
+        {% endcall %}
+        {% call field("Standort") %}
+          <input type="text" name="kleinanzeigen_location" value="{{ s.kleinanzeigen_location }}"
+            placeholder="z.B. Dortmund" class="input-field">
+        {% endcall %}
+        {% call field("Radius (km)") %}
+          <input type="number" name="kleinanzeigen_radius" value="{{ s.kleinanzeigen_radius }}"
+            min="5" max="200" class="input-field">
+        {% endcall %}
+      </div>
+    </div>
+
+    <!-- Shpock -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
+      <div class="px-5 py-3 bg-orange-50 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="font-semibold text-orange-800">Shpock</h2>
+        <div class="flex items-center gap-3">
+          <button type="button" class="test-btn text-xs border border-orange-200 text-orange-700 hover:bg-orange-100 px-2 py-1 rounded transition-colors" data-platform="shpock">Testen</button>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <span class="text-sm text-slate-600">Aktiviert</span>
+            <input type="checkbox" name="shpock_enabled" value="1"
+              {% if s.shpock_enabled == '1' %}checked{% endif %}
+              class="w-4 h-4 accent-blue-600">
+          </label>
+        </div>
+      </div>
+      <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
+        {% call field("Max. Preis (€)") %}
+          <input type="number" name="shpock_max_price" value="{{ s.shpock_max_price }}"
+            min="0" class="input-field">
+        {% endcall %}
+        {% call field("Standort") %}
+          <input type="text" name="shpock_location" value="{{ s.shpock_location }}"
+            placeholder="z.B. Dortmund" class="input-field">
+        {% endcall %}
+        {% call field("Radius (km)") %}
+          <input type="number" name="shpock_radius" value="{{ s.shpock_radius }}"
+            min="0" max="200" class="input-field">
+          <p class="text-xs text-slate-400 mt-1">0 = kein Entfernungsfilter</p>
+        {% endcall %}
+      </div>
+    </div>
+
+    <!-- Facebook -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
+      <div class="px-5 py-3 bg-indigo-50 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="font-semibold text-indigo-800">Facebook Marketplace</h2>
+        <div class="flex items-center gap-3">
+          <button type="button" class="test-btn text-xs border border-indigo-200 text-indigo-700 hover:bg-indigo-100 px-2 py-1 rounded transition-colors" data-platform="facebook">Testen</button>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <span class="text-sm text-slate-600">Aktiviert</span>
+            <input type="checkbox" name="facebook_enabled" value="1"
+              {% if s.facebook_enabled == '1' %}checked{% endif %}
+              class="w-4 h-4 accent-indigo-600">
+          </label>
+        </div>
+      </div>
+      <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
+        {% call field("Max. Preis (€)") %}
+          <input type="number" name="facebook_max_price" value="{{ s.facebook_max_price }}"
+            min="0" class="input-field">
+        {% endcall %}
+        {% call field("Standort") %}
+          <input type="text" name="facebook_location" value="{{ s.facebook_location }}"
+            placeholder="z.B. Dortmund" class="input-field">
+        {% endcall %}
+      </div>
+      <div class="px-5 pb-4 text-xs text-amber-700 bg-amber-50 border-t border-amber-100 py-2">
+        ⚠️ Facebook benötigt einen einmaligen Login. Nach dem Start:
+        <code class="bg-amber-100 px-1 rounded">docker exec -it baby-crawler python -c "from app.scrapers.facebook import FacebookScraper; FacebookScraper({}).interactive_login()"</code>
+      </div>
+    </div>
+
+    <!-- Vinted -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
+      <div class="px-5 py-3 bg-teal-50 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="font-semibold text-teal-800">Vinted</h2>
+        <div class="flex items-center gap-3">
+          <button type="button" class="test-btn text-xs border border-teal-200 text-teal-700 hover:bg-teal-100 px-2 py-1 rounded transition-colors" data-platform="vinted">Testen</button>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <span class="text-sm text-slate-600">Aktiviert</span>
+            <input type="checkbox" name="vinted_enabled" value="1"
+              {% if s.vinted_enabled == '1' %}checked{% endif %}
+              class="w-4 h-4 accent-teal-600">
+          </label>
+        </div>
+      </div>
+      <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
+        {% call field("Max. Preis (€)") %}
+          <input type="number" name="vinted_max_price" value="{{ s.vinted_max_price }}"
+            min="0" class="input-field">
+        {% endcall %}
+        {% call field("Standort") %}
+          <input type="text" name="vinted_location" value="{{ s.vinted_location }}"
+            placeholder="z.B. München" class="input-field">
+        {% endcall %}
+        {% call field("Radius (km)") %}
+          <input type="number" name="vinted_radius" value="{{ s.vinted_radius }}"
+            min="0" max="200" class="input-field">
+          <p class="text-xs text-slate-400 mt-1">0 = kein Entfernungsfilter</p>
+        {% endcall %}
+      </div>
+    </div>
+
+    <!-- eBay -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
+      <div class="px-5 py-3 bg-amber-50 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="font-semibold text-amber-800">eBay</h2>
+        <div class="flex items-center gap-3">
+          <button type="button" class="test-btn text-xs border border-amber-200 text-amber-700 hover:bg-amber-100 px-2 py-1 rounded transition-colors" data-platform="ebay">Testen</button>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <span class="text-sm text-slate-600">Aktiviert</span>
+            <input type="checkbox" name="ebay_enabled" value="1"
+              {% if s.ebay_enabled == '1' %}checked{% endif %}
+              class="w-4 h-4 accent-amber-600">
+          </label>
+        </div>
+      </div>
+      <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
+        {% call field("Max. Preis (€)") %}
+          <input type="number" name="ebay_max_price" value="{{ s.ebay_max_price }}"
+            min="0" class="input-field">
+        {% endcall %}
+        {% call field("Standort (PLZ oder Stadt)") %}
+          <input type="text" name="ebay_location" value="{{ s.ebay_location }}"
+            placeholder="z.B. 80331 oder München" class="input-field">
+        {% endcall %}
+        {% call field("Radius (km)") %}
+          <input type="number" name="ebay_radius" value="{{ s.ebay_radius }}"
+            min="5" max="200" class="input-field">
+        {% endcall %}
+      </div>
+    </div>
+
+  </div><!-- /tab-platforms -->
+
+  <!-- ── Tab: Benachrichtigungen ─────────────────────────── -->
+  <div id="tab-notifications" class="tab-panel hidden space-y-4 pt-4">
+
+    <!-- E-Mail -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
+      <div class="px-5 py-3 bg-yellow-50 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="font-semibold text-yellow-800">📧 E-Mail-Benachrichtigungen</h2>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <span class="text-sm text-slate-600">Aktiviert</span>
+          <input type="checkbox" name="email_enabled" value="1"
+            {% if s.email_enabled == '1' %}checked{% endif %}
+            class="w-4 h-4 accent-yellow-600">
+        </label>
+      </div>
+      <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
+        {% call field("Empfänger(innen)") %}
+          <input type="text" name="email_recipient" value="{{ s.email_recipient }}"
+            placeholder="kai@example.com, partner@example.com"
+            class="input-field col-span-2">
+        {% endcall %}
+        {% call field("Absender-E-Mail") %}
+          <input type="email" name="email_sender" value="{{ s.email_sender }}"
+            placeholder="crawler@gmail.com" class="input-field">
+        {% endcall %}
+        {% call field("App-Passwort") %}
+          <input type="password" name="email_password" value="{{ s.email_password }}"
+            placeholder="••••••••" class="input-field" autocomplete="new-password">
+        {% endcall %}
+        {% call field("Betreff Sofort-Alert") %}
+          <input type="text" name="email_subject_alert" value="{{ s.email_subject_alert }}"
+            placeholder="{n} wird durch Anzahl ersetzt" class="input-field col-span-2">
+        {% endcall %}
+        {% call field("Betreff Tages-Digest") %}
+          <input type="text" name="email_subject_digest" value="{{ s.email_subject_digest }}"
+            placeholder="{n} wird durch Anzahl ersetzt" class="input-field col-span-2">
+        {% endcall %}
+        {% call field("SMTP-Server") %}
+          <input type="text" name="email_smtp_server" value="{{ s.email_smtp_server }}"
+            class="input-field">
+        {% endcall %}
+        {% call field("SMTP-Port") %}
+          <input type="number" name="email_smtp_port" value="{{ s.email_smtp_port }}"
+            class="input-field">
+        {% endcall %}
+      </div>
+      <div class="px-5 pb-4 text-xs text-slate-400">
+        💡 Gmail: App-Passwort unter <a href="https://myaccount.google.com/apppasswords" target="_blank" class="text-blue-500 hover:underline">myaccount.google.com/apppasswords</a> erstellen.
+      </div>
+    </div>
+
+    <!-- Tages-Digest -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
+      <div class="px-5 py-3 bg-orange-50 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="font-semibold text-orange-800">📋 Tages-Digest</h2>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <span class="text-sm text-slate-600">Aktiviert</span>
+          <input type="checkbox" name="digest_enabled" value="1"
+            {% if s.digest_enabled == '1' %}checked{% endif %}
+            class="w-4 h-4 accent-orange-600">
+        </label>
+      </div>
+      <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
+        {% call field("Uhrzeit") %}
+          <input type="time" name="digest_time" value="{{ s.digest_time or '19:00' }}"
+            class="input-field">
+        {% endcall %}
+      </div>
+      <div class="px-5 pb-4 text-xs text-slate-400">
+        💡 Zusätzlich zu Sofort-Benachrichtigungen: täglich eine Zusammenfassung aller gefundenen Anzeigen des Tages.
+      </div>
+    </div>
+
+  </div><!-- /tab-notifications -->
+
+  <!-- ── Tab: Crawler & Daten ────────────────────────────── -->
+  <div id="tab-crawler" class="tab-panel hidden space-y-4 pt-4">
+
+    <!-- Crawler-Einstellungen -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3 bg-slate-50 border-b border-slate-200">
+        <h2 class="font-semibold text-slate-700">🤖 Crawler-Einstellungen</h2>
+      </div>
+      <div class="p-5 grid grid-cols-2 gap-4">
+        {% call field("Intervall (Minuten)") %}
+          <input type="number" name="crawler_interval" value="{{ s.crawler_interval }}"
+            min="1" max="1440" class="input-field">
+        {% endcall %}
+        {% call field("Max. Ergebnisse/Suche") %}
+          <input type="number" name="crawler_max_results" value="{{ s.crawler_max_results }}"
+            min="5" max="100" class="input-field">
+        {% endcall %}
+        {% call field("Pause zw. Anfragen (s)") %}
+          <input type="number" name="crawler_delay" value="{{ s.crawler_delay }}"
+            min="0.5" max="10" step="0.5" class="input-field">
+        {% endcall %}
+        {% call field("Anzeigen älter als (h) ausblenden") %}
+          <input type="number" name="display_max_age_hours" value="{{ s.display_max_age_hours or '' }}"
+            min="0" placeholder="0 = alle anzeigen" class="input-field">
+        {% endcall %}
+      </div>
+      <div class="px-5 pb-4 text-xs text-slate-400">
+        💡 Nur ein Anzeigefilter – Anzeigen bleiben in der Datenbank. 0 = alle Anzeigen sichtbar.
+      </div>
+    </div>
+
+    <!-- Blacklist -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3 bg-red-50 border-b border-slate-200">
+        <h2 class="font-semibold text-red-800">🚫 Blacklist</h2>
+      </div>
+      <div class="p-5">
+        {% call field("Ausgeschlossene Begriffe (einer pro Zeile)") %}
+          <textarea name="crawler_blacklist" rows="5"
+            placeholder="defekt&#10;beschädigt&#10;bastler&#10;ersatzteile"
+            class="input-field font-mono text-sm resize-y">{{ s.crawler_blacklist or '' }}</textarea>
+        {% endcall %}
+      </div>
+      <div class="px-5 pb-4 text-xs text-slate-400">
+        💡 Anzeigen mit diesen Wörtern im Titel oder in der Beschreibung werden automatisch übersprungen. Einen Begriff pro Zeile, Groß-/Kleinschreibung wird ignoriert.
+      </div>
+    </div>
+
+    <!-- Heimstandort -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3 bg-teal-50 border-b border-slate-200">
+        <h2 class="font-semibold text-teal-800">📍 Heimstandort (Entfernungsberechnung)</h2>
+      </div>
+      <div class="p-5">
+        {% call field("Heimstadt") %}
+          <input type="text" name="home_location" value="{{ s.home_location or '' }}"
+            placeholder="z.B. München" class="input-field">
+        {% endcall %}
+      </div>
+      <div class="px-5 pb-4 text-xs text-slate-400">
+        💡 Wenn angegeben, wird bei jeder Anzeige die Entfernung zu deinem Zuhause berechnet und angezeigt.
+      </div>
+    </div>
+
+    <!-- Verfügbarkeits-Check -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
+      <div class="px-5 py-3 bg-sky-50 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="font-semibold text-sky-800">🔍 Verfügbarkeits-Check</h2>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <span class="text-sm text-slate-600">Aktiviert</span>
+          <input type="checkbox" name="availability_check_enabled" value="1"
+            {% if s.availability_check_enabled != '0' %}checked{% endif %}
+            class="w-4 h-4 accent-sky-600">
+        </label>
+      </div>
+      <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
+        {% call field("Intervall (Stunden)") %}
+          <input type="number" name="availability_check_interval_hours"
+            value="{{ s.availability_check_interval_hours or '3' }}"
+            min="1" max="24" class="input-field">
+        {% endcall %}
+      </div>
+      <div class="px-5 pb-4 text-xs text-slate-400">
+        💡 Prüft regelmäßig ob gespeicherte Anzeigen noch online sind (HTTP 404/410). Nicht mehr erreichbare Anzeigen werden automatisch gelöscht – auch Favoriten.
+      </div>
+    </div>
+
+    <!-- Alte Anzeigen löschen -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3 bg-orange-50 border-b border-slate-200">
+        <h2 class="font-semibold text-orange-800">🗑️ Alte Anzeigen löschen</h2>
+      </div>
+      <div class="p-5 flex items-end gap-3">
+        <div class="flex-1">
+          <label class="block text-sm font-medium text-slate-700 mb-1">Anzeigen löschen die älter sind als (Stunden)</label>
+          <input type="number" id="deleteAgeHours" min="1" placeholder="z.B. 48"
+            class="input-field w-full">
+        </div>
+        <button type="button" onclick="deleteOldListings()"
+          class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg">
+          Jetzt löschen
+        </button>
+      </div>
+      <div class="px-5 pb-4 text-xs text-slate-400">
+        💡 Löscht Anzeigen dauerhaft aus der Datenbank und merkt sie als gesehen – sie werden beim nächsten Crawl nicht erneut gefunden. Favoriten bleiben erhalten.
+      </div>
+    </div>
+
+  </div><!-- /tab-crawler -->
+
+  <!-- ── Sticky Speichern-Button (Task 3) ───────────────── -->
+  <div class="sticky bottom-4 z-20 flex justify-end pt-4 pb-2">
     <button type="submit"
-      class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 rounded-lg font-semibold text-sm transition-colors">
-      💾 Speichern
-    </button>
-  </div>
-
-  <!-- ── Kleinanzeigen ──────────────────────────── -->
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-5 py-3 bg-green-50 border-b border-slate-200 flex items-center justify-between">
-      <h2 class="font-semibold text-green-800">Kleinanzeigen.de</h2>
-      <label class="flex items-center gap-2 cursor-pointer">
-        <span class="text-sm text-slate-600">Aktiviert</span>
-        <input type="checkbox" name="kleinanzeigen_enabled" value="1"
-          {% if s.kleinanzeigen_enabled == '1' %}checked{% endif %}
-          class="w-4 h-4 accent-green-600">
-      </label>
-    </div>
-    <div class="p-5 grid grid-cols-2 gap-4">
-      {% call field("Max. Preis (€)") %}
-        <input type="number" name="kleinanzeigen_max_price" value="{{ s.kleinanzeigen_max_price }}"
-          min="0" class="input-field">
-      {% endcall %}
-      {% call field("Standort") %}
-        <input type="text" name="kleinanzeigen_location" value="{{ s.kleinanzeigen_location }}"
-          placeholder="z.B. Dortmund" class="input-field">
-      {% endcall %}
-      {% call field("Radius (km)") %}
-        <input type="number" name="kleinanzeigen_radius" value="{{ s.kleinanzeigen_radius }}"
-          min="5" max="200" class="input-field">
-      {% endcall %}
-    </div>
-  </div>
-
-  <!-- ── Shpock ─────────────────────────────────── -->
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-5 py-3 bg-orange-50 border-b border-slate-200 flex items-center justify-between">
-      <h2 class="font-semibold text-orange-800">Shpock</h2>
-      <label class="flex items-center gap-2 cursor-pointer">
-        <span class="text-sm text-slate-600">Aktiviert</span>
-        <input type="checkbox" name="shpock_enabled" value="1"
-          {% if s.shpock_enabled == '1' %}checked{% endif %}
-          class="w-4 h-4 accent-blue-600">
-      </label>
-    </div>
-    <div class="p-5 grid grid-cols-2 gap-4">
-      {% call field("Max. Preis (€)") %}
-        <input type="number" name="shpock_max_price" value="{{ s.shpock_max_price }}"
-          min="0" class="input-field">
-      {% endcall %}
-      {% call field("Standort") %}
-        <input type="text" name="shpock_location" value="{{ s.shpock_location }}"
-          placeholder="z.B. Dortmund" class="input-field">
-      {% endcall %}
-      {% call field("Radius (km)") %}
-        <input type="number" name="shpock_radius" value="{{ s.shpock_radius }}"
-          min="0" max="200" class="input-field">
-        <p class="text-xs text-slate-400 mt-1">0 = kein Entfernungsfilter</p>
-      {% endcall %}
-    </div>
-
-  </div>
-
-  <!-- ── Facebook ───────────────────────────────── -->
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-5 py-3 bg-indigo-50 border-b border-slate-200 flex items-center justify-between">
-      <h2 class="font-semibold text-indigo-800">Facebook Marketplace</h2>
-      <label class="flex items-center gap-2 cursor-pointer">
-        <span class="text-sm text-slate-600">Aktiviert</span>
-        <input type="checkbox" name="facebook_enabled" value="1"
-          {% if s.facebook_enabled == '1' %}checked{% endif %}
-          class="w-4 h-4 accent-indigo-600">
-      </label>
-    </div>
-    <div class="p-5 grid grid-cols-2 gap-4">
-      {% call field("Max. Preis (€)") %}
-        <input type="number" name="facebook_max_price" value="{{ s.facebook_max_price }}"
-          min="0" class="input-field">
-      {% endcall %}
-      {% call field("Standort") %}
-        <input type="text" name="facebook_location" value="{{ s.facebook_location }}"
-          placeholder="z.B. Dortmund" class="input-field">
-      {% endcall %}
-    </div>
-    <div class="px-5 pb-4 text-xs text-amber-700 bg-amber-50 border-t border-amber-100 py-2">
-      ⚠️ Facebook benötigt einen einmaligen Login. Nach dem Start:
-      <code class="bg-amber-100 px-1 rounded">docker exec -it baby-crawler python -c "from app.scrapers.facebook import FacebookScraper; FacebookScraper({}).interactive_login()"</code>
-    </div>
-  </div>
-
-  <!-- ── Vinted ────────────────────────────────────── -->
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-5 py-3 bg-teal-50 border-b border-slate-200 flex items-center justify-between">
-      <h2 class="font-semibold text-teal-800">Vinted</h2>
-      <label class="flex items-center gap-2 cursor-pointer">
-        <span class="text-sm text-slate-600">Aktiviert</span>
-        <input type="checkbox" name="vinted_enabled" value="1"
-          {% if s.vinted_enabled == '1' %}checked{% endif %}
-          class="w-4 h-4 accent-teal-600">
-      </label>
-    </div>
-    <div class="p-5 grid grid-cols-2 gap-4">
-      {% call field("Max. Preis (€)") %}
-        <input type="number" name="vinted_max_price" value="{{ s.vinted_max_price }}"
-          min="0" class="input-field">
-      {% endcall %}
-      {% call field("Standort") %}
-        <input type="text" name="vinted_location" value="{{ s.vinted_location }}"
-          placeholder="z.B. München" class="input-field">
-      {% endcall %}
-      {% call field("Radius (km)") %}
-        <input type="number" name="vinted_radius" value="{{ s.vinted_radius }}"
-          min="0" max="200" class="input-field">
-        <p class="text-xs text-slate-400 mt-1">0 = kein Entfernungsfilter</p>
-      {% endcall %}
-    </div>
-  </div>
-
-  <!-- ── eBay ───────────────────────────────────── -->
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-5 py-3 bg-amber-50 border-b border-slate-200 flex items-center justify-between">
-      <h2 class="font-semibold text-amber-800">eBay</h2>
-      <label class="flex items-center gap-2 cursor-pointer">
-        <span class="text-sm text-slate-600">Aktiviert</span>
-        <input type="checkbox" name="ebay_enabled" value="1"
-          {% if s.ebay_enabled == '1' %}checked{% endif %}
-          class="w-4 h-4 accent-amber-600">
-      </label>
-    </div>
-    <div class="p-5 grid grid-cols-2 gap-4">
-      {% call field("Max. Preis (€)") %}
-        <input type="number" name="ebay_max_price" value="{{ s.ebay_max_price }}"
-          min="0" class="input-field">
-      {% endcall %}
-      {% call field("Standort (PLZ oder Stadt)") %}
-        <input type="text" name="ebay_location" value="{{ s.ebay_location }}"
-          placeholder="z.B. 80331 oder München" class="input-field">
-      {% endcall %}
-      {% call field("Radius (km)") %}
-        <input type="number" name="ebay_radius" value="{{ s.ebay_radius }}"
-          min="5" max="200" class="input-field">
-      {% endcall %}
-    </div>
-  </div>
-
-  <!-- ── E-Mail ──────────────────────────────────── -->
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-5 py-3 bg-yellow-50 border-b border-slate-200 flex items-center justify-between">
-      <h2 class="font-semibold text-yellow-800">📧 E-Mail-Benachrichtigungen</h2>
-      <label class="flex items-center gap-2 cursor-pointer">
-        <span class="text-sm text-slate-600">Aktiviert</span>
-        <input type="checkbox" name="email_enabled" value="1"
-          {% if s.email_enabled == '1' %}checked{% endif %}
-          class="w-4 h-4 accent-yellow-600">
-      </label>
-    </div>
-    <div class="p-5 grid grid-cols-2 gap-4">
-      {% call field("Empfänger(innen)") %}
-        <input type="text" name="email_recipient" value="{{ s.email_recipient }}"
-          placeholder="kai@example.com, partner@example.com"
-          class="input-field col-span-2">
-      {% endcall %}
-      {% call field("Absender-E-Mail") %}
-        <input type="email" name="email_sender" value="{{ s.email_sender }}"
-          placeholder="crawler@gmail.com" class="input-field">
-      {% endcall %}
-      {% call field("App-Passwort") %}
-        <input type="password" name="email_password" value="{{ s.email_password }}"
-          placeholder="••••••••" class="input-field" autocomplete="new-password">
-      {% endcall %}
-      {% call field("Betreff Sofort-Alert") %}
-        <input type="text" name="email_subject_alert" value="{{ s.email_subject_alert }}"
-          placeholder="{n} wird durch Anzahl ersetzt" class="input-field col-span-2">
-      {% endcall %}
-      {% call field("Betreff Tages-Digest") %}
-        <input type="text" name="email_subject_digest" value="{{ s.email_subject_digest }}"
-          placeholder="{n} wird durch Anzahl ersetzt" class="input-field col-span-2">
-      {% endcall %}
-      {% call field("SMTP-Server") %}
-        <input type="text" name="email_smtp_server" value="{{ s.email_smtp_server }}"
-          class="input-field">
-      {% endcall %}
-      {% call field("SMTP-Port") %}
-        <input type="number" name="email_smtp_port" value="{{ s.email_smtp_port }}"
-          class="input-field">
-      {% endcall %}
-    </div>
-    <div class="px-5 pb-4 text-xs text-slate-400">
-      💡 Gmail: App-Passwort unter <a href="https://myaccount.google.com/apppasswords" target="_blank" class="text-blue-500 hover:underline">myaccount.google.com/apppasswords</a> erstellen.
-    </div>
-  </div>
-
-  <!-- ── Tages-Digest ───────────────────────────── -->
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-5 py-3 bg-orange-50 border-b border-slate-200 flex items-center justify-between">
-      <h2 class="font-semibold text-orange-800">📋 Tages-Digest</h2>
-      <label class="flex items-center gap-2 cursor-pointer">
-        <span class="text-sm text-slate-600">Aktiviert</span>
-        <input type="checkbox" name="digest_enabled" value="1"
-          {% if s.digest_enabled == '1' %}checked{% endif %}
-          class="w-4 h-4 accent-orange-600">
-      </label>
-    </div>
-    <div class="p-5 grid grid-cols-2 gap-4">
-      {% call field("Uhrzeit") %}
-        <input type="time" name="digest_time" value="{{ s.digest_time or '19:00' }}"
-          class="input-field">
-      {% endcall %}
-    </div>
-    <div class="px-5 pb-4 text-xs text-slate-400">
-      💡 Zusätzlich zu Sofort-Benachrichtigungen: täglich eine Zusammenfassung aller gefundenen Anzeigen des Tages.
-    </div>
-  </div>
-
-  <!-- ── Crawler ────────────────────────────────── -->
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-5 py-3 bg-slate-50 border-b border-slate-200">
-      <h2 class="font-semibold text-slate-700">🤖 Crawler-Einstellungen</h2>
-    </div>
-    <div class="p-5 grid grid-cols-2 gap-4">
-      {% call field("Intervall (Minuten)") %}
-        <input type="number" name="crawler_interval" value="{{ s.crawler_interval }}"
-          min="5" max="1440" class="input-field">
-      {% endcall %}
-      {% call field("Max. Ergebnisse/Suche") %}
-        <input type="number" name="crawler_max_results" value="{{ s.crawler_max_results }}"
-          min="5" max="100" class="input-field">
-      {% endcall %}
-      {% call field("Pause zw. Anfragen (s)") %}
-        <input type="number" name="crawler_delay" value="{{ s.crawler_delay }}"
-          min="0.5" max="10" step="0.5" class="input-field">
-      {% endcall %}
-      {% call field("Max. Alter der Anzeigen (h)") %}
-        <input type="number" name="crawler_max_age_hours" value="{{ s.crawler_max_age_hours or '' }}"
-          min="0" placeholder="0 = unbegrenzt" class="input-field">
-      {% endcall %}
-    </div>
-    <div class="px-5 pb-4 text-xs text-slate-400">
-      💡 Max. Alter: Nur Anzeigen anzeigen, die jünger als X Stunden sind. 0 = alle Anzeigen.
-    </div>
-  </div>
-
-  <!-- ── Blacklist ──────────────────────────────── -->
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-5 py-3 bg-red-50 border-b border-slate-200">
-      <h2 class="font-semibold text-red-800">🚫 Blacklist</h2>
-    </div>
-    <div class="p-5">
-      {% call field("Ausgeschlossene Begriffe (einer pro Zeile)") %}
-        <textarea name="crawler_blacklist" rows="5"
-          placeholder="defekt&#10;beschädigt&#10;bastler&#10;ersatzteile"
-          class="input-field font-mono text-sm resize-y">{{ s.crawler_blacklist or '' }}</textarea>
-      {% endcall %}
-    </div>
-    <div class="px-5 pb-4 text-xs text-slate-400">
-      💡 Anzeigen mit diesen Wörtern im Titel oder in der Beschreibung werden automatisch übersprungen. Einen Begriff pro Zeile, Groß-/Kleinschreibung wird ignoriert.
-    </div>
-  </div>
-
-  <!-- ── Heimstandort (Entfernung) ─────────────── -->
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-5 py-3 bg-teal-50 border-b border-slate-200">
-      <h2 class="font-semibold text-teal-800">📍 Heimstandort (Entfernungsberechnung)</h2>
-    </div>
-    <div class="p-5">
-      {% call field("Heimstadt") %}
-        <input type="text" name="home_location" value="{{ s.home_location or '' }}"
-          placeholder="z.B. München" class="input-field">
-      {% endcall %}
-    </div>
-    <div class="px-5 pb-4 text-xs text-slate-400">
-      💡 Wenn angegeben, wird bei jeder Anzeige die Entfernung zu deinem Zuhause berechnet und angezeigt.
-    </div>
-  </div>
-
-  <!-- ── Verfügbarkeits-Check ──────────────────── -->
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-5 py-3 bg-sky-50 border-b border-slate-200 flex items-center justify-between">
-      <h2 class="font-semibold text-sky-800">🔍 Verfügbarkeits-Check</h2>
-      <label class="flex items-center gap-2 cursor-pointer">
-        <span class="text-sm text-slate-600">Aktiviert</span>
-        <input type="checkbox" name="availability_check_enabled" value="1"
-          {% if s.availability_check_enabled != '0' %}checked{% endif %}
-          class="w-4 h-4 accent-sky-600">
-      </label>
-    </div>
-    <div class="p-5 grid grid-cols-2 gap-4">
-      {% call field("Intervall (Stunden)") %}
-        <input type="number" name="availability_check_interval_hours"
-          value="{{ s.availability_check_interval_hours or '3' }}"
-          min="1" max="24" class="input-field">
-      {% endcall %}
-    </div>
-    <div class="px-5 pb-4 text-xs text-slate-400">
-      💡 Prüft regelmäßig ob gespeicherte Anzeigen noch online sind (HTTP 404/410). Nicht mehr erreichbare Anzeigen werden automatisch gelöscht – auch Favoriten.
-    </div>
-  </div>
-
-  <!-- Speichern (unten) -->
-  <div class="flex justify-end pb-4">
-    <button type="submit"
-      class="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-lg font-semibold transition-colors">
+      class="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-lg font-semibold transition-colors shadow-lg backdrop-blur-sm">
       💾 Einstellungen speichern
     </button>
   </div>
@@ -355,6 +424,125 @@
 </div>
 
 <script>
+// ── Task 1: Tab-Wechsel ──────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById('tab-' + name).classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active-tab', b.dataset.tab === name));
+  localStorage.setItem('settingsTab', name);
+}
+// Init
+const savedTab = localStorage.getItem('settingsTab') || location.hash.replace('#','') || 'platforms';
+switchTab(savedTab);
+
+// ── Task 2: Deaktivierte Plattformen dimmen ──────────────
+function initPlatformDimming() {
+  document.querySelectorAll('[data-platform-section]').forEach(section => {
+    const toggle = section.querySelector('input[type=checkbox]');
+    const fields = section.querySelector('[data-platform-fields]');
+    if (!toggle || !fields) return;
+    function update() {
+      fields.style.opacity = toggle.checked ? '1' : '0.4';
+      fields.querySelectorAll('input,select,textarea').forEach(el => el.disabled = !toggle.checked);
+    }
+    toggle.addEventListener('change', update);
+    update();
+  });
+}
+initPlatformDimming();
+
+// ── Task 3: Unsaved-Changes-Warnung ─────────────────────
+let _formDirty = false;
+document.getElementById('settings-form').addEventListener('change', () => _formDirty = true);
+document.getElementById('settings-form').addEventListener('submit', () => _formDirty = false);
+window.addEventListener('beforeunload', e => {
+  if (_formDirty) { e.preventDefault(); e.returnValue = ''; }
+});
+
+// ── Task 15: Inline-Validierung ──────────────────────────
+document.getElementById('settings-form').addEventListener('submit', function(e) {
+  // Crawler-Intervall validieren
+  const intervalField = this.querySelector('[name=crawler_interval]');
+  if (intervalField) {
+    const interval = parseInt(intervalField.value);
+    if (isNaN(interval) || interval < 1 || interval > 1440) {
+      e.preventDefault();
+      showFieldError('crawler_interval', 'Bitte 1–1440 Minuten eingeben.');
+      return;
+    }
+  }
+  // SMTP-Port validieren
+  const portField = this.querySelector('[name=email_smtp_port]');
+  if (portField && portField.value) {
+    const port = parseInt(portField.value);
+    if (isNaN(port) || port < 1 || port > 65535) {
+      e.preventDefault();
+      showFieldError('email_smtp_port', 'Bitte gültigen Port (1–65535) eingeben.');
+      return;
+    }
+  }
+});
+
+function showFieldError(name, msg) {
+  const field = document.querySelector('[name=' + name + ']');
+  if (!field) return;
+  let err = field.parentElement.querySelector('.field-error');
+  if (!err) {
+    err = document.createElement('p');
+    err.className = 'field-error text-xs text-red-600 mt-1';
+    field.parentElement.appendChild(err);
+  }
+  err.textContent = msg;
+  field.classList.add('border-red-400');
+  field.addEventListener('input', () => {
+    field.classList.remove('border-red-400');
+    if (err) err.remove();
+  }, {once: true});
+  field.focus();
+  // Tab wechseln falls nötig
+  const panel = field.closest('.tab-panel');
+  if (panel) switchTab(panel.id.replace('tab-',''));
+}
+
+// ── Task 16: Verbindung testen ───────────────────────────
+document.querySelectorAll('.test-btn').forEach(btn => {
+  btn.addEventListener('click', async function() {
+    const platform = this.dataset.platform;
+    const origText = this.textContent;
+    this.disabled = true;
+    this.textContent = 'Teste…';
+    // Ergebnis-Element
+    let resultEl = this.parentElement.querySelector('.test-result');
+    if (!resultEl) {
+      resultEl = document.createElement('span');
+      resultEl.className = 'test-result text-xs ml-2';
+      this.parentElement.appendChild(resultEl);
+    }
+    try {
+      const res = await fetch('/api/test-scraper', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({platform})
+      });
+      const d = await res.json();
+      if (d.status === 'ok') {
+        resultEl.className = 'test-result text-xs ml-2 text-green-700';
+        resultEl.textContent = d.message;
+      } else {
+        resultEl.className = 'test-result text-xs ml-2 text-red-600';
+        resultEl.textContent = '✗ ' + d.message;
+      }
+    } catch(e) {
+      resultEl.className = 'test-result text-xs ml-2 text-red-600';
+      resultEl.textContent = '✗ Netzwerkfehler';
+    }
+    this.disabled = false;
+    this.textContent = origText;
+    setTimeout(() => { resultEl.textContent = ''; }, 8000);
+  });
+});
+
+// ── Datenverwaltung ──────────────────────────────────────
 function clearAllListings() {
   if (!confirm('Wirklich alle Anzeigen löschen? (Favoriten bleiben erhalten)')) return;
   const btn = document.getElementById('clearListingsBtn');
@@ -376,20 +564,26 @@ function runAvailabilityCheck() {
     .then(() => alert('Verfügbarkeits-Check gestartet. Ergebnis im Dashboard-Log sichtbar.'))
     .catch(() => alert('Fehler beim Starten des Checks.'));
 }
-</script>
 
-<!-- Globale Input-Styles -->
-<style>
-  .input-field {
-    width: 100%;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.5rem;
-    padding: 0.4rem 0.75rem;
-    font-size: 0.875rem;
-    outline: none;
-    transition: box-shadow .15s;
-  }
-  .input-field:focus { box-shadow: 0 0 0 2px #a855f7; }
-</style>
+function deleteOldListings() {
+  const hours = parseInt(document.getElementById('deleteAgeHours').value);
+  if (!hours || hours <= 0) { alert('Bitte eine gültige Stundenanzahl eingeben.'); return; }
+  if (!confirm(`Wirklich alle Anzeigen löschen die älter als ${hours} Stunden sind? Sie werden nicht erneut gefunden. Favoriten bleiben erhalten.`)) return;
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Lädt...';
+  fetch('/api/clear-listings-by-age', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({hours})
+  })
+    .then(r => r.json())
+    .then(d => {
+      btn.textContent = `✓ ${d.deleted} gelöscht`;
+      btn.classList.replace('bg-orange-600', 'bg-green-600');
+      setTimeout(() => { btn.disabled = false; btn.textContent = 'Jetzt löschen'; btn.classList.replace('bg-green-600', 'bg-orange-600'); }, 3000);
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = 'Fehler'; });
+}
+</script>
 
 {% endblock %}

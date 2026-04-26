@@ -155,6 +155,16 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") ode
 - [x] **9** Kontrast: `slate-400` → `slate-500` an Metadaten und Hint-Texten in allen Templates
 - [x] **19** `alert()`/`confirm()` durch barrierefreies Confirm-Modal (base.html) und `showToast()` ersetzt
 
+### Phase 19 – Unabhängige Plattform-Scheduler + gebündelte Benachrichtigung
+- [x] Pro Plattform ein eigener APScheduler-Job mit konfiguriertem Intervall (z.B. Kleinanzeigen 15 Min., eBay 60 Min.)
+- [x] Manueller Crawl mit Plattform-Auswahl (Dropdown: „Alle aktiven" oder einzelne Plattform)
+- [x] `DEFAULT_INTERVALS` pro Plattform, `{platform}_interval`-Einstellung pro Plattform in DB/Settings
+- [x] `notified_at TEXT`-Spalte in `listings`-Tabelle (Migration), `get_unnotified_listings()`, `mark_listings_notified()`
+- [x] `notify_pending()`: gebündelte E-Mail alle 15 Min. für alle unbenachrichtigten Anzeigen
+- [x] HTML-E-Mail gruppiert nach Plattform → Suchbegriff mit Inhaltsverzeichnis; Gratis-Items grün hervorgehoben
+- [x] Automatische Crawls benachrichtigen nicht direkt; `notify()` nur noch bei `manual=True`
+- [x] 13 neue Tests (300 gesamt)
+
 ---
 
-*Letzte Aktualisierung: 2026-04-26 (Phase 18 abgeschlossen)*
+*Letzte Aktualisierung: 2026-04-26 (Phase 19 abgeschlossen)*

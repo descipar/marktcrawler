@@ -30,8 +30,8 @@ baby-crawler-v2/
     ├── database.py             # Gesamte SQLite-Schicht (kein ORM), Migration
     ├── routes.py               # Alle Flask-Routen + REST-API (Blueprint "main")
     ├── crawler.py              # Crawl-Orchestrierung, threading.Lock, run_crawl_async()
-    ├── scheduler.py            # APScheduler: IntervalTrigger (Crawl) + CronTrigger (Digest)
-    ├── notifier.py             # SMTP E-Mail: Sofort-Alert + Tages-Digest
+    ├── scheduler.py            # APScheduler: pro-Plattform-Crawl + Notify-Job (15 Min) + CronTrigger (Digest)
+    ├── notifier.py             # SMTP E-Mail: gebündelter Alert (notify_pending) + Sofort (manual) + Digest
     ├── geo.py                  # Haversine-Formel + Nominatim-Geocoding mit DB-Cache
     ├── scrapers/
     │   ├── base.py             # Listing-Dataclass (gemeinsame Datenstruktur)
@@ -58,7 +58,8 @@ listings     (id, listing_id TEXT UNIQUE, platform, title, price,
               location, url, image_url, description, search_term,
               found_at, is_favorite INT DEFAULT 0,
               is_free INT DEFAULT 0, distance_km REAL,
-              notes TEXT, potential_duplicate TEXT)
+              notes TEXT, potential_duplicate TEXT,
+              notified_at TEXT)
 
 geocache     (location_text TEXT PRIMARY KEY, lat REAL, lon REAL, cached_at)
 
@@ -69,7 +70,7 @@ profiles     (id INTEGER PRIMARY KEY, name TEXT NOT NULL, emoji TEXT DEFAULT '�
 ```
 
 **Migration**: Drei separate Migrations-Funktionen ergänzen fehlende Spalten in bestehenden DBs via `PRAGMA table_info` – keine Datenverluste bei Updates:
-- `_migrate_listings()`: `is_favorite`, `is_free`, `distance_km`, `notes`, `potential_duplicate`
+- `_migrate_listings()`: `is_favorite`, `is_free`, `distance_km`, `notes`, `potential_duplicate`, `notified_at`
 - `_migrate_search_terms()`: `max_price`
 - `_migrate_settings_values()`: Umbenennung `crawler_max_age_hours` → `display_max_age_hours`, Standort-Defaults
 
@@ -106,7 +107,12 @@ profiles     (id INTEGER PRIMARY KEY, name TEXT NOT NULL, emoji TEXT DEFAULT '�
 | `email_sender` | `` | Absender |
 | `email_password` | `` | App-Passwort |
 | `email_recipient` | `` | Empfänger (kommagetrennt) |
-| `crawler_interval` | `15` | Crawl-Intervall Minuten |
+| `kleinanzeigen_interval` | `15` | Crawl-Intervall Minuten (Kleinanzeigen) |
+| `shpock_interval` | `30` | Crawl-Intervall Minuten (Shpock) |
+| `facebook_interval` | `60` | Crawl-Intervall Minuten (Facebook) |
+| `vinted_interval` | `30` | Crawl-Intervall Minuten (Vinted) |
+| `ebay_interval` | `60` | Crawl-Intervall Minuten (eBay) |
+| `crawler_interval` | `15` | Globaler Fallback-Intervall (wird durch plattformspezifische Werte überschrieben) |
 | `crawler_max_results` | `20` | Max. Ergebnisse pro Suche |
 | `crawler_delay` | `2` | Pause zwischen Anfragen s |
 | `crawler_blacklist` | `` | Ausschluss-Wörter, je Zeile eins |
@@ -148,8 +154,8 @@ Täglich zur konfigurierten Uhrzeit (CronTrigger) sendet `notifier.send_digest()
 ### Verfügbarkeits-Check
 `checker.py.run_availability_check()` iteriert alle Anzeigen aus `db.get_all_listing_urls(min_age_minutes=60)` – Anzeigen jünger als 60 Minuten werden übersprungen. Sendet pro URL einen HEAD-Request (8s Timeout, 0,5s Delay). HTTP 404/410 → `db.delete_listing_by_listing_id()` löscht den Eintrag **inkl. Favoriten**. Hat einen `_running`-Guard (wie der Crawler) gegen parallele Ausführung. Wird vom Scheduler alle N Stunden ausgeführt (`availability_job`, `IntervalTrigger`). Einstellungen: `availability_check_enabled` (0/1), `availability_check_interval_hours` (Default 3). Manuell auslösbar über `POST /api/availability-check`.
 
-### E-Mail bei manuellem Crawl
-`run_crawl_async(manual=True)` wird vom `/api/crawl`-Endpoint aufgerufen. `run_crawl(manual=True)` reicht `force=True` an `notify()` weiter, das dann das Rate-Limit überspringt. Automatische Crawls übergeben `force=False` (Standard) — das Rate-Limit gilt weiterhin.
+### E-Mail-Benachrichtigung (gebündelt)
+`notifier.notify_pending(settings)` läuft alle 15 Min. als `notify_job` im Scheduler. Es holt alle Listings mit `notified_at IS NULL` aus der DB (`db.get_unnotified_listings()`), sendet eine gruppierte HTML-E-Mail (nach Plattform → Suchbegriff mit Inhaltsverzeichnis, Gratis-Items grün hervorgehoben) und setzt `notified_at = NOW()` via `db.mark_listings_notified()`. Automatische Crawls rufen `notify()` nicht auf — nur der Job. Bei manuellem Crawl (`manual=True`) ruft `run_crawl()` direkt `notify()` auf, das ebenfalls `mark_listings_notified()` aufruft, damit der Job dieselben Listings nicht nochmals versendet.
 
 ### Radius 0 = kein Filter (Vinted & Shpock)
 Beide Scraper lesen `vinted_radius` / `shpock_radius` via `_int()`; ist der Wert `0`, wird der Entfernungsfilter vollständig deaktiviert (kein Geocoding-Aufruf). Muster: `raw = _int(settings.get(..., "30")); self.radius_km = 30 if raw is None else raw`, Filter-Block: `if self._home and self.radius_km > 0:`.

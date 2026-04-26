@@ -5,7 +5,7 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-277%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-300%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
@@ -50,10 +50,10 @@ Admin-UI aufrufen: **`http://localhost:5000`**
 - **⏱ Relative Zeitangaben** – „vor 2h" statt rohem Timestamp auf jeder Karte
 
 ### Benachrichtigungen & Automatisierung
-- **E-Mail-Alert** – Sofort-Benachrichtigung bei neuen Treffern (konfigurierbar)
-- **Tages-Digest** – täglich zur konfigurierten Uhrzeit, unabhängig vom Sofort-Alert
-- **Manueller Crawl** – per Knopfdruck mit Live-Log-Terminal und E-Mail bei neuen Treffern
-- **Automatischer Scheduler** – konfigurierbares Intervall, kein Cronjob nötig
+- **E-Mail-Alert (gebündelt)** – alle 15 Min. wird eine E-Mail mit allen neuen Anzeigen verschickt, strukturiert nach Plattform → Suchbegriff mit Inhaltsverzeichnis; Gratis-Items grün hervorgehoben
+- **Tages-Digest** – täglich zur konfigurierten Uhrzeit, unabhängig vom gebündelten Alert
+- **Manueller Crawl** – per Knopfdruck (einzelne Plattform oder alle aktiven), Live-Log-Terminal, sofortige E-Mail bei neuen Treffern
+- **Pro-Plattform-Scheduler** – jede Plattform hat ein eigenes konfigurierbares Intervall (z.B. Kleinanzeigen 15 Min., eBay 60 Min.), kein Cronjob nötig
 - **🔍 Verfügbarkeits-Check** – prüft periodisch ob Anzeigen noch online sind (HTTP 404/410 → automatisch löschen, inkl. Favoriten)
 
 ### Sonstiges
@@ -131,7 +131,8 @@ Die Einstellungsseite ist in drei Tabs gegliedert: **Plattformen**, **Benachrich
 | Facebook Marketplace | Plattformen | Aktiviert, Max. Preis, Standort |
 | E-Mail | Benachrichtigungen | SMTP-Server/-Port, Absender, Empfänger (kommagetrennt), App-Passwort, Betreff |
 | Tages-Digest | Benachrichtigungen | Aktiviert, Uhrzeit (z.B. `19:00`) |
-| Crawler | Crawler & Daten | Intervall (Min.), Max. Ergebnisse, Pause zw. Anfragen, Blacklist |
+| Crawler | Crawler & Daten | Max. Ergebnisse, Pause zw. Anfragen, Blacklist |
+| Crawl-Intervall | Plattformen | Pro Plattform konfigurierbar (Min.); Kleinanzeigen 15, Shpock/Vinted 30, eBay/Facebook 60 |
 | Anzeigen-Verwaltung | Crawler & Daten | Altersfilter (Anzeige), Anzeigen löschen die älter als X Stunden sind |
 | Verfügbarkeits-Check | Crawler & Daten | Aktiviert, Intervall (Stunden), „Jetzt prüfen"-Button |
 | Heimstandort | Crawler & Daten | Stadt für Entfernungsberechnung |
@@ -182,7 +183,7 @@ baby-crawler/
 ├── requirements.txt / pytest.ini
 ├── run.py                  # Einstiegspunkt
 ├── data/                   # SQLite-DB (persistentes Volume)
-├── tests/                  # 259 Unit-Tests
+├── tests/                  # 300 Unit-Tests
 │   ├── conftest.py
 │   ├── test_crawler.py     # _is_free(), _is_blacklisted()
 │   ├── test_crawl_run.py   # run_crawl() inkl. per-term Preisfilter
@@ -198,8 +199,8 @@ baby-crawler/
     ├── routes.py           # Web-Routen & REST-API
     ├── crawler.py          # Crawl-Orchestrierung (Thread-safe)
     ├── checker.py          # Verfügbarkeits-Check (HEAD-Requests)
-    ├── scheduler.py        # APScheduler: Crawl + Digest + Checker
-    ├── notifier.py         # E-Mail (Sofort-Alert + Tages-Digest)
+    ├── scheduler.py        # APScheduler: Crawl (pro Plattform) + Notify-Job + Digest + Checker
+    ├── notifier.py         # E-Mail (gebündelter Alert + Sofort bei manuellem Crawl + Digest)
     ├── geo.py              # Nominatim-Geocoding + Haversine
     ├── scrapers/
     │   ├── base.py         # Listing-Datenklasse + Hilfsfunktionen

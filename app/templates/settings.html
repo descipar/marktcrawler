@@ -255,6 +255,13 @@
             min="1" max="24" class="input-field">
         {% endcall %}
       </div>
+      {% if s.availability_last_run %}
+      <div class="px-5 pb-3 text-xs text-slate-500">
+        Letzter Lauf: <span class="font-medium text-slate-700">{{ s.availability_last_run }}</span>
+        · <span class="font-medium text-slate-700">{{ s.availability_last_checked or '0' }}</span> geprüft
+        · <span class="font-medium {% if s.availability_last_deleted|int > 0 %}text-red-600{% else %}text-green-700{% endif %}">{{ s.availability_last_deleted or '0' }} gelöscht</span>
+      </div>
+      {% endif %}
       <div class="px-5 pb-4 text-xs text-slate-500">
         💡 Prüft regelmäßig ob gespeicherte Anzeigen noch online sind (HTTP 404/410). Nicht mehr erreichbare Anzeigen werden automatisch gelöscht – auch Favoriten.
       </div>
@@ -271,7 +278,7 @@
           <input type="number" id="deleteAgeHours" min="1" placeholder="z.B. 48"
             class="input-field w-full">
         </div>
-        <button type="button" onclick="deleteOldListings()"
+        <button type="button" onclick="deleteOldListings(this)"
           class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg">
           Jetzt löschen
         </button>
@@ -599,7 +606,9 @@ function _refreshDeleteLog() {
 }
 
 function _startDeleteLog() {
-  document.getElementById('delete-log-wrap').classList.remove('hidden');
+  const wrap = document.getElementById('delete-log-wrap');
+  wrap.classList.remove('hidden');
+  wrap.scrollIntoView({behavior: 'smooth', block: 'nearest'});
   _refreshDeleteLog();
   _deleteLogTimer = setInterval(_refreshDeleteLog, 1500);
 }
@@ -610,10 +619,9 @@ function _stopDeleteLog() {
   setTimeout(_refreshDeleteLog, 400);
 }
 
-function deleteOldListings() {
+function deleteOldListings(btn) {
   const hours = parseInt(document.getElementById('deleteAgeHours').value);
   if (!hours || hours <= 0) { showToast('Bitte eine gültige Stundenanzahl eingeben.'); return; }
-  const btn = event.target;
   showConfirm(`Wirklich alle Anzeigen löschen die älter als ${hours} Stunden sind? Sie werden nicht erneut gefunden. Favoriten bleiben erhalten.`, () => {
     btn.disabled = true; btn.textContent = 'Lädt...';
     _startDeleteLog();

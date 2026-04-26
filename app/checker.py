@@ -49,7 +49,8 @@ def run_availability_check() -> dict:
         listings = db.get_all_listing_urls(min_age_minutes=_MIN_AGE_MINUTES)
         stats = {"checked": 0, "deleted": 0, "errors": 0}
 
-        logger.info(f"Verfügbarkeits-Check startet: {len(listings)} Anzeigen")
+        est_min = len(listings) * _DELAY / 60
+        logger.info(f"Verfügbarkeits-Check startet: {len(listings)} Anzeigen (~{est_min:.0f} Min.)")
 
         for row in listings:
             url = row.get("url", "")
@@ -63,7 +64,7 @@ def run_availability_check() -> dict:
                 if resp.status_code in _GONE_CODES:
                     db.delete_listing_by_listing_id(row["listing_id"])
                     stats["deleted"] += 1
-                    logger.info(
+                    logger.debug(
                         f"Anzeige entfernt (HTTP {resp.status_code}): "
                         f"{row.get('title', '')[:60]}"
                     )

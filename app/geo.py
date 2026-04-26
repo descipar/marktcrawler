@@ -84,12 +84,14 @@ def distance_to_home(location_text: str, settings: dict) -> Optional[float]:
             return None
         home_lat, home_lon = home_coords
     else:
-        try:
-            home_lat = float(settings.get("home_latitude") or 0)
-            home_lon = float(settings.get("home_longitude") or 0)
-        except (TypeError, ValueError):
+        lat_str = settings.get("home_latitude", "").strip()
+        lon_str = settings.get("home_longitude", "").strip()
+        if not lat_str or not lon_str:
             return None
-        if not home_lat or not home_lon:
+        try:
+            home_lat = float(lat_str)
+            home_lon = float(lon_str)
+        except (TypeError, ValueError):
             return None
 
     coords = geocode(location_text)

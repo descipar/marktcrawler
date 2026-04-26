@@ -16,16 +16,7 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") ode
 
 ---
 
-### Code-Qualität & Robustheit
-
-- [ ] **27** – Magic Numbers in `index.html` als benannte JS-Konstanten (`PAGE_SIZE`, `LOG_POLL_INTERVAL_MS`, `EXCLUDE_DEBOUNCE_MS`, `TOAST_DURATION_MS`)
-- [ ] **28** – `cardHtml()` aufteilen: Helper `getPlatformBadgeClass(platform)` extrahieren, HTML-String lesbarer strukturieren
-- [ ] **29** – `settings.html`: Jinja2-Macro für Plattform-Sektionen (5× identisches HTML-Pattern → 1 Macro)
-- [ ] **30** – `geo.py`: `0.0, 0.0`-Koordinaten semantisch korrekt als „nicht konfiguriert" behandeln statt `if not home_lat`
-- [ ] **31** – JS `fetch()`-Fehler nicht mehr still ignorieren: Netzwerkfehler als sichtbaren Toast anzeigen
-- [ ] **32** – `notifier.py`: `distance_km` None-Check vor Formatierung absichern
-- [ ] **33** – `checker.py`: Erwartete Laufzeit zu Beginn loggen, einzelne Delete-Logs auf `debug()` senken
-- [ ] **26** (Badge) – Badge-Klassen-Logik zentralisieren: 3-fach dupliziert in `_listing_card.html`, `index.html` und `notifier.py`; Vinted + eBay fehlen in `_PLATFORM_COLORS`
+~~### Code-Qualität & Robustheit~~ ✅ (Phase 16)
 
 ---
 
@@ -143,6 +134,17 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") ode
 - [x] DB: `notes`, `potential_duplicate` (listings), `max_price` (search_terms), Migration sicher
 - [x] 41 neue Tests (259 gesamt)
 
+### Phase 16 – Code-Qualität & Robustheit
+- [x] **26** Badge-Klassen zentralisiert: `badge-vt`/`badge-eb` in `base.html`, `getPlatformBadgeClass()` in JS, Vinted/eBay in `_PLATFORM_COLORS`
+- [x] **27** Magic Numbers als Konstanten: `LOG_POLL_INTERVAL_MS`, `EXCLUDE_DEBOUNCE_MS`, `TOAST_DURATION_MS` (index.html + settings.html)
+- [x] **28** `getPlatformBadgeClass()` extrahiert, `cardHtml()` + `openModal()` nutzen Helper
+- [x] **29** Jinja2-Macro `platform_section` in `settings.html`: 5 Plattform-Blöcke → 1 Macro
+- [x] **30** `geo.py`: leere Strings statt Null-Check für Heimkoordinaten, 0.0/0.0 ist jetzt gültig
+- [x] **31** JS `fetch()`-Fehler: `showToast()` bei Netzwerkfehler in `startCrawl`, `dismissListing`, `toggleFav`
+- [x] **32** `notifier.py`: `distance_km is not None` statt falsy-Check (0.0 km korrekt ausgegeben)
+- [x] **33** `checker.py`: erwartete Laufzeit beim Start loggen, Delete-Logs auf `debug()` gesenkt
+- [x] 1 neuer Test, 1 Test korrigiert (260 gesamt)
+
 ---
 
-*Letzte Aktualisierung: 2026-04-26 (Phase 15 abgeschlossen)*
+*Letzte Aktualisierung: 2026-04-26 (Phase 16 abgeschlossen)*

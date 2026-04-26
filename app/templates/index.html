@@ -268,6 +268,9 @@ const listingsCache = {};
 <!-- ── JavaScript ────────────────────────────────────────── -->
 <script>
 const PAGE_SIZE = 30;
+const LOG_POLL_INTERVAL_MS = 2000;
+const EXCLUDE_DEBOUNCE_MS = 400;
+const TOAST_DURATION_MS = 5000;
 let activeTerms=new Set(), platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false, distanceFilter=null, sortBy='date_desc', excludeText=null;
 let currentOffset=0, allLoaded=false, totalCount=0;
 let _excludeTimer=null;
@@ -338,7 +341,7 @@ function startLogPolling() {
     document.getElementById('log-panel').classList.remove('hidden');
     document.getElementById('log-toggle').textContent = '▼ ausblenden';
   }
-  logPollInterval = setInterval(refreshLog, 2000);
+  logPollInterval = setInterval(refreshLog, LOG_POLL_INTERVAL_MS);
   refreshLog();
 }
 
@@ -414,7 +417,7 @@ async function startCrawl() {
   const btn=document.getElementById('crawl-btn-top'), msg=document.getElementById('crawl-msg');
   btn.disabled=true; btn.textContent='⟳ Läuft…';
   msg.textContent='Crawl gestartet…'; msg.classList.remove('hidden');
-  try { await fetch('/api/crawl',{method:'POST'}); } catch(e){}
+  try { await fetch('/api/crawl',{method:'POST'}); } catch(e){ showToast('Crawl konnte nicht gestartet werden.'); }
   startLogPolling();
   pollStatus();
 }
@@ -477,7 +480,7 @@ function scheduleExclude(v) {
     document.getElementById('exclude-clear').classList.toggle('hidden', !excludeText);
     updateFilterCount();
     loadListings();
-  }, 400);
+  }, EXCLUDE_DEBOUNCE_MS);
 }
 
 function clearExclude() {
@@ -488,8 +491,13 @@ function clearExclude() {
   loadListings();
 }
 
+function getPlatformBadgeClass(platform) {
+  const map = {'Kleinanzeigen':'badge-ka','Shpock':'badge-sp','Vinted':'badge-vt','eBay':'badge-eb','Facebook':'badge-fb'};
+  return map[platform] || 'badge-fb';
+}
+
 function cardHtml(l) {
-  const pc=l.platform==='Kleinanzeigen'?'badge-ka':l.platform==='Shpock'?'badge-sp':'badge-fb';
+  const pc = getPlatformBadgeClass(l.platform);
   const img=l.image_url
     ?`<img src="${l.image_url}" alt="" referrerpolicy="no-referrer" class="w-full h-40 object-cover bg-slate-100">`
     :`<div class="w-full h-40 bg-slate-100 flex items-center justify-center text-4xl">🛍️</div>`;
@@ -522,14 +530,26 @@ function cardHtml(l) {
   </div>`;
 }
 
+function showToast(msg) {
+  const el = document.createElement('div');
+  el.className = 'fixed bottom-4 right-4 z-50 px-4 py-2 rounded-lg border text-sm font-medium shadow-lg bg-red-50 text-red-800 border-red-200';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), TOAST_DURATION_MS);
+}
+
 async function dismissListing(id, btn) {
-  await fetch(`/listings/${id}/dismiss`,{method:'POST'});
+  try {
+    await fetch(`/listings/${id}/dismiss`,{method:'POST'});
+  } catch(e) { showToast('Ausblenden fehlgeschlagen.'); return; }
   const card=btn.closest('.listing-card');
   if(card){ card.remove(); currentOffset=Math.max(0,currentOffset-1); updateLoadMore(0); }
 }
 
 async function toggleFav(id, btn) {
-  await fetch(`/listings/${id}/favorite`,{method:'POST'});
+  try {
+    await fetch(`/listings/${id}/favorite`,{method:'POST'});
+  } catch(e) { showToast('Favorit konnte nicht geändert werden.'); return; }
   const fav=btn.classList.contains('text-slate-200');
   btn.className=`absolute top-2 right-2 z-10 text-xl leading-none ${fav?'text-yellow-400':'text-slate-200 hover:text-yellow-300'}`;
 }
@@ -613,7 +633,7 @@ function openModal(id) {
   const img = l.image_url
     ? `<img src="${l.image_url}" alt="" referrerpolicy="no-referrer" class="w-full max-h-64 object-contain bg-slate-100 rounded-t-xl">`
     : `<div class="w-full h-32 bg-slate-100 flex items-center justify-center text-5xl rounded-t-xl">🛍️</div>`;
-  const pc = l.platform==='Kleinanzeigen'?'badge-ka':l.platform==='Shpock'?'badge-sp':'badge-fb';
+  const pc = getPlatformBadgeClass(l.platform);
   const distTxt = l.distance_km != null ? `<span class="text-xs text-slate-500">${Math.round(l.distance_km)} km entfernt</span>` : '';
   const descTxt = l.description ? `<div class="text-sm text-slate-600 mt-3 border-t pt-3 whitespace-pre-wrap">${l.description.substring(0,800)}${l.description.length>800?'…':''}</div>` : '';
   const dupBadge = l.potential_duplicate ? `<div class="text-xs text-amber-600 mt-1">📋 Möglicherweise auch auf ${l.potential_duplicate}</div>` : '';

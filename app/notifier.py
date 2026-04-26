@@ -138,6 +138,8 @@ def _smtp_send(msg, sender: str, password: str, recipients: list, settings: dict
 _PLATFORM_COLORS = {
     "Kleinanzeigen": "#e8f5e9",
     "Shpock": "#e3f2fd",
+    "Vinted": "#e0f2f1",
+    "eBay": "#fff8e1",
     "Facebook": "#e8eaf6",
 }
 
@@ -152,7 +154,7 @@ def _card_html(title, platform, search_term, price, location, url,
                   'padding:2px 8px;border-radius:12px;font-weight:bold;'
                   'margin-left:6px">🎁 Gratis</span>') if is_free else ""
     dist_str = (f'<span style="color:#888;font-size:12px;margin-left:6px">'
-                f'📍 {distance_km:.0f} km entfernt</span>') if distance_km else ""
+                f'📍 {distance_km:.0f} km entfernt</span>') if distance_km is not None else ""
     date_str = (f'<div style="color:#aaa;font-size:11px;margin-top:4px">'
                 f'{found_at.replace("T"," ")}</div>') if is_digest else ""
 
@@ -207,7 +209,7 @@ def _text_from_dicts(listings: list, is_digest: bool = False) -> str:
     lines = [heading + "\n" + "=" * 50]
     for l in listings:
         free = " [GRATIS]" if l.get("is_free") else ""
-        dist = f" ({l['distance_km']:.0f} km)" if l.get("distance_km") else ""
+        dist = f" ({l['distance_km']:.0f} km)" if l.get("distance_km") is not None else ""
         lines += [
             f"\n[{l.get('platform')}] {l.get('title')}{free}",
             f"Preis: {l.get('price')}{dist}",

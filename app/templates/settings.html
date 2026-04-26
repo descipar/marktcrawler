@@ -9,6 +9,42 @@
 </div>
 {% endmacro %}
 
+{% macro platform_section(title, key, color, cb_color=none, has_radius=true, radius_min=5, radius_hint='', standort_label='Standort', standort_placeholder='z.B. Dortmund') %}
+{% set cbcolor = cb_color or color %}
+<div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
+  <div class="px-5 py-3 bg-{{ color }}-50 border-b border-slate-200 flex items-center justify-between">
+    <h2 class="font-semibold text-{{ color }}-800">{{ title }}</h2>
+    <div class="flex items-center gap-3">
+      <button type="button" class="test-btn text-xs border border-{{ color }}-200 text-{{ color }}-700 hover:bg-{{ color }}-100 px-2 py-1 rounded transition-colors" data-platform="{{ key }}">Testen</button>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <span class="text-sm text-slate-600">Aktiviert</span>
+        <input type="checkbox" name="{{ key }}_enabled" value="1"
+          {% if s[key ~ '_enabled'] == '1' %}checked{% endif %}
+          class="w-4 h-4 accent-{{ cbcolor }}-600">
+      </label>
+    </div>
+  </div>
+  <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
+    {% call field("Max. Preis (€)") %}
+      <input type="number" name="{{ key }}_max_price" value="{{ s[key ~ '_max_price'] }}"
+        min="0" class="input-field">
+    {% endcall %}
+    {% call field(standort_label) %}
+      <input type="text" name="{{ key }}_location" value="{{ s[key ~ '_location'] }}"
+        placeholder="{{ standort_placeholder }}" class="input-field">
+    {% endcall %}
+    {% if has_radius %}
+    {% call field("Radius (km)") %}
+      <input type="number" name="{{ key }}_radius" value="{{ s[key ~ '_radius'] }}"
+        min="{{ radius_min }}" max="200" class="input-field">
+      {% if radius_hint %}<p class="text-xs text-slate-400 mt-1">{{ radius_hint }}</p>{% endif %}
+    {% endcall %}
+    {% endif %}
+  </div>
+  {{ caller() }}
+</div>
+{% endmacro %}
+
 <style>
   .input-field {
     width: 100%;
@@ -43,157 +79,20 @@
   <!-- ── Tab: Plattformen ────────────────────────────────── -->
   <div id="tab-platforms" class="tab-panel space-y-4 pt-4">
 
-    <!-- Kleinanzeigen -->
-    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
-      <div class="px-5 py-3 bg-green-50 border-b border-slate-200 flex items-center justify-between">
-        <h2 class="font-semibold text-green-800">Kleinanzeigen.de</h2>
-        <div class="flex items-center gap-3">
-          <button type="button" class="test-btn text-xs border border-green-200 text-green-700 hover:bg-green-100 px-2 py-1 rounded transition-colors" data-platform="kleinanzeigen">Testen</button>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <span class="text-sm text-slate-600">Aktiviert</span>
-            <input type="checkbox" name="kleinanzeigen_enabled" value="1"
-              {% if s.kleinanzeigen_enabled == '1' %}checked{% endif %}
-              class="w-4 h-4 accent-green-600">
-          </label>
-        </div>
-      </div>
-      <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
-        {% call field("Max. Preis (€)") %}
-          <input type="number" name="kleinanzeigen_max_price" value="{{ s.kleinanzeigen_max_price }}"
-            min="0" class="input-field">
-        {% endcall %}
-        {% call field("Standort") %}
-          <input type="text" name="kleinanzeigen_location" value="{{ s.kleinanzeigen_location }}"
-            placeholder="z.B. Dortmund" class="input-field">
-        {% endcall %}
-        {% call field("Radius (km)") %}
-          <input type="number" name="kleinanzeigen_radius" value="{{ s.kleinanzeigen_radius }}"
-            min="5" max="200" class="input-field">
-        {% endcall %}
-      </div>
-    </div>
+    {% call platform_section('Kleinanzeigen.de', 'kleinanzeigen', 'green') %}{% endcall %}
 
-    <!-- Shpock -->
-    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
-      <div class="px-5 py-3 bg-orange-50 border-b border-slate-200 flex items-center justify-between">
-        <h2 class="font-semibold text-orange-800">Shpock</h2>
-        <div class="flex items-center gap-3">
-          <button type="button" class="test-btn text-xs border border-orange-200 text-orange-700 hover:bg-orange-100 px-2 py-1 rounded transition-colors" data-platform="shpock">Testen</button>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <span class="text-sm text-slate-600">Aktiviert</span>
-            <input type="checkbox" name="shpock_enabled" value="1"
-              {% if s.shpock_enabled == '1' %}checked{% endif %}
-              class="w-4 h-4 accent-blue-600">
-          </label>
-        </div>
-      </div>
-      <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
-        {% call field("Max. Preis (€)") %}
-          <input type="number" name="shpock_max_price" value="{{ s.shpock_max_price }}"
-            min="0" class="input-field">
-        {% endcall %}
-        {% call field("Standort") %}
-          <input type="text" name="shpock_location" value="{{ s.shpock_location }}"
-            placeholder="z.B. Dortmund" class="input-field">
-        {% endcall %}
-        {% call field("Radius (km)") %}
-          <input type="number" name="shpock_radius" value="{{ s.shpock_radius }}"
-            min="0" max="200" class="input-field">
-          <p class="text-xs text-slate-400 mt-1">0 = kein Entfernungsfilter</p>
-        {% endcall %}
-      </div>
-    </div>
+    {% call platform_section('Shpock', 'shpock', 'orange', cb_color='blue', radius_min=0, radius_hint='0 = kein Entfernungsfilter') %}{% endcall %}
 
-    <!-- Facebook -->
-    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
-      <div class="px-5 py-3 bg-indigo-50 border-b border-slate-200 flex items-center justify-between">
-        <h2 class="font-semibold text-indigo-800">Facebook Marketplace</h2>
-        <div class="flex items-center gap-3">
-          <button type="button" class="test-btn text-xs border border-indigo-200 text-indigo-700 hover:bg-indigo-100 px-2 py-1 rounded transition-colors" data-platform="facebook">Testen</button>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <span class="text-sm text-slate-600">Aktiviert</span>
-            <input type="checkbox" name="facebook_enabled" value="1"
-              {% if s.facebook_enabled == '1' %}checked{% endif %}
-              class="w-4 h-4 accent-indigo-600">
-          </label>
-        </div>
-      </div>
-      <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
-        {% call field("Max. Preis (€)") %}
-          <input type="number" name="facebook_max_price" value="{{ s.facebook_max_price }}"
-            min="0" class="input-field">
-        {% endcall %}
-        {% call field("Standort") %}
-          <input type="text" name="facebook_location" value="{{ s.facebook_location }}"
-            placeholder="z.B. Dortmund" class="input-field">
-        {% endcall %}
-      </div>
-      <div class="px-5 pb-4 text-xs text-amber-700 bg-amber-50 border-t border-amber-100 py-2">
-        ⚠️ Facebook benötigt einen einmaligen Login. Nach dem Start:
-        <code class="bg-amber-100 px-1 rounded">docker exec -it baby-crawler python -c "from app.scrapers.facebook import FacebookScraper; FacebookScraper({}).interactive_login()"</code>
-      </div>
+    {% call platform_section('Facebook Marketplace', 'facebook', 'indigo', has_radius=false) %}
+    <div class="px-5 pb-4 text-xs text-amber-700 bg-amber-50 border-t border-amber-100 py-2">
+      ⚠️ Facebook benötigt einen einmaligen Login. Nach dem Start:
+      <code class="bg-amber-100 px-1 rounded">docker exec -it baby-crawler python -c "from app.scrapers.facebook import FacebookScraper; FacebookScraper({}).interactive_login()"</code>
     </div>
+    {% endcall %}
 
-    <!-- Vinted -->
-    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
-      <div class="px-5 py-3 bg-teal-50 border-b border-slate-200 flex items-center justify-between">
-        <h2 class="font-semibold text-teal-800">Vinted</h2>
-        <div class="flex items-center gap-3">
-          <button type="button" class="test-btn text-xs border border-teal-200 text-teal-700 hover:bg-teal-100 px-2 py-1 rounded transition-colors" data-platform="vinted">Testen</button>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <span class="text-sm text-slate-600">Aktiviert</span>
-            <input type="checkbox" name="vinted_enabled" value="1"
-              {% if s.vinted_enabled == '1' %}checked{% endif %}
-              class="w-4 h-4 accent-teal-600">
-          </label>
-        </div>
-      </div>
-      <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
-        {% call field("Max. Preis (€)") %}
-          <input type="number" name="vinted_max_price" value="{{ s.vinted_max_price }}"
-            min="0" class="input-field">
-        {% endcall %}
-        {% call field("Standort") %}
-          <input type="text" name="vinted_location" value="{{ s.vinted_location }}"
-            placeholder="z.B. München" class="input-field">
-        {% endcall %}
-        {% call field("Radius (km)") %}
-          <input type="number" name="vinted_radius" value="{{ s.vinted_radius }}"
-            min="0" max="200" class="input-field">
-          <p class="text-xs text-slate-400 mt-1">0 = kein Entfernungsfilter</p>
-        {% endcall %}
-      </div>
-    </div>
+    {% call platform_section('Vinted', 'vinted', 'teal', radius_min=0, radius_hint='0 = kein Entfernungsfilter', standort_placeholder='z.B. München') %}{% endcall %}
 
-    <!-- eBay -->
-    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
-      <div class="px-5 py-3 bg-amber-50 border-b border-slate-200 flex items-center justify-between">
-        <h2 class="font-semibold text-amber-800">eBay</h2>
-        <div class="flex items-center gap-3">
-          <button type="button" class="test-btn text-xs border border-amber-200 text-amber-700 hover:bg-amber-100 px-2 py-1 rounded transition-colors" data-platform="ebay">Testen</button>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <span class="text-sm text-slate-600">Aktiviert</span>
-            <input type="checkbox" name="ebay_enabled" value="1"
-              {% if s.ebay_enabled == '1' %}checked{% endif %}
-              class="w-4 h-4 accent-amber-600">
-          </label>
-        </div>
-      </div>
-      <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
-        {% call field("Max. Preis (€)") %}
-          <input type="number" name="ebay_max_price" value="{{ s.ebay_max_price }}"
-            min="0" class="input-field">
-        {% endcall %}
-        {% call field("Standort (PLZ oder Stadt)") %}
-          <input type="text" name="ebay_location" value="{{ s.ebay_location }}"
-            placeholder="z.B. 80331 oder München" class="input-field">
-        {% endcall %}
-        {% call field("Radius (km)") %}
-          <input type="number" name="ebay_radius" value="{{ s.ebay_radius }}"
-            min="5" max="200" class="input-field">
-        {% endcall %}
-      </div>
-    </div>
+    {% call platform_section('eBay', 'ebay', 'amber', standort_label='Standort (PLZ oder Stadt)', standort_placeholder='z.B. 80331 oder München') %}{% endcall %}
 
   </div><!-- /tab-platforms -->
 
@@ -424,6 +323,8 @@
 </div>
 
 <script>
+const TOAST_DURATION_MS = 8000;
+
 // ── Task 1: Tab-Wechsel ──────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
@@ -538,7 +439,7 @@ document.querySelectorAll('.test-btn').forEach(btn => {
     }
     this.disabled = false;
     this.textContent = origText;
-    setTimeout(() => { resultEl.textContent = ''; }, 8000);
+    setTimeout(() => { resultEl.textContent = ''; }, TOAST_DURATION_MS);
   });
 });
 

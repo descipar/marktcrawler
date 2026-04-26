@@ -15,6 +15,8 @@
         <span class="text-xs px-1.5 py-0.5 rounded font-medium
           {% if l.platform == 'Kleinanzeigen' %}badge-ka
           {% elif l.platform == 'Shpock' %}badge-sp
+          {% elif l.platform == 'Vinted' %}badge-vt
+          {% elif l.platform == 'eBay' %}badge-eb
           {% else %}badge-fb{% endif %}">{{ l.platform }}</span>
         <span class="text-xs text-slate-400 truncate">{{ l.search_term }}</span>
       </div>

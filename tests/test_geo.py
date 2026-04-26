@@ -63,12 +63,19 @@ class TestDistanceToHome:
         result = distance_to_home("Berlin", settings_ohne_home)
         assert result is None
 
-    def test_gibt_none_wenn_heimkoordinaten_null(self, temp_db):
-        """Heimkoordinaten 0.0 gelten als 'nicht gesetzt'."""
-        settings = {"home_latitude": "0", "home_longitude": "0"}
+    def test_gibt_none_wenn_heimkoordinaten_leer(self, temp_db):
+        """Leere Heimkoordinaten (nicht konfiguriert) → None."""
+        settings = {"home_latitude": "", "home_longitude": ""}
         with patch("app.geo.geocode", return_value=(52.5200, 13.4050)):
             result = distance_to_home("Berlin", settings)
             assert result is None
+
+    def test_koordinaten_null_null_sind_gueltig(self, temp_db):
+        """Koordinaten 0.0/0.0 (Äquator/Nullmeridian) sind gültige Heimkoordinaten."""
+        settings = {"home_latitude": "0", "home_longitude": "0"}
+        with patch("app.geo.geocode", return_value=(52.5200, 13.4050)):
+            result = distance_to_home("Berlin", settings)
+            assert result is not None
 
     def test_fallback_auf_koordinaten(self, temp_db):
         """Wenn home_location fehlt, werden home_latitude/longitude als Fallback verwendet."""

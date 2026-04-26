@@ -4,8 +4,10 @@
 {% block content %}
 {% macro field(label) %}
 <div>
-  <label class="block text-xs font-medium text-slate-500 mb-1">{{ label }}</label>
-  {{ caller() }}
+  <label class="block">
+    <span class="block text-xs font-medium text-slate-500 mb-1">{{ label }}</span>
+    {{ caller() }}
+  </label>
 </div>
 {% endmacro %}
 
@@ -142,7 +144,7 @@
             class="input-field">
         {% endcall %}
       </div>
-      <div class="px-5 pb-4 text-xs text-slate-400">
+      <div class="px-5 pb-4 text-xs text-slate-500">
         💡 Gmail: App-Passwort unter <a href="https://myaccount.google.com/apppasswords" target="_blank" class="text-blue-500 hover:underline">myaccount.google.com/apppasswords</a> erstellen.
       </div>
     </div>
@@ -164,7 +166,7 @@
             class="input-field">
         {% endcall %}
       </div>
-      <div class="px-5 pb-4 text-xs text-slate-400">
+      <div class="px-5 pb-4 text-xs text-slate-500">
         💡 Zusätzlich zu Sofort-Benachrichtigungen: täglich eine Zusammenfassung aller gefundenen Anzeigen des Tages.
       </div>
     </div>
@@ -197,7 +199,7 @@
             min="0" placeholder="0 = alle anzeigen" class="input-field">
         {% endcall %}
       </div>
-      <div class="px-5 pb-4 text-xs text-slate-400">
+      <div class="px-5 pb-4 text-xs text-slate-500">
         💡 Nur ein Anzeigefilter – Anzeigen bleiben in der Datenbank. 0 = alle Anzeigen sichtbar.
       </div>
     </div>
@@ -214,7 +216,7 @@
             class="input-field font-mono text-sm resize-y">{{ s.crawler_blacklist or '' }}</textarea>
         {% endcall %}
       </div>
-      <div class="px-5 pb-4 text-xs text-slate-400">
+      <div class="px-5 pb-4 text-xs text-slate-500">
         💡 Anzeigen mit diesen Wörtern im Titel oder in der Beschreibung werden automatisch übersprungen. Einen Begriff pro Zeile, Groß-/Kleinschreibung wird ignoriert.
       </div>
     </div>
@@ -230,7 +232,7 @@
             placeholder="z.B. München" class="input-field">
         {% endcall %}
       </div>
-      <div class="px-5 pb-4 text-xs text-slate-400">
+      <div class="px-5 pb-4 text-xs text-slate-500">
         💡 Wenn angegeben, wird bei jeder Anzeige die Entfernung zu deinem Zuhause berechnet und angezeigt.
       </div>
     </div>
@@ -253,7 +255,7 @@
             min="1" max="24" class="input-field">
         {% endcall %}
       </div>
-      <div class="px-5 pb-4 text-xs text-slate-400">
+      <div class="px-5 pb-4 text-xs text-slate-500">
         💡 Prüft regelmäßig ob gespeicherte Anzeigen noch online sind (HTTP 404/410). Nicht mehr erreichbare Anzeigen werden automatisch gelöscht – auch Favoriten.
       </div>
     </div>
@@ -274,7 +276,7 @@
           Jetzt löschen
         </button>
       </div>
-      <div class="px-5 pb-4 text-xs text-slate-400">
+      <div class="px-5 pb-4 text-xs text-slate-500">
         💡 Löscht Anzeigen dauerhaft aus der Datenbank und merkt sie als gesehen – sie werden beim nächsten Crawl nicht erneut gefunden. Favoriten bleiben erhalten.
       </div>
     </div>
@@ -509,32 +511,34 @@ document.querySelectorAll('.test-btn').forEach(btn => {
 
 // ── Datenverwaltung ──────────────────────────────────────
 function clearAllListings() {
-  if (!confirm('Wirklich alle Anzeigen löschen? (Favoriten bleiben erhalten)')) return;
-  const btn = document.getElementById('clearListingsBtn');
-  btn.disabled = true; btn.textContent = 'Lädt...';
-  fetch('/api/clear-listings', {method: 'POST'})
-    .then(r => r.json())
-    .then(() => {
-      btn.textContent = '✓ Gelöscht';
-      btn.classList.replace('bg-red-600', 'bg-green-600');
-      setTimeout(() => { btn.disabled = false; btn.textContent = 'Löschen'; btn.classList.replace('bg-green-600', 'bg-red-600'); }, 3000);
-    })
-    .catch(() => { btn.disabled = false; btn.textContent = 'Fehler'; });
+  showConfirm('Wirklich alle Anzeigen löschen? (Favoriten bleiben erhalten)', () => {
+    const btn = document.getElementById('clearListingsBtn');
+    btn.disabled = true; btn.textContent = 'Lädt...';
+    fetch('/api/clear-listings', {method: 'POST'})
+      .then(r => r.json())
+      .then(() => {
+        btn.textContent = '✓ Gelöscht';
+        btn.classList.replace('bg-red-600', 'bg-green-600');
+        setTimeout(() => { btn.disabled = false; btn.textContent = 'Löschen'; btn.classList.replace('bg-green-600', 'bg-red-600'); }, 3000);
+      })
+      .catch(() => { btn.disabled = false; btn.textContent = 'Fehler'; });
+  }, 'Löschen');
 }
 
 function runAvailabilityCheck() {
-  if (!confirm('Verfügbarkeits-Check starten? Nicht mehr erreichbare Anzeigen (inkl. Favoriten) werden gelöscht.')) return;
-  fetch('/api/availability-check', {method: 'POST'})
-    .then(r => r.json())
-    .then(() => alert('Verfügbarkeits-Check gestartet. Ergebnis im Dashboard-Log sichtbar.'))
-    .catch(() => alert('Fehler beim Starten des Checks.'));
+  showConfirm('Verfügbarkeits-Check starten? Nicht mehr erreichbare Anzeigen (inkl. Favoriten) werden gelöscht.', () => {
+    fetch('/api/availability-check', {method: 'POST'})
+      .then(r => r.json())
+      .then(() => showToast('Verfügbarkeits-Check gestartet. Ergebnis im Dashboard-Log sichtbar.'))
+      .catch(() => showToast('Fehler beim Starten des Checks.'));
+  }, 'Starten');
 }
 
 // ── Profile ──────────────────────────────────────────────────
 async function createProfile() {
   const name = document.getElementById('new-profile-name').value.trim();
   const emoji = document.getElementById('new-profile-emoji').value.trim() || '👤';
-  if (!name) { alert('Bitte einen Namen eingeben.'); return; }
+  if (!name) { showToast('Bitte einen Namen eingeben.'); return; }
   const res = await fetch('/profiles', {
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -545,7 +549,7 @@ async function createProfile() {
     localStorage.setItem('settingsTab', 'profiles');
     window.location.href = '/settings';
   } else {
-    alert('Fehler beim Anlegen des Profils.');
+    showToast('Fehler beim Anlegen des Profils.');
   }
 }
 
@@ -558,7 +562,7 @@ async function editProfile(id, btn) {
   const newEmoji = prompt('Emoji:', emojiEl.textContent.trim());
   if (newEmoji === null) return;
   const name = newName.trim();
-  if (!name) { alert('Name darf nicht leer sein.'); return; }
+  if (!name) { showToast('Name darf nicht leer sein.'); return; }
   const res = await fetch(`/profiles/${id}/update`, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
@@ -570,30 +574,32 @@ async function editProfile(id, btn) {
   }
 }
 
-async function deleteProfile(id, btn) {
-  if (!confirm('Profil wirklich löschen?')) return;
-  const res = await fetch(`/profiles/${id}/delete`, {method: 'POST'});
-  if (res.ok) btn.closest('li').remove();
+function deleteProfile(id, btn) {
+  showConfirm('Profil wirklich löschen?', async () => {
+    const res = await fetch(`/profiles/${id}/delete`, {method: 'POST'});
+    if (res.ok) btn.closest('li').remove();
+  }, 'Löschen');
 }
 
 function deleteOldListings() {
   const hours = parseInt(document.getElementById('deleteAgeHours').value);
-  if (!hours || hours <= 0) { alert('Bitte eine gültige Stundenanzahl eingeben.'); return; }
-  if (!confirm(`Wirklich alle Anzeigen löschen die älter als ${hours} Stunden sind? Sie werden nicht erneut gefunden. Favoriten bleiben erhalten.`)) return;
+  if (!hours || hours <= 0) { showToast('Bitte eine gültige Stundenanzahl eingeben.'); return; }
   const btn = event.target;
-  btn.disabled = true; btn.textContent = 'Lädt...';
-  fetch('/api/clear-listings-by-age', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({hours})
-  })
-    .then(r => r.json())
-    .then(d => {
-      btn.textContent = `✓ ${d.deleted} gelöscht`;
-      btn.classList.replace('bg-orange-600', 'bg-green-600');
-      setTimeout(() => { btn.disabled = false; btn.textContent = 'Jetzt löschen'; btn.classList.replace('bg-green-600', 'bg-orange-600'); }, 3000);
+  showConfirm(`Wirklich alle Anzeigen löschen die älter als ${hours} Stunden sind? Sie werden nicht erneut gefunden. Favoriten bleiben erhalten.`, () => {
+    btn.disabled = true; btn.textContent = 'Lädt...';
+    fetch('/api/clear-listings-by-age', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({hours})
     })
-    .catch(() => { btn.disabled = false; btn.textContent = 'Fehler'; });
+      .then(r => r.json())
+      .then(d => {
+        btn.textContent = `✓ ${d.deleted} gelöscht`;
+        btn.classList.replace('bg-orange-600', 'bg-green-600');
+        setTimeout(() => { btn.disabled = false; btn.textContent = 'Jetzt löschen'; btn.classList.replace('bg-green-600', 'bg-orange-600'); }, 3000);
+      })
+      .catch(() => { btn.disabled = false; btn.textContent = 'Fehler'; });
+  }, 'Löschen');
 }
 </script>
 

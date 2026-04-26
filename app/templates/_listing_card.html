@@ -1,8 +1,9 @@
 <div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative" data-id="{{ l.id }}" onclick="handleCardClick(event, {{ l.id }})">
-  <button onclick="dismissListing({{ l.id }}, this)"
+  <button onclick="dismissListing({{ l.id }}, this)" aria-label="Anzeige ausblenden"
     class="absolute top-2 left-2 z-10 text-base leading-none text-slate-200 hover:text-red-400 transition-colors"
     title="Ausblenden">✕</button>
   <button onclick="toggleFav({{ l.id }}, this)"
+    aria-label="{{ 'Favorit entfernen' if l.is_favorite else 'Als Favorit markieren' }}"
     class="absolute top-2 right-2 z-10 text-xl leading-none {% if l.is_favorite %}text-yellow-400{% else %}text-slate-200 hover:text-yellow-300{% endif %}">★</button>
   <a href="{{ l.url }}" target="_blank" rel="noopener" class="block">
     {% if l.image_url %}
@@ -18,7 +19,7 @@
           {% elif l.platform == 'Vinted' %}badge-vt
           {% elif l.platform == 'eBay' %}badge-eb
           {% else %}badge-fb{% endif %}">{{ l.platform }}</span>
-        <span class="text-xs text-slate-400 truncate">{{ l.search_term }}</span>
+        <span class="text-xs text-slate-500 truncate">{{ l.search_term }}</span>
       </div>
       <div class="font-semibold text-slate-800 text-sm leading-tight mb-1 pr-5">{{ l.title }}</div>
       <div class="flex items-center flex-wrap gap-1 mb-1">
@@ -29,8 +30,8 @@
         {% if l.potential_duplicate %}<span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">📋 auch auf {{ l.potential_duplicate }}</span>{% endif %}
       </div>
       <div class="text-xs text-slate-500 truncate">📍 {{ l.location }}</div>
-      <div class="found-at-ts text-xs text-slate-400 mt-1" data-found-at="{{ l.found_at }}" title="{{ l.found_at | replace('T', ' ') }}">{{ l.found_at | replace('T', ' ') }}</div>
-      {% if l.notes %}<div class="text-xs text-slate-400 mt-0.5">💬 Notiz</div>{% endif %}
+      <div class="found-at-ts text-xs text-slate-500 mt-1" data-found-at="{{ l.found_at }}" title="{{ l.found_at | replace('T', ' ') }}">{{ l.found_at | replace('T', ' ') }}</div>
+      {% if l.notes %}<div class="text-xs text-slate-500 mt-0.5">💬 Notiz</div>{% endif %}
     </div>
   </a>
 </div>

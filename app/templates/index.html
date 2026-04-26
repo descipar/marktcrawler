@@ -118,8 +118,10 @@
                 onclick="startPriceEdit(event, {{ t.id }}, '{{ t.max_price or '' }}')"
                 title="Preis-Limit setzen">{% if t.max_price %}≤{{ t.max_price }}€{% else %}+€{% endif %}</span>
             </span>
-            <form method="POST" action="/terms/{{ t.id }}/delete" onsubmit="return confirm('\'{{ t.term }}\' und alle {{ t.term }}-Anzeigen löschen?')">
-              <button type="submit" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all text-lg leading-none">×</button>
+            <form id="delete-term-{{ t.id }}" method="POST" action="/terms/{{ t.id }}/delete">
+              <button type="button" aria-label="'{{ t.term }}' löschen" data-term="{{ t.term }}"
+                onclick="confirmDeleteTerm({{ t.id }}, this.dataset.term)"
+                class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all text-lg leading-none">×</button>
             </form>
           </li>
           {% else %}
@@ -203,7 +205,7 @@
       </div>
 
       <!-- Listings-Grid: initial server-rendered, danach JS-geladen -->
-      <div id="listings-grid" class="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div id="listings-grid" aria-live="polite" aria-atomic="false" class="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {% for l in listings %}
         {% include '_listing_card.html' %}
         {% else %}
@@ -510,8 +512,8 @@ function cardHtml(l) {
   const absTs = (l.found_at||'').replace('T',' ');
   const notesBadge = l.notes ? `<span class="text-xs text-slate-400">💬 Notiz</span>` : '';
   return `<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative" data-id="${l.id}" onclick="handleCardClick(event,${l.id})">
-    <button onclick="dismissListing(${l.id},this)" class="absolute top-2 left-2 z-10 text-base leading-none text-slate-200 hover:text-red-400 transition-colors" title="Ausblenden">✕</button>
-    <button onclick="toggleFav(${l.id},this)" class="absolute top-2 right-2 z-10 text-xl leading-none ${favCls}">★</button>
+    <button onclick="dismissListing(${l.id},this)" aria-label="Anzeige ausblenden" class="absolute top-2 left-2 z-10 text-base leading-none text-slate-200 hover:text-red-400 transition-colors" title="Ausblenden">✕</button>
+    <button onclick="toggleFav(${l.id},this)" aria-label="${l.is_favorite?'Favorit entfernen':'Als Favorit markieren'}" class="absolute top-2 right-2 z-10 text-xl leading-none ${favCls}">★</button>
     <a href="${l.url}" target="_blank" rel="noopener" class="block">
       ${img}
       <div class="p-3">
@@ -531,12 +533,10 @@ function cardHtml(l) {
   </div>`;
 }
 
-function showToast(msg) {
-  const el = document.createElement('div');
-  el.className = 'fixed bottom-4 right-4 z-50 px-4 py-2 rounded-lg border text-sm font-medium shadow-lg bg-red-50 text-red-800 border-red-200';
-  el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), TOAST_DURATION_MS);
+function confirmDeleteTerm(id, term) {
+  showConfirm(`'${term}' und alle zugehörigen Anzeigen löschen?`, () => {
+    document.getElementById('delete-term-' + id).submit();
+  }, 'Löschen');
 }
 
 async function dismissListing(id, btn) {

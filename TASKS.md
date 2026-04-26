@@ -8,11 +8,7 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") ode
 
 ---
 
-### Accessibility
-
-- [ ] **8** – `aria-label` auf Icon-Buttons (✕, ★), `label[for]`-Verknüpfung auf allen Formularfeldern, `aria-live`-Region für Listings, Skip-Nav-Link
-- [ ] **9** – Kontrast-Fixes: `slate-400` → `slate-500/600` an Hint-Texten und Metadaten
-- [ ] **19** – `alert()`/`confirm()` durch barrierefreie Inline-Meldungen und eigenes Confirm-Modal ersetzen
+~~### Accessibility~~ ✅ (Phase 18)
 
 ---
 
@@ -154,4 +150,11 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") ode
 
 ---
 
-*Letzte Aktualisierung: 2026-04-26 (Phase 17 abgeschlossen)*
+### Phase 18 – Accessibility
+- [x] **8** `aria-label` auf ✕/★-Buttons (Karte + cardHtml), Skip-Nav-Link, `aria-live` auf Listings-Grid
+- [x] **9** Kontrast: `slate-400` → `slate-500` an Metadaten und Hint-Texten in allen Templates
+- [x] **19** `alert()`/`confirm()` durch barrierefreies Confirm-Modal (base.html) und `showToast()` ersetzt
+
+---
+
+*Letzte Aktualisierung: 2026-04-26 (Phase 18 abgeschlossen)*

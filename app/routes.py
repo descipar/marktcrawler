@@ -221,11 +221,14 @@ def api_listings():
         return jsonify({"error": "Ungültiger Parameter."}), 400
     only_fav = request.args.get("favorites") == "1"
     only_free = request.args.get("free") == "1"
+    only_new = request.args.get("new") == "1"
+    last_seen_at = session.get("profile_last_seen") if only_new else None
 
     listings = db.get_listings(
         limit=limit, offset=offset, search_terms=terms, platform=platform,
         only_favorites=only_fav, only_free=only_free, max_age_hours=max_age,
         max_distance_km=max_distance, sort_by=sort_by, exclude_text=exclude_text,
+        since_datetime=last_seen_at,
     )
     last_seen_at = session.get("profile_last_seen")
     for l in listings:

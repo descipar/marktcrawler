@@ -193,6 +193,12 @@
               class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 hover:bg-yellow-50 hover:border-yellow-300 hover:text-yellow-700 transition-colors whitespace-nowrap">
               ★ Favoriten
             </button>
+            {% if active_profile %}
+            <button id="new-btn" onclick="toggleNewFilter()"
+              class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 hover:bg-brand-50 hover:border-brand-300 hover:text-brand-700 transition-colors whitespace-nowrap">
+              ✨ Neu
+            </button>
+            {% endif %}
             <div class="w-px h-4 bg-slate-200 flex-shrink-0"></div>
             <div class="flex-shrink-0 flex items-center gap-1">
               <input id="exclude-input" type="text" placeholder="🚫 Ausblenden…"
@@ -274,7 +280,7 @@ const LOG_POLL_INTERVAL_MS = 2000;
 const EXCLUDE_DEBOUNCE_MS = 400;
 const TOAST_DURATION_MS = 5000;
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-let activeTerms=new Set(), platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false, distanceFilter=null, sortBy='date_desc', excludeText=null;
+let activeTerms=new Set(), platformFilter=null, ageFilter=0, freeFilter=false, favFilter=false, newFilter=false, distanceFilter=null, sortBy='date_desc', excludeText=null;
 let currentOffset=0, allLoaded=false, totalCount=0;
 let _excludeTimer=null;
 
@@ -386,6 +392,7 @@ function updateFilterCount() {
   if (favFilter) n++;
   if (distanceFilter) n++;
   if (excludeText) n++;
+  if (newFilter) n++;
   const el = document.getElementById('filter-toggle-count');
   if (n > 0) { el.textContent = n; el.classList.remove('hidden'); }
   else { el.classList.add('hidden'); }
@@ -473,6 +480,7 @@ async function fetchListings(offset) {
   if(favFilter)      url+='&favorites=1';
   if(distanceFilter) url+='&max_distance='+distanceFilter;
   if(excludeText)    url+='&exclude='+encodeURIComponent(excludeText);
+  if(newFilter)      url+='&new=1';
   try {
     const resp = await fetch(url);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -592,7 +600,7 @@ function _updateTermLabel() {
 }
 
 function clearFilter() {
-  activeTerms.clear(); platformFilter=null; ageFilter=0; freeFilter=false; favFilter=false; distanceFilter=null; sortBy='date_desc'; excludeText=null;
+  activeTerms.clear(); platformFilter=null; ageFilter=0; freeFilter=false; favFilter=false; newFilter=false; distanceFilter=null; sortBy='date_desc'; excludeText=null;
   _updateTermButtons();
   _updateTermLabel();
   document.getElementById('platform-filter').value='';
@@ -602,6 +610,7 @@ function clearFilter() {
   document.getElementById('exclude-input').value='';
   document.getElementById('exclude-clear').classList.add('hidden');
   setBtn('free-btn',false,'green'); setBtn('fav-btn',false,'yellow');
+  if(document.getElementById('new-btn')) setBtn('new-btn',false,'brand');
   updateFilterCount();
   loadListings();
 }
@@ -612,6 +621,7 @@ function applyDistanceFilter(v){distanceFilter=v||null;updateFilterCount();loadL
 
 function toggleFreeFilter(){freeFilter=!freeFilter;setBtn('free-btn',freeFilter,'green');updateFilterCount();loadListings();}
 function toggleFavFilter(){favFilter=!favFilter;setBtn('fav-btn',favFilter,'yellow');updateFilterCount();loadListings();}
+function toggleNewFilter(){newFilter=!newFilter;setBtn('new-btn',newFilter,'brand');updateFilterCount();loadListings();}
 
 function setBtn(id,on,color){
   const btn=document.getElementById(id);

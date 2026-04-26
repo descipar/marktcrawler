@@ -323,6 +323,47 @@ class TestApiListings:
         assert all(l["search_term"] == "kinderwagen" for l in data)
         assert len(data) == 1
 
+    def test_listings_new_filter_ohne_session(self, client, app):
+        """?new=1 ohne Profil-Session liefert alle Anzeigen (kein since_datetime)."""
+        from app.scrapers.base import Listing
+        import app.database as db
+        with app.app_context():
+            db.save_listing(Listing(
+                platform="Test", title="X", price="5 €", location="München",
+                url="https://example.com/new-no-sess", listing_id="new-no-sess",
+            ))
+        resp = client.get("/api/listings?new=1")
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert any(l["listing_id"] == "new-no-sess" for l in data)
+
+    def test_listings_new_filter_mit_session(self, client, app):
+        """?new=1 mit gesetztem profile_last_seen filtert ältere Anzeigen heraus."""
+        import sqlite3
+        from app.scrapers.base import Listing
+        import app.database as db
+        with app.app_context():
+            db.save_listing(Listing(
+                platform="Test", title="Alt", price="5 €", location="München",
+                url="https://example.com/new-old", listing_id="new-old",
+            ))
+            db.save_listing(Listing(
+                platform="Test", title="Neu", price="5 €", location="München",
+                url="https://example.com/new-new", listing_id="new-new",
+            ))
+            conn = sqlite3.connect(str(db.DB_PATH))
+            conn.execute("UPDATE listings SET found_at=datetime('now', '-2 hours') WHERE listing_id='new-old'")
+            conn.commit()
+            conn.close()
+
+        with client.session_transaction() as sess:
+            sess["profile_last_seen"] = "2099-01-01 00:00:00"  # in der Zukunft → alles ist "alt"
+
+        resp = client.get("/api/listings?new=1")
+        data = json.loads(resp.data)
+        assert all(l["listing_id"] != "new-old" for l in data)
+        assert all(l["listing_id"] != "new-new" for l in data)
+
     def test_listings_mehrere_terme(self, client, app):
         from app.scrapers.base import Listing
         import app.database as db

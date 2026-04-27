@@ -1,8 +1,13 @@
-"""Tests für app/version.py: Versions-Erkennung und GitHub-Update-Check."""
+"""Tests für app/version.py und scripts/bake_version.py."""
+
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from unittest.mock import MagicMock, patch
 
 from app.version import get_current_version, get_available_updates, _github_repo
+from scripts.bake_version import _last_commit_from_log
 
 
 class TestGetCurrentVersion:
@@ -111,3 +116,43 @@ class TestGetAvailableUpdates:
              patch("requests.get", side_effect=Exception("timeout")):
             result = get_available_updates("abc1234")
         assert result is None
+
+
+class TestLastCommitFromLog:
+
+    def _line(self, msg, ts=1700000000):
+        return f"abc123 def456 User <u@x.de> {ts} +0000\t{msg}"
+
+    def test_normalen_commit_erkennt(self):
+        lines = [self._line("commit: feat: etwas Neues")]
+        _, msg, ts = _last_commit_from_log(lines)
+        assert msg == "feat: etwas Neues"
+        assert ts == 1700000000
+
+    def test_fast_forward_wird_uebersprungen(self):
+        lines = [
+            self._line("commit: feat: letzter echter commit", ts=1700000001),
+            self._line("pull: Fast-forward", ts=1700000002),
+        ]
+        _, msg, _ = _last_commit_from_log(lines)
+        assert msg == "feat: letzter echter commit"
+
+    def test_checkout_wird_uebersprungen(self):
+        lines = [
+            self._line("commit: fix: bugfix", ts=1700000001),
+            self._line("checkout: moving from main to feature", ts=1700000002),
+        ]
+        _, msg, _ = _last_commit_from_log(lines)
+        assert msg == "fix: bugfix"
+
+    def test_commit_amend_wird_erkannt(self):
+        lines = [self._line("commit (amend): fix: korrigiert")]
+        _, msg, _ = _last_commit_from_log(lines)
+        assert msg == "fix: korrigiert"
+
+    def test_leeres_log_gibt_leer_zurueck(self):
+        assert _last_commit_from_log([]) == ("", "", 0)
+
+    def test_nur_noise_gibt_leer_zurueck(self):
+        lines = [self._line("pull: Fast-forward"), self._line("checkout: moving")]
+        assert _last_commit_from_log(lines) == ("", "", 0)

@@ -792,3 +792,52 @@ class TestInfoPage:
     def test_info_zeigt_migrationen(self, client):
         resp = client.get("/info")
         assert b"v1_settings_rename" in resp.data
+
+
+class TestCheckUpdatesApi:
+
+    def test_liefert_200(self, client):
+        from unittest.mock import patch
+        with patch("app.version.get_available_updates", return_value=[]), \
+             patch("app.version._github_repo", return_value="owner/repo"):
+            resp = client.get("/api/check-updates")
+        assert resp.status_code == 200
+
+    def test_aktuell_wenn_keine_updates(self, client):
+        from unittest.mock import patch
+        with patch("app.version.get_available_updates", return_value=[]), \
+             patch("app.version._github_repo", return_value="owner/repo"):
+            data = client.get("/api/check-updates").get_json()
+        assert data["status"] == "ok"
+        assert data["count"] == 0
+        assert data["updates"] == []
+
+    def test_repo_url_enthalten(self, client):
+        from unittest.mock import patch
+        with patch("app.version.get_available_updates", return_value=[]), \
+             patch("app.version._github_repo", return_value="owner/repo"):
+            data = client.get("/api/check-updates").get_json()
+        assert data["repo_url"] == "https://github.com/owner/repo"
+
+    def test_repo_url_leer_ohne_repo(self, client):
+        from unittest.mock import patch
+        with patch("app.version.get_available_updates", return_value=[]), \
+             patch("app.version._github_repo", return_value=""):
+            data = client.get("/api/check-updates").get_json()
+        assert data["repo_url"] == ""
+
+    def test_fehler_wenn_github_nicht_erreichbar(self, client):
+        from unittest.mock import patch
+        with patch("app.version.get_available_updates", return_value=None), \
+             patch("app.version._github_repo", return_value="owner/repo"):
+            data = client.get("/api/check-updates").get_json()
+        assert data["status"] == "error"
+
+    def test_updates_werden_zurueckgegeben(self, client):
+        from unittest.mock import patch
+        updates = [{"short_hash": "abc1234", "message": "feat: etwas", "date": "2026-04-28"}]
+        with patch("app.version.get_available_updates", return_value=updates), \
+             patch("app.version._github_repo", return_value="owner/repo"):
+            data = client.get("/api/check-updates").get_json()
+        assert data["count"] == 1
+        assert data["updates"][0]["message"] == "feat: etwas"

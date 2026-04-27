@@ -5,7 +5,7 @@ from app.scheduler import _calc_start_date
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(timezone.utc)
 
 
 class TestCalcStartDate:

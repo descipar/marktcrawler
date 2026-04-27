@@ -50,13 +50,17 @@ def _calc_start_date(last_end_str: str, minutes: int, stagger_seconds: int) -> d
     stagger_seconds gestartet statt erst nach dem vollen Intervall zu warten.
     Ist er noch nicht fällig, wird der exakte Fälligkeitszeitpunkt gesetzt.
     Fehlt last_end, wird None zurückgegeben (APScheduler-Standard).
+
+    Wichtig: Rückgabe ist timezone-aware (UTC), damit APScheduler mit
+    timezone="Europe/Berlin" die Konvertierung korrekt vornimmt.
+    Naive Datetimes würden als Berliner Lokalzeit interpretiert (±2h Versatz).
     """
     if not last_end_str:
         return None
     try:
-        last_end = datetime.fromisoformat(last_end_str)
+        last_end = datetime.fromisoformat(last_end_str).replace(tzinfo=timezone.utc)
         next_due = last_end + timedelta(minutes=minutes)
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = datetime.now(timezone.utc)
         if next_due <= now:
             return now + timedelta(seconds=stagger_seconds)
         return next_due
@@ -172,9 +176,9 @@ def _schedule_availability_check():
     last_run_str = db.get_setting("availability_last_run", "")
     if last_run_str:
         try:
-            last_run = datetime.fromisoformat(last_run_str)
+            last_run = datetime.fromisoformat(last_run_str).replace(tzinfo=timezone.utc)
             next_due = last_run + timedelta(hours=hours)
-            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            now = datetime.now(timezone.utc)
             start_date = now + timedelta(minutes=1) if next_due <= now else next_due
         except ValueError:
             pass
@@ -212,7 +216,7 @@ def get_next_run() -> str:
         for platform in PLATFORMS
         if (job := _scheduler.get_job(f"crawl_{platform}")) and job.next_run_time
     ]
-    return min(next_times).strftime("%d.%m.%Y %H:%M:%S") if next_times else "–"
+    return min(next_times).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S") if next_times else "–"
 
 
 def get_next_runs() -> dict:
@@ -224,7 +228,7 @@ def get_next_runs() -> dict:
     for platform in PLATFORMS:
         job = _scheduler.get_job(f"crawl_{platform}")
         if job and job.next_run_time:
-            result[platform] = job.next_run_time.strftime("%d.%m.%Y %H:%M:%S")
+            result[platform] = job.next_run_time.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
     return result
 
 

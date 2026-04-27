@@ -48,7 +48,9 @@
             {% else %}—{% endif %}
           </td>
           <td class="py-1.5 text-slate-500">
-            {{ p.next_run if p.next_run else '—' }}
+            {% if p.next_run %}
+              <span class="next-run-rel" data-ts="{{ p.next_run }}">{{ p.next_run }}</span>
+            {% else %}—{% endif %}
           </td>
           <td class="py-1.5 text-right">
             {% if p.last_crawl_found %}
@@ -309,15 +311,33 @@ function relativeTime(isoStr) {
   return `vor ${Math.round(diff/86400)} Tagen`;
 }
 
+function nextRunTime(isoStr) {
+  if (!isoStr) return { text: '—', late: false };
+  const d = new Date(isoStr.replace(' ', 'T'));
+  if (isNaN(d)) return { text: isoStr, late: false };
+  const diff = Math.round((d.getTime() - Date.now()) / 1000);
+  if (diff > 3600)  return { text: `in ${Math.round(diff/3600)}h`,    late: false };
+  if (diff > 60)    return { text: `in ${Math.round(diff/60)}min`,    late: false };
+  if (diff > -60)   return { text: 'gleich',                          late: false };
+  if (diff > -3600) return { text: `überfällig ${Math.abs(Math.round(diff/60))}min`, late: true };
+  return              { text: `überfällig ${Math.abs(Math.round(diff/3600))}h`,      late: true };
+}
+
 function initRelativeTimes() {
   document.querySelectorAll('.found-at-ts').forEach(el => {
     const ts = el.dataset.foundAt;
     if (ts) el.textContent = relativeTime(ts);
   });
-  // Status-Bar letzter Lauf
   document.querySelectorAll('.last-crawl-rel').forEach(el => {
     const ts = el.dataset.ts;
     if (ts) el.textContent = relativeTime(ts);
+  });
+  document.querySelectorAll('.next-run-rel').forEach(el => {
+    const ts = el.dataset.ts;
+    if (!ts) return;
+    const nr = nextRunTime(ts);
+    el.textContent = nr.text;
+    if (nr.late) { el.classList.add('text-amber-500', 'font-medium'); }
   });
 }
 initRelativeTimes();
@@ -922,7 +942,14 @@ function updatePlatformTable(platforms) {
     // Dauer
     tdDuration.textContent = fmtDuration(p.last_crawl_duration);
     // Nächster Lauf
-    tdNext.textContent = p.next_run || '—';
+    if (p.next_run) {
+      const nr = nextRunTime(p.next_run);
+      tdNext.textContent = nr.text;
+      tdNext.className = `py-1.5 ${nr.late ? 'text-amber-500 font-medium' : 'text-slate-500'}`;
+    } else {
+      tdNext.textContent = '—';
+      tdNext.className = 'py-1.5 text-slate-500';
+    }
     // Neue
     tdNew.innerHTML = p.last_crawl_found
       ? `<span class="inline-block bg-brand-100 text-brand-700 rounded px-1 font-semibold">${p.last_crawl_found}</span>`

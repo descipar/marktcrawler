@@ -4,7 +4,7 @@ import json
 import logging
 from typing import List, Optional
 import requests
-from .base import Listing, _int
+from .base import BaseScraper, Listing, _int
 from ..geo import geocode, haversine
 
 logger = logging.getLogger(__name__)
@@ -51,8 +51,9 @@ query ItemSearch($serializedFilters: String, $pagination: Pagination, $trackingS
 """
 
 
-class ShpockScraper:
+class ShpockScraper(BaseScraper):
     def __init__(self, settings: dict):
+        super().__init__(settings)
         self.max_price: Optional[int] = _int(settings.get("shpock_max_price"))
         raw = _int(settings.get("shpock_radius", "30"))
         self.radius_km: int = 30 if raw is None else raw

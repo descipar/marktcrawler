@@ -13,7 +13,7 @@ from typing import List, Optional
 import requests
 from bs4 import BeautifulSoup
 
-from .base import Listing, _int, price_within_limit
+from .base import BaseScraper, Listing, _int, price_within_limit
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +28,9 @@ HEADERS = {
 }
 
 
-class KleinanzeigenScraper:
+class KleinanzeigenScraper(BaseScraper):
     def __init__(self, settings: dict):
+        super().__init__(settings)
         self.max_price: Optional[int] = _int(settings.get("kleinanzeigen_max_price"))
         self.location: str = settings.get("kleinanzeigen_location", "")
         self.radius_km: int = _int(settings.get("kleinanzeigen_radius", 30)) or 30

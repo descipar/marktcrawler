@@ -198,7 +198,6 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
         db.set_setting(f"{platform}_last_crawl_end", now_str)
         db.set_setting(f"{platform}_last_crawl_found", str(stats["new"]))
         db.set_setting("last_crawl_end", now_str)
-        db.set_setting("last_crawl_found", str(stats["new"]))
 
     return {"status": "ok", **stats}
 

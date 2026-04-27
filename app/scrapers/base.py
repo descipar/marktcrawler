@@ -1,7 +1,8 @@
-"""Gemeinsame Datenstruktur und Hilfsfunktionen für alle Scraper."""
+"""Gemeinsame Datenstruktur, Hilfsfunktionen und Basis-Klasse für alle Scraper."""
 import re
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
 
 @dataclass
@@ -33,6 +34,17 @@ def _float(v) -> Optional[float]:
         return float(v)
     except (TypeError, ValueError):
         return None
+
+
+class BaseScraper(ABC):
+    """Erzwingt das search()-Interface für alle Plattform-Scraper."""
+
+    def __init__(self, settings: dict):
+        self.settings = settings
+
+    @abstractmethod
+    def search(self, term: str, max_results: int = 20) -> List[Listing]:
+        """Sucht nach `term` und gibt maximal `max_results` Listings zurück."""
 
 
 def price_within_limit(price_str: str, max_price: Optional[float]) -> bool:

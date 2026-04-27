@@ -1,6 +1,7 @@
 """E-Mail-Benachrichtigung: Sofort-Alerts und Tages-Digest."""
 
 import logging
+import os
 import smtplib
 from collections import defaultdict
 from dataclasses import asdict
@@ -69,12 +70,12 @@ def send_digest(settings: dict) -> bool:
     tpl = settings.get("email_subject_digest", "🍼 Baby-Crawler Tages-Digest: {n} Anzeige(n) heute")
     subject = tpl.replace("{n}", str(len(listings)))
     logger.info(f"Sende Tages-Digest mit {len(listings)} Anzeigen.")
-    return _send_digest_mail(subject, listings, settings)
+    return _send_dicts(subject, listings, settings, is_digest=True)
 
 
 # ── Interner Versand ─────────────────────────────────────────
 
-def _send_dicts(subject: str, listings: list, settings: dict) -> bool:
+def _send_dicts(subject: str, listings: list, settings: dict, is_digest: bool = False) -> bool:
     """Sendet eine E-Mail mit gruppierten Listings (als Dicts)."""
     sender, password, recipients = _get_email_config(settings)
     if not recipients:
@@ -84,8 +85,8 @@ def _send_dicts(subject: str, listings: list, settings: dict) -> bool:
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = ", ".join(recipients)
-    msg.attach(MIMEText(_text_from_dicts(listings), "plain", "utf-8"))
-    msg.attach(MIMEText(_html_grouped(listings), "html", "utf-8"))
+    msg.attach(MIMEText(_text_from_dicts(listings, is_digest=is_digest), "plain", "utf-8"))
+    msg.attach(MIMEText(_html_email(listings, is_digest=is_digest), "html", "utf-8"))
 
     if _smtp_send(msg, sender, password, recipients, settings):
         logger.info(f"E-Mail '{subject}' → {', '.join(recipients)}")
@@ -93,26 +94,11 @@ def _send_dicts(subject: str, listings: list, settings: dict) -> bool:
     return False
 
 
-def _send_digest_mail(subject: str, listings: list, settings: dict) -> bool:
-    """Sendet eine E-Mail mit Listings als Dicts (aus DB), flaches Format für Digest."""
-    sender, password, recipients = _get_email_config(settings)
-    if not recipients:
-        return False
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = sender
-    msg["To"] = ", ".join(recipients)
-    msg.attach(MIMEText(_text_from_dicts(listings), "plain", "utf-8"))
-    msg.attach(MIMEText(_html_from_dicts(listings, is_digest=True), "html", "utf-8"))
-
-    return _smtp_send(msg, sender, password, recipients, settings)
-
-
 def _get_email_config(settings: dict):
-    sender = settings.get("email_sender", "")
-    password = settings.get("email_password", "")
-    raw = settings.get("email_recipient", "")
+    """Liest E-Mail-Konfiguration – Env-Variablen haben Vorrang vor DB-Settings."""
+    sender = os.environ.get("EMAIL_SENDER") or settings.get("email_sender", "")
+    password = os.environ.get("EMAIL_PASSWORD") or settings.get("email_password", "")
+    raw = os.environ.get("EMAIL_RECIPIENT") or settings.get("email_recipient", "")
     if not all([sender, password, raw]):
         logger.warning("E-Mail-Konfiguration unvollständig – kein Versand.")
         return sender, password, []
@@ -121,8 +107,8 @@ def _get_email_config(settings: dict):
 
 
 def _smtp_send(msg, sender: str, password: str, recipients: list, settings: dict) -> bool:
-    smtp_server = settings.get("email_smtp_server", "smtp.gmail.com")
-    smtp_port = int(settings.get("email_smtp_port") or 587)
+    smtp_server = os.environ.get("EMAIL_SMTP_SERVER") or settings.get("email_smtp_server", "smtp.gmail.com")
+    smtp_port = int(os.environ.get("EMAIL_SMTP_PORT") or settings.get("email_smtp_port") or 587)
     try:
         with smtplib.SMTP(smtp_server, smtp_port) as srv:
             srv.ehlo()
@@ -192,8 +178,8 @@ def _card_html(title, platform, search_term, price, location, url,
     </div>"""
 
 
-def _html_grouped(listings: list) -> str:
-    """Grupiertes HTML-E-Mail: Plattform → Suchbegriff mit Inhaltsverzeichnis."""
+def _html_email(listings: list, is_digest: bool = False) -> str:
+    """Vereinheitlichter HTML-Builder: gruppiert nach Plattform → Suchbegriff."""
     groups: dict = defaultdict(lambda: defaultdict(list))
     for l in listings:
         groups[l.get("platform", "Unbekannt")][l.get("search_term", "")].append(l)
@@ -235,7 +221,7 @@ def _html_grouped(listings: list) -> str:
                     price=l.get("price", ""), location=l.get("location", ""),
                     url=l.get("url", ""), image_url=l.get("image_url", ""),
                     is_free=bool(l.get("is_free")), distance_km=l.get("distance_km"),
-                    found_at=l.get("found_at", ""),
+                    found_at=l.get("found_at", ""), is_digest=is_digest,
                 )
                 for l in items
             )
@@ -248,42 +234,33 @@ def _html_grouped(listings: list) -> str:
         sections.append('</div>')
 
     count = len(listings)
+    if is_digest:
+        heading = f"Tages-Digest: {count} Babysachen"
+        footer = "Tages-Zusammenfassung"
+    else:
+        heading = f"{count} neue Babysachen"
+        footer = "automatische Benachrichtigung"
+
     return (
         '<html><body style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;padding:20px">'
-        f'<h2 style="color:#333">🍼 {count} neue Babysachen</h2>'
+        f'<h2 style="color:#333">🍼 {heading}</h2>'
         '<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;'
         'padding:14px;margin-bottom:24px">'
         '<p style="margin:0 0 8px;font-weight:bold;color:#333">Inhalt</p>'
         f'{toc}</div>'
         + "".join(sections)
-        + '<p style="color:#aaa;font-size:11px;margin-top:24px">'
-        'Baby-Crawler – automatische Benachrichtigung</p>'
+        + f'<p style="color:#aaa;font-size:11px;margin-top:24px">Baby-Crawler – {footer}</p>'
         '</body></html>'
     )
 
 
+# Backward-compat-Aliases für Tests und Digest
+def _html_grouped(listings: list) -> str:
+    return _html_email(listings)
+
+
 def _html_from_dicts(listings: list, is_digest: bool = False) -> str:
-    cards = "".join(
-        _card_html(
-            title=l.get("title", ""), platform=l.get("platform", ""),
-            search_term=l.get("search_term", ""), price=l.get("price", ""),
-            location=l.get("location", ""), url=l.get("url", ""),
-            image_url=l.get("image_url", ""),
-            is_free=bool(l.get("is_free")),
-            distance_km=l.get("distance_km"),
-            found_at=l.get("found_at", ""),
-            is_digest=is_digest,
-        )
-        for l in listings
-    )
-    count = len(listings)
-    heading = f"{'Tages-Digest: ' if is_digest else ''}{count} Babysachen"
-    footer = "Tages-Zusammenfassung" if is_digest else "automatische Benachrichtigung"
-    return f"""<html><body style="font-family:Arial,sans-serif;max-width:680px;
-      margin:0 auto;padding:20px">
-      <h2 style="color:#333">🍼 {heading}</h2>{cards}
-      <p style="color:#aaa;font-size:11px">Baby-Crawler – {footer}</p>
-    </body></html>"""
+    return _html_email(listings, is_digest=is_digest)
 
 
 def _text_from_dicts(listings: list, is_digest: bool = False) -> str:

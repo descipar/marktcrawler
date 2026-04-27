@@ -7,7 +7,7 @@ from typing import List, Optional
 import requests
 from bs4 import BeautifulSoup
 
-from .base import Listing, _float, _int, price_within_limit
+from .base import BaseScraper, Listing, _float, _int, price_within_limit
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,9 @@ HEADERS = {
 }
 
 
-class EbayScraper:
+class EbayScraper(BaseScraper):
     def __init__(self, settings: dict):
+        super().__init__(settings)
         self.max_price: Optional[float] = _float(settings.get("ebay_max_price"))
         self.location: str = settings.get("ebay_location", "").strip()
         self.radius_km: int = _int(settings.get("ebay_radius", 30)) or 30

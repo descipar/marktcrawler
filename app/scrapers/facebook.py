@@ -11,14 +11,15 @@ import time
 from pathlib import Path
 from typing import List, Optional
 
-from .base import Listing, _int
+from .base import BaseScraper, Listing, _int
 
 logger = logging.getLogger(__name__)
 SESSION_FILE = Path(os.environ.get("DATA_DIR", "/data")) / "facebook_session.json"
 
 
-class FacebookScraper:
+class FacebookScraper(BaseScraper):
     def __init__(self, settings: dict):
+        super().__init__(settings)
         self.max_price: Optional[int] = _int(settings.get("facebook_max_price"))
         self.location: str = settings.get("facebook_location", "")
 

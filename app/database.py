@@ -143,10 +143,9 @@ def init_db():
     """)
     conn.commit()
 
-    # Migrationen für bestehende Datenbanken
-    _migrate_settings_values(conn)
-    _migrate_listings(conn)
-    _migrate_search_terms(conn)
+    # Migrationen für bestehende Datenbanken (müssen vor Indizes laufen)
+    _run_pending_migrations(conn)
+    _ensure_indexes(conn)
 
     # Default-Settings nur eintragen wenn noch nicht vorhanden
     for key, value in DEFAULT_SETTINGS.items():
@@ -167,42 +166,35 @@ def init_db():
     logger.info(f"Datenbank initialisiert: {DB_PATH}")
 
 
-def _migrate_settings_values(conn: sqlite3.Connection):
-    """Aktualisiert veraltete Default-Werte in bestehenden Datenbanken."""
-    # Standorte von altem Default "Dortmund" auf "München" migrieren
-    location_keys = ["kleinanzeigen_location", "shpock_location", "facebook_location"]
-    for key in location_keys:
+def _mig_settings_rename(conn: sqlite3.Connection):
+    """Aktualisiert veraltete Default-Werte (Dortmund→München, alter Spaltenname)."""
+    for key in ["kleinanzeigen_location", "shpock_location", "facebook_location"]:
         conn.execute("UPDATE settings SET value='München' WHERE key=? AND value='Dortmund'", (key,))
-    # Fallback-Koordinaten ebenfalls aktualisieren
-    coord_migrations = [
+    for key, old, new in [
         ("shpock_latitude",  "51.5136", "48.1351"),
         ("shpock_longitude", "7.4653",  "11.5820"),
         ("home_latitude",    "51.5136", "48.1351"),
         ("home_longitude",   "7.4653",  "11.5820"),
-    ]
-    for key, old, new in coord_migrations:
+    ]:
         conn.execute("UPDATE settings SET value=? WHERE key=? AND value=?", (new, key, old))
-    # crawler_max_age_hours → display_max_age_hours
     conn.execute(
         "INSERT OR IGNORE INTO settings (key, value) "
         "SELECT 'display_max_age_hours', value FROM settings WHERE key='crawler_max_age_hours'"
     )
     conn.execute("DELETE FROM settings WHERE key='crawler_max_age_hours'")
-    conn.commit()
 
 
-def _migrate_listings(conn: sqlite3.Connection):
-    """Ergänzt neue Spalten falls sie noch nicht existieren (für Updates)."""
+def _mig_listings_columns(conn: sqlite3.Connection):
+    """Ergänzt neue Listings-Spalten für ältere Datenbanken."""
     existing = {row[1] for row in conn.execute("PRAGMA table_info(listings)")}
-    new_cols = [
+    for col, definition in [
         ("is_favorite",         "INTEGER DEFAULT 0"),
         ("is_free",             "INTEGER DEFAULT 0"),
         ("distance_km",         "REAL"),
         ("notes",               "TEXT"),
         ("potential_duplicate", "TEXT"),
         ("notified_at",         "TEXT"),
-    ]
-    for col, definition in new_cols:
+    ]:
         if col not in existing:
             conn.execute(f"ALTER TABLE listings ADD COLUMN {col} {definition}")
 
@@ -210,14 +202,54 @@ def _migrate_listings(conn: sqlite3.Connection):
     if "cached_at" not in existing_geo:
         conn.execute("ALTER TABLE geocache ADD COLUMN cached_at TEXT DEFAULT (datetime('now'))")
 
-    conn.commit()
 
-
-def _migrate_search_terms(conn: sqlite3.Connection):
-    """Ergänzt neue Spalten in search_terms falls sie noch nicht existieren."""
+def _mig_search_terms_max_price(conn: sqlite3.Connection):
+    """Ergänzt max_price-Spalte in search_terms."""
     existing = {row[1] for row in conn.execute("PRAGMA table_info(search_terms)")}
     if "max_price" not in existing:
         conn.execute("ALTER TABLE search_terms ADD COLUMN max_price INTEGER NULL")
+
+
+def _ensure_indexes(conn: sqlite3.Connection):
+    """Erstellt Performance-Indizes nur für vorhandene Spalten (idempotent)."""
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(listings)")}
+    for idx_name, col in [
+        ("idx_listings_platform",    "platform"),
+        ("idx_listings_search_term", "search_term"),
+        ("idx_listings_found_at",    "found_at"),
+        ("idx_listings_is_favorite", "is_favorite"),
+        ("idx_listings_notified_at", "notified_at"),
+    ]:
+        if col in existing:
+            conn.execute(f"CREATE INDEX IF NOT EXISTS {idx_name} ON listings({col})")
+    if {"platform", "found_at"} <= existing:
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_listings_plat_found ON listings(platform, found_at)"
+        )
+    conn.commit()
+
+
+_MIGRATIONS = [
+    ("v1_settings_rename",          _mig_settings_rename),
+    ("v2_listings_columns",         _mig_listings_columns),
+    ("v3_search_terms_max_price",   _mig_search_terms_max_price),
+]
+
+
+def _run_pending_migrations(conn: sqlite3.Connection):
+    """Führt noch nicht angewandte Migrationen aus und protokolliert sie."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS _migrations (
+            name       TEXT PRIMARY KEY,
+            applied_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    applied = {row[0] for row in conn.execute("SELECT name FROM _migrations").fetchall()}
+    for name, fn in _MIGRATIONS:
+        if name not in applied:
+            fn(conn)
+            conn.execute("INSERT INTO _migrations(name) VALUES(?)", (name,))
+            logger.info(f"Migration angewendet: {name}")
     conn.commit()
 
 

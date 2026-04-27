@@ -43,12 +43,13 @@ def index():
     for l in listings:
         l["is_new"] = bool(last_seen_at and l.get("found_at", "") > last_seen_at)
 
+    last_found = sum(int(settings.get(f"{p}_last_crawl_found", 0) or 0) for p in PLATFORMS)
     stats = {
         "total_listings": db.get_listing_count(),
         "last_crawl": settings.get("last_crawl_end", "") or "Noch kein Lauf",
         "next_crawl": get_next_run(),
         "crawl_status": settings.get("crawl_status", "idle"),
-        "last_found": settings.get("last_crawl_found", "0"),
+        "last_found": str(last_found),
     }
     price_stats = db.get_price_stats()
     return render_template(
@@ -199,7 +200,7 @@ def api_status():
         "last_crawl": settings.get("last_crawl_end", ""),
         "next_crawl": get_next_run(),
         "next_runs": get_next_runs(),
-        "last_found": settings.get("last_crawl_found", "0"),
+        "last_found": str(sum(int(settings.get(f"{p}_last_crawl_found", 0) or 0) for p in PLATFORMS)),
         "total_listings": db.get_listing_count(),
         "is_running": is_running(),
         "platform_counts": db.get_platform_counts(),

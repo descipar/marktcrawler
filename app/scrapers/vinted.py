@@ -5,7 +5,7 @@ from typing import List, Optional
 
 import requests
 
-from .base import Listing, _float, _int
+from .base import BaseScraper, Listing, _float, _int
 from ..geo import geocode, haversine
 
 logger = logging.getLogger(__name__)
@@ -24,8 +24,9 @@ HEADERS = {
 }
 
 
-class VintedScraper:
+class VintedScraper(BaseScraper):
     def __init__(self, settings: dict):
+        super().__init__(settings)
         self.max_price: Optional[float] = _float(settings.get("vinted_max_price"))
         raw = _int(settings.get("vinted_radius", "30"))
         self.radius_km: int = 30 if raw is None else raw

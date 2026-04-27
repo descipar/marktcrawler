@@ -176,8 +176,11 @@ def save_settings():
 
 @bp.route("/info")
 def info():
-    from app.version import get_current_version
+    from app.version import get_current_version, _github_repo
     stats = db.get_system_stats()
     price_stats = db.get_price_stats()
     version = get_current_version()
-    return render_template("info.html", stats=stats, price_stats=price_stats, version=version)
+    repo = _github_repo()
+    repo_url = f"https://github.com/{repo}" if repo else ""
+    return render_template("info.html", stats=stats, price_stats=price_stats,
+                           version=version, repo_url=repo_url)

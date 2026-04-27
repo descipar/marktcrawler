@@ -343,7 +343,12 @@
     <div class="bg-white rounded-xl border border-slate-200 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
       <div class="flex-1">
         <div class="flex items-center gap-2 flex-wrap">
+          {% if repo_url %}
+          <a href="{{ repo_url }}/commit/{{ version.hash }}" target="_blank" rel="noopener"
+             class="text-sm font-mono bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded text-brand-600 transition-colors">{{ version.short_hash }}</a>
+          {% else %}
           <code class="text-sm font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-700">{{ version.short_hash }}</code>
+          {% endif %}
           <span class="text-slate-400 text-xs">{{ version.date }}</span>
         </div>
         <p class="text-sm text-slate-700 mt-1">{{ version.message }}</p>
@@ -388,13 +393,16 @@ async function checkUpdates() {
     } else {
       badge.textContent = '↑ ' + d.count + ' Update' + (d.count !== 1 ? 's' : '') + ' verfügbar';
       badge.className = 'inline-flex items-center text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg font-medium';
-      commits.innerHTML = d.updates.map(c =>
-        `<li class="flex items-start gap-3 px-4 py-2.5">
-          <code class="text-xs font-mono text-slate-400 mt-0.5 shrink-0">${c.short_hash}</code>
+      const base = d.repo_url;
+      commits.innerHTML = d.updates.map(c => {
+        const hash = base
+          ? `<a href="${base}/commit/${c.short_hash}" target="_blank" rel="noopener" class="text-xs font-mono text-brand-500 hover:underline mt-0.5 shrink-0">${c.short_hash}</a>`
+          : `<code class="text-xs font-mono text-slate-400 mt-0.5 shrink-0">${c.short_hash}</code>`;
+        return `<li class="flex items-start gap-3 px-4 py-2.5">${hash}
           <span class="text-sm text-slate-700 flex-1">${c.message}</span>
           <span class="text-xs text-slate-400 shrink-0 mt-0.5">${c.date}</span>
-        </li>`
-      ).join('');
+        </li>`;
+      }).join('');
       list.classList.remove('hidden');
     }
   } catch(e) {

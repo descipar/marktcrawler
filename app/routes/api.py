@@ -245,9 +245,11 @@ def api_test_scraper():
 
 @bp.route("/api/check-updates")
 def check_updates():
-    from ..version import get_current_version, get_available_updates
+    from ..version import get_current_version, get_available_updates, _github_repo
     version = get_current_version()
     updates = get_available_updates(version["hash"])
     if updates is None:
         return jsonify({"status": "error", "message": "GitHub nicht erreichbar oder Repo unbekannt."})
-    return jsonify({"status": "ok", "updates": updates, "count": len(updates)})
+    repo = _github_repo()
+    repo_url = f"https://github.com/{repo}" if repo else ""
+    return jsonify({"status": "ok", "updates": updates, "count": len(updates), "repo_url": repo_url})

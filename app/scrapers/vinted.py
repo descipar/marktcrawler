@@ -45,12 +45,17 @@ class VintedScraper(BaseScraper):
             logger.warning(f"[Vinted] Stadtname '{city}' konnte nicht geocodiert werden.")
         return None
 
-    def _authenticate(self) -> None:
+    def _authenticate(self) -> bool:
         """Holt anonym ausgestellte JWT-Cookies (access_token_web) von der Startseite."""
         try:
-            self.session.get(BASE_URL, timeout=15)
+            resp = self.session.get(BASE_URL, timeout=15)
+            if not resp.ok:
+                logger.warning(f"[Vinted] Authentifizierung: HTTP {resp.status_code} – Cookies ggf. ungültig.")
+                return False
+            return True
         except Exception as e:
             logger.warning(f"[Vinted] Authentifizierung fehlgeschlagen: {e}")
+            return False
 
     def search(self, term: str, max_results: int = 20) -> List[Listing]:
         logger.info(f"[Vinted] '{term}'")

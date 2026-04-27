@@ -1,6 +1,7 @@
 """Tests für app/geo.py: haversine() und distance_to_home()."""
 
 import pytest
+import threading
 from unittest.mock import patch, MagicMock
 
 from app.geo import haversine, distance_to_home
@@ -131,3 +132,56 @@ class TestGeocodeCache:
         from app.geo import geocode
         assert geocode("AB") is None
         assert geocode("") is None
+
+
+class TestGeocodeConcurrency:
+
+    def test_parallele_anfragen_verschiedene_staedte(self, temp_db):
+        """Zwei gleichzeitige geocode()-Aufrufe für verschiedene Städte liefern je ein Ergebnis."""
+        from app.geo import geocode
+
+        call_count = 0
+        results = {}
+        lock = threading.Lock()
+
+        def fake_nominatim(url, **kwargs):
+            nonlocal call_count
+            with lock:
+                call_count += 1
+            resp = MagicMock()
+            if "Dortmund" in url:
+                resp.json.return_value = [{"lat": "51.5136", "lon": "7.4653"}]
+            else:
+                resp.json.return_value = [{"lat": "48.1351", "lon": "11.5820"}]
+            return resp
+
+        barrier = threading.Barrier(2)
+
+        def geocode_city(city):
+            barrier.wait()
+            results[city] = geocode(city)
+
+        with patch("app.geo.requests.get", side_effect=fake_nominatim):
+            with patch("app.geo.time.sleep"):
+                threads = [
+                    threading.Thread(target=geocode_city, args=("Dortmund NRW",)),
+                    threading.Thread(target=geocode_city, args=("München Bayern",)),
+                ]
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join(timeout=5)
+
+        assert results["Dortmund NRW"] is not None
+        assert results["München Bayern"] is not None
+
+    def test_cache_verhindert_doppelten_nominatim_aufruf(self, temp_db):
+        """Ein bereits gecachter Ort löst keinen zweiten Nominatim-Request aus."""
+        from app.geo import geocode
+
+        temp_db.save_geocache("Berlin Mitte", 52.5200, 13.4050)
+
+        with patch("app.geo.requests.get") as mock_get:
+            geocode("Berlin Mitte")
+            geocode("Berlin Mitte")
+            mock_get.assert_not_called()

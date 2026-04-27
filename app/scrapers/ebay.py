@@ -3,6 +3,7 @@
 import logging
 import re
 from typing import List, Optional
+from urllib.parse import quote_plus
 
 import requests
 from bs4 import BeautifulSoup
@@ -52,10 +53,10 @@ class EbayScraper(BaseScraper):
         return results
 
     def _build_url(self, term: str, max_results: int) -> str:
-        keyword = term.strip().replace(" ", "+")
+        keyword = quote_plus(term.strip())
         url = f"{BASE_URL}/sch/i.html?_nkw={keyword}&_sop=10&_ipg={min(max_results, 50)}"
         if self.location:
-            url += f"&_stpos={self.location.replace(' ', '+')}&_sadis={self.radius_km}"
+            url += f"&_stpos={quote_plus(self.location)}&_sadis={self.radius_km}"
         return url
 
     def _parse(self, item, term: str) -> Optional[Listing]:

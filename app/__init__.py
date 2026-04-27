@@ -55,7 +55,7 @@ def create_app() -> Flask:
     init_db()
 
     # Routen registrieren
-    from .routes import bp
+    from .routes import bp  # package: routes/__init__.py
     app.register_blueprint(bp)
 
     # Scheduler im Reloader-Child starten (der beantwortet Requests);

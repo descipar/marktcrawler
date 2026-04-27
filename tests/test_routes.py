@@ -219,8 +219,8 @@ class TestSettingsRoutes:
 class TestApiCrawl:
 
     def test_crawl_startet(self, client):
-        with patch("app.routes.is_running", return_value=False), \
-             patch("app.routes.run_crawl_async") as mock_run:
+        with patch("app.routes.api.is_running", return_value=False), \
+             patch("app.routes.api.run_crawl_async") as mock_run:
             resp = client.post("/api/crawl",
                                data=json.dumps({"platform": "kleinanzeigen"}),
                                content_type="application/json")
@@ -230,7 +230,7 @@ class TestApiCrawl:
             mock_run.assert_called_once_with("kleinanzeigen", manual=True)
 
     def test_crawl_bereits_laufend(self, client):
-        with patch("app.routes.is_running", return_value=True):
+        with patch("app.routes.api.is_running", return_value=True):
             resp = client.post("/api/crawl")
             assert resp.status_code == 409
             data = json.loads(resp.data)
@@ -531,6 +531,62 @@ class TestApiTestScraper:
         data = json.loads(resp.data)
         assert data["status"] == "ok"
         assert data["count"] == 0
+
+
+# ── KI-Modelle-API ───────────────────────────────────────────
+
+class TestApiAiModels:
+
+    def _set_ai_settings(self, app, api_key="", base_url="", model=""):
+        import app.database as db
+        db.save_settings({"ai_api_key": api_key, "ai_base_url": base_url, "ai_model": model})
+
+    def test_erkennt_anthropic_provider(self, client, app):
+        self._set_ai_settings(app, api_key="sk-ant-abc123")
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"data": [{"id": "claude-3-5-sonnet-20241022"}]}
+        mock_resp.raise_for_status = MagicMock()
+        with patch("requests.get", return_value=mock_resp):
+            resp = client.get("/api/ai-models")
+        data = json.loads(resp.data)
+        assert data["provider"] == "anthropic"
+
+    def test_erkennt_openai_provider(self, client, app):
+        self._set_ai_settings(app, api_key="sk-openai-xyz")
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"data": [{"id": "gpt-4o"}]}
+        mock_resp.raise_for_status = MagicMock()
+        with patch("requests.get", return_value=mock_resp):
+            resp = client.get("/api/ai-models")
+        data = json.loads(resp.data)
+        assert data["provider"] == "openai"
+
+    def test_erkennt_ollama_provider(self, client, app):
+        self._set_ai_settings(app, base_url="http://ollama:11434/v1")
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"models": [{"name": "gemma2:2b"}]}
+        mock_resp.raise_for_status = MagicMock()
+        with patch("requests.get", return_value=mock_resp):
+            resp = client.get("/api/ai-models")
+        data = json.loads(resp.data)
+        assert data["provider"] == "ollama"
+        assert "gemma2:2b" in data["models"]
+
+    def test_unbekannter_provider_liefert_leere_liste(self, client, app):
+        self._set_ai_settings(app, api_key="", base_url="", model="")
+        with patch("app.ai._detect_provider", return_value="unknown"):
+            resp = client.get("/api/ai-models")
+        data = json.loads(resp.data)
+        assert data["models"] == []
+
+    def test_netzwerkfehler_liefert_200_mit_error(self, client, app):
+        self._set_ai_settings(app, api_key="sk-ant-fail")
+        with patch("requests.get", side_effect=Exception("Connection refused")):
+            resp = client.get("/api/ai-models")
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert "error" in data
+        assert data["models"] == []
 
 
 # ── Stats-API ─────────────────────────────────────────────────

@@ -430,3 +430,9 @@ class TestHtmlEmail:
         html = _html_email(self._two_platform_listings())
         assert "Kleinanzeigen" in html
         assert "Shpock" in html
+
+    def test_skript_injection_in_titel_wird_escaped(self):
+        listing = make_listing_dict(title='<script>alert(1)</script>')
+        html = _html_email([listing])
+        assert "<script>" not in html
+        assert "&lt;script&gt;" in html

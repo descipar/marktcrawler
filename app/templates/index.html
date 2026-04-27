@@ -3,33 +3,67 @@
 
 {% block content %}
 <!-- ── Status-Leiste ─────────────────────────────────────── -->
-<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-  <div class="bg-white rounded-xl border border-slate-200 p-4">
-    <div class="text-xs text-slate-500 mb-1">Status</div>
-    <div id="status-badge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium
-      {% if stats.crawl_status == 'running' %}badge-run{% else %}badge-idle{% endif %}">
-      {% if stats.crawl_status == 'running' %}<span class="spinner">⟳</span> Läuft…
-      {% else %}✓ Bereit{% endif %}
-    </div>
+<div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6">
+
+  <!-- Plattform-Status-Tabelle (3 Spalten breit) -->
+  <div class="md:col-span-3 bg-white rounded-xl border border-slate-200 p-4">
+    <div class="text-xs text-slate-500 mb-2 font-medium">Plattform-Status</div>
+    <table class="w-full text-xs" id="platform-status-table">
+      <thead>
+        <tr class="text-slate-400 border-b border-slate-100">
+          <th class="text-left pb-1.5 font-medium w-28">Plattform</th>
+          <th class="text-left pb-1.5 font-medium w-24">Status</th>
+          <th class="text-left pb-1.5 font-medium">Letzter Lauf</th>
+          <th class="text-left pb-1.5 font-medium">Nächster Lauf</th>
+          <th class="text-right pb-1.5 font-medium w-10">Neu</th>
+        </tr>
+      </thead>
+      <tbody id="platform-status-body">
+        {% for p in platform_stats %}
+        <tr class="border-b border-slate-50 last:border-0 {% if not p.enabled %}opacity-40{% endif %}"
+            id="prow-{{ p.id }}">
+          <td class="py-1.5 font-medium text-slate-700">{{ p.display }}</td>
+          <td class="py-1.5">
+            {% if not p.enabled %}
+              <span class="text-slate-400">— deaktiviert</span>
+            {% elif p.is_running %}
+              <span class="inline-flex items-center gap-1 text-amber-600 font-medium"><span class="spinner text-xs">⟳</span> Läuft…</span>
+            {% else %}
+              <span class="text-emerald-600 font-medium">✓ Bereit</span>
+            {% endif %}
+          </td>
+          <td class="py-1.5 text-slate-500">
+            {% if p.last_crawl_end %}
+              <span class="last-crawl-rel cursor-default" data-ts="{{ p.last_crawl_end }}"
+                    title="{{ p.last_crawl_end | replace('T', ' ') }}">
+                {{ p.last_crawl_end | replace('T', ' ') }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="py-1.5 text-slate-500">
+            {{ p.next_run if p.next_run else '—' }}
+          </td>
+          <td class="py-1.5 text-right">
+            {% if p.last_crawl_found %}
+              <span class="inline-block bg-brand-100 text-brand-700 rounded px-1 font-semibold">{{ p.last_crawl_found }}</span>
+            {% else %}
+              <span class="text-slate-300">0</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
-  <div class="bg-white rounded-xl border border-slate-200 p-4">
-    <div class="text-xs text-slate-500 mb-1">Letzter Lauf</div>
-    <div id="last-crawl" class="text-sm font-semibold text-slate-700 truncate"
-      {% if stats.last_crawl and stats.last_crawl != 'Noch kein Lauf' %}title="{{ stats.last_crawl | replace('T', ' ') }}"{% endif %}>
-      {% if stats.last_crawl and stats.last_crawl != 'Noch kein Lauf' %}
-        <span class="last-crawl-rel" data-ts="{{ stats.last_crawl }}">{{ stats.last_crawl | replace('T', ' ') }}</span>
-      {% else %}Noch kein Lauf{% endif %}
-    </div>
-  </div>
-  <div class="bg-white rounded-xl border border-slate-200 p-4">
-    <div class="text-xs text-slate-500 mb-1">Nächster Lauf</div>
-    <div id="next-crawl" class="text-sm font-semibold text-slate-700">{{ stats.next_crawl }}</div>
-  </div>
+
+  <!-- Anzeigen gesamt -->
   <div class="bg-white rounded-xl border border-slate-200 p-4">
     <div class="text-xs text-slate-500 mb-1">Anzeigen gesamt</div>
     <div id="total-listings" class="text-2xl font-bold text-brand-600">{{ stats.total_listings }}</div>
     <div id="platform-counts" class="text-xs text-slate-400 mt-0.5"></div>
   </div>
+
+  <!-- Crawl-Steuerung -->
   <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-center gap-1.5">
     <select id="crawl-platform-select"
       class="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 bg-white">
@@ -826,7 +860,7 @@ document.addEventListener('click', e => {
   }
 });
 
-// ── Task 18: Status-Bar mit platform_counts ──────────────
+// ── Plattform-Counts unter Gesamt-Zähler ─────────────────
 function updatePlatformCounts(counts) {
   const el = document.getElementById('platform-counts');
   if (!counts || !Object.keys(counts).length) { el.textContent = ''; return; }
@@ -835,36 +869,57 @@ function updatePlatformCounts(counts) {
   el.textContent = parts.join(' · ');
 }
 
+// ── Plattform-Status-Tabelle live updaten ─────────────────
+function updatePlatformTable(platforms) {
+  if (!platforms || !platforms.length) return;
+  platforms.forEach(p => {
+    const row = document.getElementById(`prow-${p.id}`);
+    if (!row) return;
+    row.className = `border-b border-slate-50 last:border-0${p.enabled ? '' : ' opacity-40'}`;
+    const [tdName, tdStatus, tdLast, tdNext, tdNew] = row.querySelectorAll('td');
+    // Status
+    if (!p.enabled) {
+      tdStatus.innerHTML = '<span class="text-slate-400">— deaktiviert</span>';
+    } else if (p.is_running) {
+      tdStatus.innerHTML = '<span class="inline-flex items-center gap-1 text-amber-600 font-medium"><span class="spinner text-xs">⟳</span> Läuft…</span>';
+    } else {
+      tdStatus.innerHTML = '<span class="text-emerald-600 font-medium">✓ Bereit</span>';
+    }
+    // Letzter Lauf
+    if (p.last_crawl_end) {
+      tdLast.innerHTML = `<span class="last-crawl-rel cursor-default" data-ts="${p.last_crawl_end}" title="${p.last_crawl_end.replace('T',' ')}">${relativeTime(p.last_crawl_end)}</span>`;
+    } else {
+      tdLast.textContent = '—';
+    }
+    // Nächster Lauf
+    tdNext.textContent = p.next_run || '—';
+    // Neue
+    tdNew.innerHTML = p.last_crawl_found
+      ? `<span class="inline-block bg-brand-100 text-brand-700 rounded px-1 font-semibold">${p.last_crawl_found}</span>`
+      : '<span class="text-slate-300">0</span>';
+  });
+}
+
 {% if stats.crawl_status == 'running' %}setTimeout(pollStatus,3000);{% endif %}
 
-// pollStatus erweitern
 async function pollStatus() {
   let d;
   try { d = await (await fetch('/api/status')).json(); } catch(e) { setTimeout(pollStatus,5000); return; }
-  const badge = document.getElementById('status-badge'), btn = document.getElementById('crawl-btn-top'), msg = document.getElementById('crawl-msg');
+  const btn = document.getElementById('crawl-btn-top'), msg = document.getElementById('crawl-msg');
   if (d.is_running) {
-    badge.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-run';
-    badge.innerHTML = '<span class="spinner">⟳</span> Läuft…';
     btn.disabled = true; btn.textContent = '⟳ Läuft…';
     startLogPolling();
     setTimeout(pollStatus, 3000);
   } else {
-    badge.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium badge-idle';
-    badge.innerHTML = '✓ Bereit'; btn.disabled = false; btn.textContent = '🚀 Jetzt crawlen';
+    btn.disabled = false; btn.textContent = '🚀 Jetzt crawlen';
     if (msg) msg.textContent = `Fertig! ${d.last_found} neue Anzeige(n).`;
-    // letzter Lauf: relative Zeit mit tooltip
-    const lc = document.getElementById('last-crawl');
-    if (d.last_crawl) {
-      lc.title = d.last_crawl.replace('T',' ');
-      lc.innerHTML = `<span class="last-crawl-rel" data-ts="${d.last_crawl}">${relativeTime(d.last_crawl)}</span>`;
-    }
-    document.getElementById('next-crawl').textContent = d.next_crawl;
     document.getElementById('total-listings').textContent = d.total_listings;
     updatePlatformCounts(d.platform_counts || {});
     stopLogPolling();
     loadListings();
     loadPlatformOptions();
   }
+  updatePlatformTable(d.platforms || []);
 }
 
 // Initialen "Mehr laden"-Button nach Server-Render setzen
@@ -881,11 +936,12 @@ startLogPolling();
 refreshLog();
 {% endif %}
 
-// Initiale platform_counts anzeigen (aus Status-API)
+// Plattform-Tabelle und Counts initial via API befüllen (relative Zeiten + aktuelle Daten)
 (async function() {
   try {
     const d = await (await fetch('/api/status')).json();
     updatePlatformCounts(d.platform_counts || {});
+    updatePlatformTable(d.platforms || []);
   } catch(e) {}
 })();
 </script>

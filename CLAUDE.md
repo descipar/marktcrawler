@@ -208,6 +208,9 @@ Klick auf eine Karte öffnet `#detail-modal` mit Vollbild-Details (Bild, Preis, 
 ### Dashboard: Plattform-Filter & Status-Bar
 `loadPlatformOptions()` befüllt das Plattform-Dropdown aus `GET /api/platforms` (nur tatsächlich vorhandene Plattformen). `updatePlatformCounts()` zeigt „KA 120 · Shp 45" unter dem Gesamt-Zähler.
 
+### Dashboard: Per-Plattform-Statusübersicht
+Die ersten drei Status-Kacheln (Status / Letzter Lauf / Nächster Lauf) wurden durch eine kompakte Plattform-Tabelle (3 Spalten breit) ersetzt. Spalten: Plattform | Status (✓ Bereit / ⟳ Läuft… / deaktiviert) | Letzter Lauf (relativ mit Tooltip) | Nächster Lauf | Neue (Badge). Deaktivierte Plattformen werden gedimmt (opacity-40). `/api/status` liefert jetzt `platforms`-Array mit `{id, display, enabled, is_running, last_crawl_end, last_crawl_found, next_run}`. `_build_platform_stats(settings, next_runs)` in `routes.py` erzeugt dieses Array für Template und API. `updatePlatformTable(platforms)` in JS aktualisiert die Tabelle live beim Polling.
+
 ## Wichtige Konventionen
 
 - **Scraper-Interface**: Alle Scraper erben von `BaseScraper(ABC)` aus `scrapers/base.py`. `search()` ist `@abstractmethod` – falsche Implementierungen werfen `TypeError` statt stille Fehler. Jeder Scraper hat `__init__(self, settings: dict)` mit `super().__init__(settings)` und `search(self, term: str, max_results: int) -> List[Listing]`. `settings` ist das komplette Dict aus `db.get_settings()`.
@@ -253,7 +256,7 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 | POST | `/settings` | Einstellungen speichern |
 | POST | `/listings/<id>/favorite` | Favorit toggeln (JSON) |
 | POST | `/api/crawl` | Crawl manuell starten (JSON) |
-| GET | `/api/status` | Crawler-Status als JSON |
+| GET | `/api/status` | Crawler-Status als JSON (inkl. `platforms`-Array mit per-Plattform-Status) |
 | GET | `/api/listings` | Anzeigen als JSON (`?term=`, `?platform=`, `?limit=30`, `?offset=0`, `?favorites=1`, `?free=1`, `?max_age=`, `?max_distance=`, `?sort=date_desc`, `?exclude=`) |
 | GET | `/api/stats` | Preisstatistik pro Suchbegriff (JSON) |
 | POST | `/listings/<id>/dismiss` | Anzeige dauerhaft ausblenden (JSON) |

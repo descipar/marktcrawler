@@ -174,6 +174,14 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") ode
 - [x] HTML-E-Mail-Builder vereinheitlicht: `_html_email()` ersetzt zwei separate Builder; Aliases für Rückwärtskompatibilität
 - [x] 23 neue Tests (323 gesamt): Migrations-Framework, Indexes, Env-Var-Priorität, Race-Condition-Fix, BaseScraper-Vererbung, `_html_email` direkt
 
+### Phase 21 – Per-Plattform-Statusübersicht im Dashboard
+- [x] `/api/status` liefert `platforms`-Array: pro Plattform `id`, `display`, `enabled`, `is_running`, `last_crawl_end`, `last_crawl_found`, `next_run`
+- [x] Hilfsfunktion `_build_platform_stats()` in `routes.py` (für Template und API gemeinsam genutzt)
+- [x] Dashboard: Status-/Letzter-Lauf-/Nächster-Lauf-Kacheln ersetzt durch kompakte Plattform-Tabelle (3-Spalten-breit)
+- [x] Tabellenspalten: Plattform | Status (✓/⟳/deaktiviert) | Letzter Lauf (relativ) | Nächster Lauf | Neu (Badge)
+- [x] Live-Update via `updatePlatformTable()` im `pollStatus`-Polling und beim Seitenstart
+- [x] Deaktivierte Plattformen werden gedimmt (opacity-40) angezeigt
+
 ---
 
-*Letzte Aktualisierung: 2026-04-26 (Phase 20 abgeschlossen)*
+*Letzte Aktualisierung: 2026-04-27 (Phase 21 abgeschlossen)*

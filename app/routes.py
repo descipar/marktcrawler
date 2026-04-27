@@ -15,6 +15,30 @@ from .scheduler import (
 
 bp = Blueprint("main", __name__)
 
+_PLATFORM_DISPLAY = {
+    "kleinanzeigen": "Kleinanzeigen",
+    "shpock": "Shpock",
+    "vinted": "Vinted",
+    "ebay": "eBay",
+    "facebook": "Facebook",
+}
+
+
+def _build_platform_stats(settings: dict, next_runs: dict) -> list:
+    """Baut die per-Plattform-Statusliste für Dashboard und API."""
+    result = []
+    for p in PLATFORMS:
+        result.append({
+            "id": p,
+            "display": _PLATFORM_DISPLAY.get(p, p.capitalize()),
+            "enabled": settings.get(f"{p}_enabled") == "1",
+            "is_running": is_running(p),
+            "last_crawl_end": settings.get(f"{p}_last_crawl_end", ""),
+            "last_crawl_found": int(settings.get(f"{p}_last_crawl_found", 0) or 0),
+            "next_run": next_runs.get(p, ""),
+        })
+    return result
+
 
 # ── Dashboard ────────────────────────────────────────────────
 
@@ -44,6 +68,8 @@ def index():
         l["is_new"] = bool(last_seen_at and l.get("found_at", "") > last_seen_at)
 
     last_found = sum(int(settings.get(f"{p}_last_crawl_found", 0) or 0) for p in PLATFORMS)
+    next_runs = get_next_runs()
+    platform_stats = _build_platform_stats(settings, next_runs)
     stats = {
         "total_listings": db.get_listing_count(),
         "last_crawl": settings.get("last_crawl_end", "") or "Noch kein Lauf",
@@ -57,6 +83,7 @@ def index():
         search_terms=search_terms,
         listings=listings,
         stats=stats,
+        platform_stats=platform_stats,
         price_stats=price_stats,
         only_fav=only_fav,
         only_free=only_free,
@@ -195,15 +222,17 @@ def api_crawl():
 @bp.route("/api/status")
 def api_status():
     settings = db.get_settings()
+    next_runs = get_next_runs()
     return jsonify({
         "crawl_status": settings.get("crawl_status", "idle"),
         "last_crawl": settings.get("last_crawl_end", ""),
         "next_crawl": get_next_run(),
-        "next_runs": get_next_runs(),
+        "next_runs": next_runs,
         "last_found": str(sum(int(settings.get(f"{p}_last_crawl_found", 0) or 0) for p in PLATFORMS)),
         "total_listings": db.get_listing_count(),
         "is_running": is_running(),
         "platform_counts": db.get_platform_counts(),
+        "platforms": _build_platform_stats(settings, next_runs),
     })
 
 

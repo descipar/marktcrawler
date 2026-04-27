@@ -1,6 +1,7 @@
 """Scraper für Vinted via öffentliche API."""
 
 import logging
+import time
 from typing import List, Optional
 
 import requests
@@ -31,6 +32,8 @@ class VintedScraper(BaseScraper):
         raw = _int(settings.get("vinted_radius", "30"))
         self.radius_km: int = 30 if raw is None else raw
         self._home: Optional[tuple] = self._resolve_location(settings)
+        max_age_raw = _int(settings.get("vinted_max_age_hours", "48"))
+        self.max_age_hours: int = max_age_raw if max_age_raw else 0
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
         self._authenticate()
@@ -78,8 +81,14 @@ class VintedScraper(BaseScraper):
             logger.error(f"[Vinted] Fehler bei '{term}': {e}")
             return []
 
+        cutoff_ts = (time.time() - self.max_age_hours * 3600) if self.max_age_hours > 0 else None
+
         results = []
         for item in items:
+            if cutoff_ts is not None:
+                created_ts = item.get("created_at_ts")
+                if created_ts is not None and float(created_ts) < cutoff_ts:
+                    continue
             listing = self._parse(item, term)
             if not listing:
                 continue

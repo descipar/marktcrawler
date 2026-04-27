@@ -280,10 +280,21 @@ def mark_listings_notified(listing_ids: List[str]):
 
 def clear_old_listings(days: int = 30):
     with _db() as conn:
-        conn.execute(
-            "DELETE FROM listings WHERE is_favorite = 0 AND found_at < datetime('now', ? || ' days')",
+        rows = conn.execute(
+            "SELECT listing_id FROM listings "
+            "WHERE is_favorite = 0 AND found_at < datetime('now', ? || ' days')",
             (f"-{days}",),
-        )
+        ).fetchall()
+        if rows:
+            ids = [r["listing_id"] for r in rows]
+            conn.executemany(
+                "INSERT OR IGNORE INTO dismissed_listings(listing_id) VALUES(?)",
+                [(lid,) for lid in ids],
+            )
+            conn.execute(
+                "DELETE FROM listings WHERE is_favorite = 0 AND found_at < datetime('now', ? || ' days')",
+                (f"-{days}",),
+            )
         conn.commit()
 
 

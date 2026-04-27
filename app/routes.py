@@ -319,7 +319,16 @@ def api_ai_models():
     api_key  = settings.get("ai_api_key",  "").strip()
     base_url = settings.get("ai_base_url", "").strip()
     model    = settings.get("ai_model",    "").strip()
-    provider = _detect_provider(model, base_url)
+
+    # API-Key-Prefix hat Vorrang vor Modellname
+    if base_url:
+        provider = "ollama"
+    elif api_key.startswith("sk-ant-"):
+        provider = "anthropic"
+    elif api_key.startswith("sk-"):
+        provider = "openai"
+    else:
+        provider = _detect_provider(model, base_url)
 
     try:
         if provider == "anthropic":

@@ -86,9 +86,10 @@
   <div class="bg-white rounded-t-xl border border-slate-200 border-b-0 flex overflow-x-auto scrollbar-hide">
     <button type="button" class="tab-btn active-tab" data-tab="platforms" onclick="switchTab('platforms')">🏪 Plattformen</button>
     <button type="button" class="tab-btn" data-tab="notifications" onclick="switchTab('notifications')">📧 Benachrichtigungen</button>
-    <button type="button" class="tab-btn" data-tab="crawler" onclick="switchTab('crawler')">🤖 Crawler &amp; Daten</button>
+    <button type="button" class="tab-btn" data-tab="crawler" onclick="switchTab('crawler')">🤖 Crawler</button>
     <button type="button" class="tab-btn" data-tab="ai" onclick="switchTab('ai')">🤖 KI-Assistent</button>
     <button type="button" class="tab-btn" data-tab="profiles" onclick="switchTab('profiles')">👤 Profile</button>
+    <button type="button" class="tab-btn" data-tab="data" onclick="switchTab('data')">🗑️ Daten</button>
   </div>
 
   <!-- ── Tab: Plattformen ────────────────────────────────── -->
@@ -472,8 +473,39 @@
 
   </div><!-- /tab-profiles -->
 
+  <!-- ── Tab: Daten ─────────────────────────────────────── -->
+  <div id="tab-data" class="tab-panel hidden space-y-4 pt-4">
+    <div class="bg-white rounded-xl border border-red-200 overflow-hidden">
+      <div class="px-5 py-3 bg-red-50 border-b border-red-200">
+        <h2 class="font-semibold text-red-800">🗑️ Datenverwaltung</h2>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm text-slate-700 font-medium">Verfügbarkeits-Check jetzt starten</p>
+            <p class="text-xs text-slate-400 mt-0.5">Prüft sofort alle Anzeigen auf Erreichbarkeit und löscht nicht mehr vorhandene Einträge (inkl. Favoriten).</p>
+          </div>
+          <button type="button" onclick="runAvailabilityCheck()"
+            class="shrink-0 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
+            Jetzt prüfen
+          </button>
+        </div>
+        <div class="border-t border-slate-100 pt-4 flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm text-slate-700 font-medium">Alle Suchergebnisse löschen</p>
+            <p class="text-xs text-slate-400 mt-0.5">Löscht alle gespeicherten Anzeigen und den Geocache. Einstellungen und Suchbegriffe bleiben erhalten. Favoriten werden nicht gelöscht.</p>
+          </div>
+          <button type="button" id="clearListingsBtn" onclick="clearAllListings()"
+            class="shrink-0 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
+            Löschen
+          </button>
+        </div>
+      </div>
+    </div>
+  </div><!-- /tab-data -->
+
   <!-- ── Sticky Speichern-Button (Task 3) ───────────────── -->
-  <div class="sticky bottom-4 z-20 flex justify-end pt-4 pb-2">
+  <div id="save-btn-wrap" class="sticky bottom-4 z-20 flex justify-end pt-4 pb-2">
     <button type="submit"
       class="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-lg font-semibold transition-colors shadow-lg backdrop-blur-sm">
       💾 Einstellungen speichern
@@ -482,37 +514,6 @@
 
 </div>
 </form>
-
-<!-- Datenverwaltung (außerhalb des Settings-Formulars) -->
-<div class="max-w-2xl mx-auto mt-2 mb-8">
-  <div class="bg-white rounded-xl border border-red-200 overflow-hidden">
-    <div class="px-5 py-3 bg-red-50 border-b border-red-200">
-      <h2 class="font-semibold text-red-800">🗑️ Datenverwaltung</h2>
-    </div>
-    <div class="p-5 space-y-4">
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <p class="text-sm text-slate-700 font-medium">Verfügbarkeits-Check jetzt starten</p>
-          <p class="text-xs text-slate-400 mt-0.5">Prüft sofort alle Anzeigen auf Erreichbarkeit und löscht nicht mehr vorhandene Einträge (inkl. Favoriten).</p>
-        </div>
-        <button onclick="runAvailabilityCheck()"
-          class="shrink-0 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
-          Jetzt prüfen
-        </button>
-      </div>
-      <div class="border-t border-slate-100 pt-4 flex items-center justify-between gap-4">
-        <div>
-          <p class="text-sm text-slate-700 font-medium">Alle Suchergebnisse löschen</p>
-          <p class="text-xs text-slate-400 mt-0.5">Löscht alle gespeicherten Anzeigen und den Geocache. Einstellungen und Suchbegriffe bleiben erhalten. Favoriten werden nicht gelöscht.</p>
-        </div>
-        <button id="clearListingsBtn" onclick="clearAllListings()"
-          class="shrink-0 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
-          Löschen
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <script>
 const TOAST_DURATION_MS = 8000;
@@ -523,6 +524,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
   document.getElementById('tab-' + name).classList.remove('hidden');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active-tab', b.dataset.tab === name));
+  document.getElementById('save-btn-wrap').classList.toggle('hidden', name === 'data');
   localStorage.setItem('settingsTab', name);
 }
 // Init

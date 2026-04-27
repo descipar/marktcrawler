@@ -1,37 +1,38 @@
-<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative" data-id="{{ l.id }}" onclick="handleCardClick(event, {{ l.id }})">
+<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative cursor-pointer" data-id="{{ l.id }}" onclick="handleCardClick(event, {{ l.id }})">
   <button onclick="dismissListing({{ l.id }}, this)" aria-label="Anzeige ausblenden"
     class="absolute top-2 left-2 z-10 text-base leading-none text-slate-200 hover:text-red-400 transition-colors"
     title="Ausblenden">✕</button>
   <button onclick="toggleFav({{ l.id }}, this)"
     aria-label="{{ 'Favorit entfernen' if l.is_favorite else 'Als Favorit markieren' }}"
     class="absolute top-2 right-2 z-10 text-xl leading-none {% if l.is_favorite %}text-yellow-400{% else %}text-slate-200 hover:text-yellow-300{% endif %}">★</button>
-  <a href="{{ l.url }}" target="_blank" rel="noopener" class="block">
-    {% if l.image_url %}
-      <img src="{{ l.image_url }}" alt="" referrerpolicy="no-referrer" class="w-full h-40 object-cover bg-slate-100">
-    {% else %}
-      <div class="w-full h-40 bg-slate-100 flex items-center justify-center text-4xl">🛍️</div>
-    {% endif %}
-    <div class="p-3">
-      <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
-        <span class="text-xs px-1.5 py-0.5 rounded font-medium
-          {% if l.platform == 'Kleinanzeigen' %}badge-ka
-          {% elif l.platform == 'Shpock' %}badge-sp
-          {% elif l.platform == 'Vinted' %}badge-vt
-          {% elif l.platform == 'eBay' %}badge-eb
-          {% else %}badge-fb{% endif %}">{{ l.platform }}</span>
-        <span class="text-xs text-slate-500 truncate">{{ l.search_term }}</span>
-      </div>
-      <div class="font-semibold text-slate-800 text-sm leading-tight mb-1 pr-5">{{ l.title }}</div>
-      <div class="flex items-center flex-wrap gap-1 mb-1">
-        <span class="text-green-700 font-bold">{{ l.price }}</span>
-        {% if l.is_new %}<span class="text-xs bg-brand-500 text-white px-2 py-0.5 rounded-full font-bold">✨ Neu</span>{% endif %}
-        {% if l.is_free %}<span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">🎁 Gratis</span>{% endif %}
-        {% if l.distance_km is not none %}<span class="text-xs text-slate-400">{{ l.distance_km | round | int }} km</span>{% endif %}
-        {% if l.potential_duplicate %}<span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">📋 auch auf {{ l.potential_duplicate }}</span>{% endif %}
-      </div>
-      <div class="text-xs text-slate-500 truncate">📍 {{ l.location }}</div>
-      <div class="found-at-ts text-xs text-slate-500 mt-1" data-found-at="{{ l.found_at }}" title="{{ l.found_at | replace('T', ' ') }}">{{ l.found_at | replace('T', ' ') }}</div>
-      {% if l.notes %}<div class="text-xs text-slate-500 mt-0.5">💬 Notiz</div>{% endif %}
+  {% if l.image_url %}
+    <img src="{{ l.image_url }}" alt="" referrerpolicy="no-referrer" class="w-full h-40 object-cover bg-slate-100">
+  {% else %}
+    <div class="w-full h-40 bg-slate-100 flex items-center justify-center text-4xl">🛍️</div>
+  {% endif %}
+  <div class="p-3">
+    <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
+      <span class="text-xs px-1.5 py-0.5 rounded font-medium
+        {% if l.platform == 'Kleinanzeigen' %}badge-ka
+        {% elif l.platform == 'Shpock' %}badge-sp
+        {% elif l.platform == 'Vinted' %}badge-vt
+        {% elif l.platform == 'eBay' %}badge-eb
+        {% else %}badge-fb{% endif %}">{{ l.platform }}</span>
+      <span class="text-xs text-slate-500 truncate">{{ l.search_term }}</span>
     </div>
-  </a>
+    <div class="font-semibold text-slate-800 text-sm leading-tight mb-1 pr-5">{{ l.title }}</div>
+    <div class="flex items-center flex-wrap gap-1 mb-1">
+      <span class="text-green-700 font-bold">{{ l.price }}</span>
+      {% if l.is_new %}<span class="text-xs bg-brand-500 text-white px-2 py-0.5 rounded-full font-bold">✨ Neu</span>{% endif %}
+      {% if l.is_free %}<span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">🎁 Gratis</span>{% endif %}
+      {% if l.distance_km is not none %}<span class="text-xs text-slate-400">{{ l.distance_km | round | int }} km</span>{% endif %}
+      {% if l.potential_duplicate %}<span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">📋 auch auf {{ l.potential_duplicate }}</span>{% endif %}
+    </div>
+    <div class="text-xs text-slate-500 truncate">📍 {{ l.location }}</div>
+    <div class="found-at-ts text-xs text-slate-500 mt-1" data-found-at="{{ l.found_at }}" title="{{ l.found_at | replace('T', ' ') }}">{{ l.found_at | replace('T', ' ') }}</div>
+    <div class="flex items-center justify-between mt-1">
+      {% if l.notes %}<div class="text-xs text-slate-500">💬 Notiz</div>{% endif %}
+      <a href="{{ l.url }}" target="_blank" rel="noopener" class="text-xs text-brand-600 hover:underline ml-auto" title="Direkt zur Anzeige">↗ öffnen</a>
+    </div>
+  </div>
 </div>

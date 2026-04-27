@@ -3,13 +3,7 @@
 import os
 import re
 import subprocess
-import threading
-import time
 from typing import Optional
-
-_cache_lock = threading.Lock()
-_updates_cache: dict = {}
-_CACHE_TTL = 3600
 
 
 def _git(*args) -> str:
@@ -64,11 +58,6 @@ def get_available_updates(current_hash: str) -> Optional[list]:
     if not current_hash or current_hash == "unbekannt":
         return None
 
-    with _cache_lock:
-        entry = _updates_cache.get(current_hash)
-        if entry and time.time() - entry["ts"] < _CACHE_TTL:
-            return entry["data"]
-
     repo = _github_repo()
     if not repo:
         return None
@@ -88,8 +77,6 @@ def get_available_updates(current_hash: str) -> Optional[list]:
             for c in data.get("commits", [])
         ]
         commits.reverse()
-        with _cache_lock:
-            _updates_cache[current_hash] = {"ts": time.time(), "data": commits}
         return commits
     except Exception:
         return None

@@ -1,6 +1,5 @@
 """Tests für app/version.py: Versions-Erkennung und GitHub-Update-Check."""
 
-import time
 from unittest.mock import MagicMock, patch
 
 from app.version import get_current_version, get_available_updates, _github_repo
@@ -101,10 +100,7 @@ class TestGetAvailableUpdates:
             self._commit("bbb0002", "feat: zweiter", "2026-04-27T10:00:00Z"),
         ]
         with patch("app.version._github_repo", return_value="o/r"), \
-             patch("app.version._updates_cache", {}), \
-             patch("app.version.time") as mock_time, \
              patch("requests.get", return_value=self._mock_response(commits)):
-            mock_time.time.return_value = 0
             result = get_available_updates("xyz1234")
         assert result[0]["message"] == "feat: zweiter"
         assert result[1]["message"] == "fix: erster"
@@ -112,15 +108,6 @@ class TestGetAvailableUpdates:
 
     def test_api_fehler_liefert_none(self):
         with patch("app.version._github_repo", return_value="o/r"), \
-             patch("app.version._updates_cache", {}), \
              patch("requests.get", side_effect=Exception("timeout")):
             result = get_available_updates("abc1234")
         assert result is None
-
-    def test_cache_wird_verwendet(self):
-        cached = [{"short_hash": "cached1", "message": "cached", "date": "2026-01-01"}]
-        cache = {"abc1234": {"ts": time.time(), "data": cached}}
-        with patch("app.version._updates_cache", cache), \
-             patch("app.version._github_repo", return_value="o/r"):
-            result = get_available_updates("abc1234")
-        assert result == cached

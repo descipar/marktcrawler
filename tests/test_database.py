@@ -691,6 +691,7 @@ class TestMigrationFramework:
         assert "v2_listings_columns" in names
         assert "v3_search_terms_max_price" in names
         assert "v4_backfill_notified_at" in names
+        assert "v5_rename_email_subjects" in names
 
     def test_backfill_migration_markiert_bestehende_listings(self, tmp_path, monkeypatch):
         """v4-Migration setzt notified_at für alle NULL-Einträge – verhindert Massen-E-Mail."""
@@ -728,6 +729,63 @@ class TestMigrationFramework:
         ).fetchone()[0]
         conn.close()
         assert nulls == 0, "Alle bestehenden Listings müssen nach Migration notified_at haben"
+
+    def test_v5_migration_aktualisiert_email_betreffs(self, tmp_path, monkeypatch):
+        """v5-Migration ersetzt alte Baby-Crawler-Betreffs durch Marktcrawler-Betreffs."""
+        import sqlite3
+        import app.database as db
+
+        old_db = tmp_path / "mig_v5.db"
+        monkeypatch.setattr(db, "DB_PATH", old_db)
+        conn = sqlite3.connect(str(old_db))
+        conn.executescript("""
+            CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+            CREATE TABLE search_terms (
+                id INTEGER PRIMARY KEY, term TEXT UNIQUE, enabled INTEGER DEFAULT 1
+            );
+            CREATE TABLE geocache (location_text TEXT PRIMARY KEY, lat REAL, lon REAL);
+            INSERT INTO settings VALUES
+                ('email_subject_alert', '🍼 Baby-Crawler: {n} neue Anzeige(n) gefunden!'),
+                ('email_subject_digest', '🍼 Baby-Crawler Tages-Digest: {n} Anzeige(n) heute');
+        """)
+        conn.commit()
+        conn.close()
+
+        db.init_db()
+
+        conn = sqlite3.connect(str(old_db))
+        alert = conn.execute("SELECT value FROM settings WHERE key='email_subject_alert'").fetchone()[0]
+        digest = conn.execute("SELECT value FROM settings WHERE key='email_subject_digest'").fetchone()[0]
+        conn.close()
+        assert "Marktcrawler" in alert
+        assert "Marktcrawler" in digest
+
+    def test_v5_migration_ueberschreibt_keine_benutzerdefinierten_betreffs(self, tmp_path, monkeypatch):
+        """v5-Migration lässt angepasste Betreffs unverändert."""
+        import sqlite3
+        import app.database as db
+
+        old_db = tmp_path / "mig_v5_custom.db"
+        monkeypatch.setattr(db, "DB_PATH", old_db)
+        custom = "Mein eigener Betreff {n}"
+        conn = sqlite3.connect(str(old_db))
+        conn.executescript(f"""
+            CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+            CREATE TABLE search_terms (
+                id INTEGER PRIMARY KEY, term TEXT UNIQUE, enabled INTEGER DEFAULT 1
+            );
+            CREATE TABLE geocache (location_text TEXT PRIMARY KEY, lat REAL, lon REAL);
+            INSERT INTO settings VALUES ('email_subject_alert', '{custom}');
+        """)
+        conn.commit()
+        conn.close()
+
+        db.init_db()
+
+        conn = sqlite3.connect(str(old_db))
+        alert = conn.execute("SELECT value FROM settings WHERE key='email_subject_alert'").fetchone()[0]
+        conn.close()
+        assert alert == custom
 
 
 class TestEnsureIndexes:

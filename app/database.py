@@ -246,11 +246,30 @@ def _ensure_indexes(conn: sqlite3.Connection):
     conn.commit()
 
 
+def _mig_rename_email_subjects(conn: sqlite3.Connection):
+    """Aktualisiert die E-Mail-Betreff-Defaults von Baby-Crawler auf Marktcrawler.
+
+    Nur wenn der Wert noch dem alten Default entspricht – benutzerdefinierte
+    Betreffs werden nicht überschrieben.
+    """
+    conn.execute(
+        "UPDATE settings SET value=? WHERE key='email_subject_alert' AND value=?",
+        ("🔍 Marktcrawler: {n} neue Anzeige(n) gefunden!",
+         "🍼 Baby-Crawler: {n} neue Anzeige(n) gefunden!"),
+    )
+    conn.execute(
+        "UPDATE settings SET value=? WHERE key='email_subject_digest' AND value=?",
+        ("🔍 Marktcrawler Tages-Digest: {n} Anzeige(n) heute",
+         "🍼 Baby-Crawler Tages-Digest: {n} Anzeige(n) heute"),
+    )
+
+
 _MIGRATIONS = [
     ("v1_settings_rename",          _mig_settings_rename),
     ("v2_listings_columns",         _mig_listings_columns),
     ("v3_search_terms_max_price",   _mig_search_terms_max_price),
     ("v4_backfill_notified_at",     _mig_backfill_notified_at),
+    ("v5_rename_email_subjects",    _mig_rename_email_subjects),
 ]
 
 

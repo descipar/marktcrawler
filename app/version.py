@@ -24,10 +24,24 @@ def _git(*args) -> str:
         return ""
 
 
+def _baked() -> dict:
+    """Liest die beim Docker-Build eingebrannte _version.py, falls vorhanden."""
+    try:
+        from app import _version  # type: ignore
+        return {
+            "hash": _version.COMMIT,
+            "date": _version.DATE,
+            "message": _version.MESSAGE,
+        }
+    except ImportError:
+        return {}
+
+
 def get_current_version() -> dict:
-    commit = os.environ.get("GIT_COMMIT") or _git("rev-parse", "HEAD")
-    date = os.environ.get("GIT_DATE") or _git("log", "-1", "--format=%ci")
-    message = os.environ.get("GIT_MESSAGE") or _git("log", "-1", "--format=%s")
+    baked = _baked()
+    commit = baked.get("hash") or os.environ.get("GIT_COMMIT") or _git("rev-parse", "HEAD")
+    date = baked.get("date") or os.environ.get("GIT_DATE") or _git("log", "-1", "--format=%ci")
+    message = baked.get("message") or os.environ.get("GIT_MESSAGE") or _git("log", "-1", "--format=%s")
     return {
         "hash": commit or "unbekannt",
         "short_hash": commit[:7] if commit else "unbekannt",

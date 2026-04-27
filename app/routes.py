@@ -1,6 +1,7 @@
 """Flask-Routen: Dashboard, Einstellungen, REST-API."""
 
 import logging
+from typing import Dict
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
 
@@ -22,6 +23,14 @@ _PLATFORM_DISPLAY = {
     "ebay": "eBay",
     "facebook": "Facebook",
 }
+
+
+def _build_platform_max_ages(settings: dict) -> Dict[str, int]:
+    """Liest pro Plattform die maximale Anzeigedauer aus den Settings."""
+    return {
+        p: int(settings.get(f"{p}_max_age_hours", 0) or 0)
+        for p in PLATFORMS
+    }
 
 
 def _build_platform_stats(settings: dict, next_runs: dict) -> list:
@@ -51,7 +60,7 @@ def index():
     search_terms = db.get_search_terms()
     settings = db.get_settings()
 
-    max_age = int(settings.get("display_max_age_hours", 0) or 0)
+    global_max_age = int(settings.get("display_max_age_hours", 0) or 0)
     only_fav = request.args.get("favorites") == "1"
     only_free = request.args.get("free") == "1"
 
@@ -59,7 +68,8 @@ def index():
         limit=30,
         only_favorites=only_fav,
         only_free=only_free,
-        max_age_hours=max_age,
+        max_age_hours=global_max_age,
+        platform_max_ages=None if global_max_age else _build_platform_max_ages(settings),
     )
 
     # is_new: Anzeigen seit letztem Besuch des aktiven Profils markieren
@@ -161,12 +171,12 @@ def settings_page():
 def save_settings():
     allowed_keys = {
         "kleinanzeigen_enabled", "kleinanzeigen_max_price",
-        "kleinanzeigen_location", "kleinanzeigen_radius", "kleinanzeigen_interval",
+        "kleinanzeigen_location", "kleinanzeigen_radius", "kleinanzeigen_interval", "kleinanzeigen_max_age_hours",
         "shpock_enabled", "shpock_max_price",
-        "shpock_location", "shpock_radius", "shpock_interval",
-        "facebook_enabled", "facebook_max_price", "facebook_location", "facebook_interval",
-        "vinted_enabled", "vinted_max_price", "vinted_location", "vinted_radius", "vinted_interval",
-        "ebay_enabled", "ebay_max_price", "ebay_location", "ebay_radius", "ebay_interval",
+        "shpock_location", "shpock_radius", "shpock_interval", "shpock_max_age_hours",
+        "facebook_enabled", "facebook_max_price", "facebook_location", "facebook_interval", "facebook_max_age_hours",
+        "vinted_enabled", "vinted_max_price", "vinted_location", "vinted_radius", "vinted_interval", "vinted_max_age_hours",
+        "ebay_enabled", "ebay_max_price", "ebay_location", "ebay_radius", "ebay_interval", "ebay_max_age_hours",
         "email_enabled", "email_subject_alert", "email_subject_digest",
         "email_smtp_server", "email_smtp_port",
         "email_sender", "email_password", "email_recipient",
@@ -266,9 +276,15 @@ def api_listings():
     only_new = request.args.get("new") == "1"
     last_seen_at = session.get("profile_last_seen") if only_new else None
 
+    platform_max_ages = None
+    if not max_age:
+        settings = db.get_settings()
+        platform_max_ages = _build_platform_max_ages(settings)
+
     listings = db.get_listings(
         limit=limit, offset=offset, search_terms=terms, platform=platform,
         only_favorites=only_fav, only_free=only_free, max_age_hours=max_age,
+        platform_max_ages=platform_max_ages,
         max_distance_km=max_distance, sort_by=sort_by, exclude_text=exclude_text,
         since_datetime=last_seen_at,
     )

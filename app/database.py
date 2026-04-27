@@ -19,11 +19,13 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "kleinanzeigen_max_price": "80",
     "kleinanzeigen_location": "München",
     "kleinanzeigen_radius": "30",
+    "kleinanzeigen_max_age_hours": "0",
     # Shpock
     "shpock_enabled": "1",
     "shpock_max_price": "80",
     "shpock_location": "München",
     "shpock_radius": "30",
+    "shpock_max_age_hours": "0",
     # Fallback-Koordinaten für bestehende Installationen ohne shpock_location
     "shpock_latitude": "48.1351",
     "shpock_longitude": "11.5820",
@@ -31,16 +33,19 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "facebook_enabled": "0",
     "facebook_max_price": "80",
     "facebook_location": "München",
+    "facebook_max_age_hours": "0",
     # Vinted
     "vinted_enabled": "0",
     "vinted_max_price": "80",
     "vinted_location": "München",
     "vinted_radius": "30",
+    "vinted_max_age_hours": "48",  # Vinted hat viele ältere Anzeigen
     # eBay
     "ebay_enabled": "0",
     "ebay_max_price": "80",
     "ebay_location": "München",
     "ebay_radius": "30",
+    "ebay_max_age_hours": "0",
     # E-Mail
     "email_enabled": "0",
     "email_subject_alert": "🔍 Marktcrawler: {n} neue Anzeige(n) gefunden!",
@@ -555,6 +560,7 @@ def get_listings(limit: int = 100, offset: int = 0,
                  search_terms: Optional[List[str]] = None,
                  platform: Optional[str] = None, only_favorites: bool = False,
                  only_free: bool = False, max_age_hours: int = 0,
+                 platform_max_ages: Optional[Dict[str, int]] = None,
                  max_distance_km: Optional[float] = None,
                  sort_by: str = "date_desc", exclude_text: Optional[str] = None,
                  since_datetime: Optional[str] = None) -> List[Dict]:
@@ -577,8 +583,17 @@ def get_listings(limit: int = 100, offset: int = 0,
     if only_free:
         conditions.append("is_free = 1")
     if max_age_hours and max_age_hours > 0:
+        # Global override: one cutoff for all platforms
         conditions.append("found_at >= datetime('now', ? || ' hours')")
         params.append(f"-{max_age_hours}")
+    elif platform_max_ages:
+        # Per-platform cutoffs: exclude listings older than platform-specific limit
+        exclusions = [(p, h) for p, h in platform_max_ages.items() if h and h > 0]
+        if exclusions:
+            parts = ["(platform = ? AND found_at < datetime('now', ? || ' hours'))"] * len(exclusions)
+            conditions.append("NOT (" + " OR ".join(parts) + ")")
+            for p, h in exclusions:
+                params.extend([p, f"-{h}"])
     if max_distance_km is not None:
         conditions.append("(distance_km IS NULL OR distance_km <= ?)")
         params.append(max_distance_km)

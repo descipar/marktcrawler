@@ -47,6 +47,12 @@
         value="{{ s[key ~ '_interval'] or default_interval }}"
         min="5" max="1440" class="input-field">
     {% endcall %}
+    {% call field("Max. Alter (Std., 0 = kein Filter)") %}
+      <input type="number" name="{{ key }}_max_age_hours"
+        value="{{ s[key ~ '_max_age_hours'] or '0' }}"
+        min="0" max="8760" class="input-field">
+      <p class="text-xs text-slate-400 mt-1">Ältere Anzeigen werden ausgeblendet</p>
+    {% endcall %}
   </div>
   {{ caller() }}
 </div>

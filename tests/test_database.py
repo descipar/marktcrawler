@@ -1079,3 +1079,83 @@ class TestSystemStats:
         assert stats["price_min"] == 10.0
         assert stats["price_max"] == 30.0
         assert stats["price_avg"] == 20.0
+
+
+class TestPlatformMaxAges:
+    """Tests für den pro-Plattform Alters-Filter in get_listings()."""
+
+    def _add(self, db, listing_id, platform, age_hours):
+        """Fügt ein Listing mit künstlichem found_at-Alter ein."""
+        import sqlite3
+        from app import database as _db_mod
+        l = Listing(
+            platform=platform, title=f"Test {listing_id}", price="10 €",
+            location="München", url=f"https://x.com/{listing_id}",
+            listing_id=listing_id, search_term="test",
+        )
+        db.save_listing(l)
+        conn = sqlite3.connect(str(_db_mod.DB_PATH))
+        conn.execute(
+            "UPDATE listings SET found_at = datetime('now', ? || ' hours') WHERE listing_id = ?",
+            (f"-{age_hours}", listing_id),
+        )
+        conn.commit()
+        conn.close()
+
+    def test_kein_filter_zeigt_alles(self, temp_db):
+        self._add(temp_db, "v1", "vinted", 72)
+        self._add(temp_db, "k1", "kleinanzeigen", 72)
+        results = temp_db.get_listings()
+        ids = {r["listing_id"] for r in results}
+        assert "v1" in ids and "k1" in ids
+
+    def test_plattform_max_age_filtert_alte_anzeigen(self, temp_db):
+        self._add(temp_db, "v_old", "vinted", 72)   # 72h alt → zu alt bei max 48h
+        self._add(temp_db, "v_new", "vinted", 10)   # 10h alt → ok
+        self._add(temp_db, "k_old", "kleinanzeigen", 72)  # 72h alt → kein Filter für KA
+        results = temp_db.get_listings(platform_max_ages={"vinted": 48})
+        ids = {r["listing_id"] for r in results}
+        assert "v_old" not in ids
+        assert "v_new" in ids
+        assert "k_old" in ids
+
+    def test_mehrere_plattformen_gefiltert(self, temp_db):
+        self._add(temp_db, "v_old", "vinted", 50)
+        self._add(temp_db, "s_old", "shpock", 25)
+        self._add(temp_db, "v_new", "vinted", 10)
+        self._add(temp_db, "s_new", "shpock", 5)
+        results = temp_db.get_listings(
+            platform_max_ages={"vinted": 48, "shpock": 24}
+        )
+        ids = {r["listing_id"] for r in results}
+        assert "v_old" not in ids
+        assert "s_old" not in ids
+        assert "v_new" in ids
+        assert "s_new" in ids
+
+    def test_global_override_ignoriert_plattform_ages(self, temp_db):
+        self._add(temp_db, "v_old", "vinted", 72)
+        # global max_age=0 bedeutet kein globaler Filter, aber platform_max_ages greift
+        results = temp_db.get_listings(
+            max_age_hours=0,
+            platform_max_ages={"vinted": 48},
+        )
+        ids = {r["listing_id"] for r in results}
+        assert "v_old" not in ids
+
+    def test_global_max_age_ueberschreibt_plattform_filter(self, temp_db):
+        self._add(temp_db, "v_old", "vinted", 30)   # 30h alt
+        # global max_age=48 → vinted_old (30h) sollte sichtbar sein, auch wenn
+        # platform_max_ages theoretisch dagegen wäre
+        results = temp_db.get_listings(
+            max_age_hours=48,
+            platform_max_ages={"vinted": 24},  # wird ignoriert, weil global gesetzt
+        )
+        ids = {r["listing_id"] for r in results}
+        assert "v_old" in ids
+
+    def test_null_wert_in_platform_ages_ignoriert(self, temp_db):
+        self._add(temp_db, "v_old", "vinted", 72)
+        results = temp_db.get_listings(platform_max_ages={"vinted": 0})
+        ids = {r["listing_id"] for r in results}
+        assert "v_old" in ids  # 0 = kein Filter

@@ -24,7 +24,7 @@ def notify(listings: list, settings: dict, force: bool = False) -> bool:
         return False
 
     listing_dicts = [asdict(l) for l in listings]
-    tpl = settings.get("email_subject_alert", "🍼 Baby-Crawler: {n} neue Anzeige(n) gefunden!")
+    tpl = settings.get("email_subject_alert", "🔍 Marktcrawler: {n} neue Anzeige(n) gefunden!")
     subject = tpl.replace("{n}", str(len(listing_dicts)))
     result = _send_dicts(subject, listing_dicts, settings)
     if result:
@@ -44,7 +44,7 @@ def notify_pending(settings: dict) -> bool:
         logger.debug("notify_pending: Keine unbenachrichtigten Anzeigen.")
         return False
 
-    tpl = settings.get("email_subject_alert", "🍼 Baby-Crawler: {n} neue Anzeige(n) gefunden!")
+    tpl = settings.get("email_subject_alert", "🔍 Marktcrawler: {n} neue Anzeige(n) gefunden!")
     subject = tpl.replace("{n}", str(len(listings)))
     result = _send_dicts(subject, listings, settings)
     if result:
@@ -67,7 +67,7 @@ def send_digest(settings: dict) -> bool:
         logger.info("Digest: Heute keine Anzeigen gefunden – kein Versand.")
         return False
 
-    tpl = settings.get("email_subject_digest", "🍼 Baby-Crawler Tages-Digest: {n} Anzeige(n) heute")
+    tpl = settings.get("email_subject_digest", "🔍 Marktcrawler Tages-Digest: {n} Anzeige(n) heute")
     subject = tpl.replace("{n}", str(len(listings)))
     logger.info(f"Sende Tages-Digest mit {len(listings)} Anzeigen.")
     return _send_dicts(subject, listings, settings, is_digest=True)
@@ -243,13 +243,13 @@ def _html_email(listings: list, is_digest: bool = False) -> str:
 
     return (
         '<html><body style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;padding:20px">'
-        f'<h2 style="color:#333">🍼 {heading}</h2>'
+        f'<h2 style="color:#333">🔍 {heading}</h2>'
         '<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;'
         'padding:14px;margin-bottom:24px">'
         '<p style="margin:0 0 8px;font-weight:bold;color:#333">Inhalt</p>'
         f'{toc}</div>'
         + "".join(sections)
-        + f'<p style="color:#aaa;font-size:11px;margin-top:24px">Baby-Crawler – {footer}</p>'
+        + f'<p style="color:#aaa;font-size:11px;margin-top:24px">Marktcrawler – {footer}</p>'
         '</body></html>'
     )
 
@@ -264,7 +264,7 @@ def _html_from_dicts(listings: list, is_digest: bool = False) -> str:
 
 
 def _text_from_dicts(listings: list, is_digest: bool = False) -> str:
-    heading = f"Baby-Crawler {'Tages-Digest' if is_digest else 'Benachrichtigung'}: {len(listings)} Anzeige(n)"
+    heading = f"Marktcrawler {'Tages-Digest' if is_digest else 'Benachrichtigung'}: {len(listings)} Anzeige(n)"
     lines = [heading + "\n" + "=" * 50]
     for l in listings:
         free = " [GRATIS]" if l.get("is_free") else ""

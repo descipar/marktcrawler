@@ -69,7 +69,7 @@ def _schedule_platform_jobs():
             trigger=IntervalTrigger(minutes=minutes),
             kwargs={"platform": platform},
             id=job_id,
-            name=f"Baby-Crawler [{platform}]",
+            name=f"Marktcrawler [{platform}]",
             replace_existing=True,
         )
         logger.info(f"[{platform}] Crawl-Job: alle {minutes} Minuten.")
@@ -87,7 +87,7 @@ def _schedule_notify_job():
         _run_notify_pending,
         trigger=IntervalTrigger(minutes=15),
         id="notify_job",
-        name="Baby-Crawler Benachrichtigung",
+        name="Marktcrawler Benachrichtigung",
         replace_existing=True,
     )
     logger.info("Benachrichtigungs-Job: alle 15 Minuten.")
@@ -111,7 +111,7 @@ def _schedule_digest():
             _run_digest,
             trigger=CronTrigger(hour=hour, minute=minute),
             id="digest_job",
-            name="Baby-Crawler Tages-Digest",
+            name="Marktcrawler Tages-Digest",
             replace_existing=True,
         )
         logger.info(f"Digest-Job eingerichtet für {digest_time} Uhr.")
@@ -135,7 +135,7 @@ def _schedule_availability_check():
         run_availability_check,
         trigger=IntervalTrigger(hours=hours),
         id="availability_job",
-        name="Baby-Crawler Verfügbarkeits-Check",
+        name="Marktcrawler Verfügbarkeits-Check",
         replace_existing=True,
     )
     logger.info(f"Verfügbarkeits-Check: alle {hours} Stunden.")

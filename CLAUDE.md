@@ -1,4 +1,4 @@
-# CLAUDE.md – Baby-Crawler
+# CLAUDE.md – Marktcrawler
 
 Dieses Dokument beschreibt die Architektur und Konventionen des Projekts für KI-Assistenten.
 
@@ -104,8 +104,8 @@ profiles     (id INTEGER PRIMARY KEY, name TEXT NOT NULL, emoji TEXT DEFAULT '�
 | `ebay_location` | `München` | PLZ oder Stadtname (`_stpos`) |
 | `ebay_radius` | `30` | Radius km (`_sadis`) |
 | `email_enabled` | `0` | E-Mail aktiv |
-| `email_subject_alert` | `🍼 Baby-Crawler: {n} neue Anzeige(n) gefunden!` | Betreff Sofort-Alert (`{n}` = Anzahl) |
-| `email_subject_digest` | `🍼 Baby-Crawler Tages-Digest: {n} Anzeige(n) heute` | Betreff Digest (`{n}` = Anzahl) |
+| `email_subject_alert` | `🔍 Marktcrawler: {n} neue Anzeige(n) gefunden!` | Betreff Sofort-Alert (`{n}` = Anzahl) |
+| `email_subject_digest` | `🔍 Marktcrawler Tages-Digest: {n} Anzeige(n) heute` | Betreff Digest (`{n}` = Anzahl) |
 | `email_smtp_server` | `smtp.gmail.com` | SMTP Host |
 | `email_smtp_port` | `587` | SMTP Port |
 | `email_sender` | `` | Absender |
@@ -211,7 +211,7 @@ Klick auf eine Karte öffnet `#detail-modal` mit Vollbild-Details (Bild, Preis, 
 `loadPlatformOptions()` befüllt das Plattform-Dropdown aus `GET /api/platforms` (nur tatsächlich vorhandene Plattformen). `updatePlatformCounts()` zeigt „KA 120 · Shp 45" unter dem Gesamt-Zähler.
 
 ### KI-Assistent: Verkäufer-Anfragetext
-`ai.py.generate_contact_text(listing, price_stats, settings)` generiert einen höflichen Kontakttext. Provider-Erkennung: `ai_base_url` gesetzt → Ollama (OpenAI-kompatibel, kein API-Key nötig); `claude-*` → Anthropic SDK; `gpt-*` → OpenAI SDK. Bei VB-Anzeigen wird ein Preisvorschlag (85% des Durchschnittspreises aus `price_stats`, auf 5 € gerundet) in den Prompt eingebaut. Fehler geben eine lesbare Warnung zurück (kein raise). Settings: `ai_enabled`, `ai_api_key`, `ai_model`, `ai_base_url` (leer = Cloud-API, `http://ollama:11434/v1` = Docker-Ollama, `http://localhost:11434/v1` = lokal). Route: `POST /api/listings/<id>/contact-text`. Im Modal: „✨ Generieren"-Button → editierbare Textarea → „📋 Kopieren". Text wird nie automatisch gesendet. Optionaler Ollama-Service: `docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d`, dann `docker exec baby-crawler-ollama ollama pull gemma2:2b`. **Nicht empfohlen für RPi4** (CPU-only, ~2–5 Min/Antwort).
+`ai.py.generate_contact_text(listing, price_stats, settings)` generiert einen höflichen Kontakttext. Provider-Erkennung: `ai_base_url` gesetzt → Ollama (OpenAI-kompatibel, kein API-Key nötig); `claude-*` → Anthropic SDK; `gpt-*` → OpenAI SDK. Bei VB-Anzeigen wird ein Preisvorschlag (85% des Durchschnittspreises aus `price_stats`, auf 5 € gerundet) in den Prompt eingebaut. Fehler geben eine lesbare Warnung zurück (kein raise). Settings: `ai_enabled`, `ai_api_key`, `ai_model`, `ai_base_url` (leer = Cloud-API, `http://ollama:11434/v1` = Docker-Ollama, `http://localhost:11434/v1` = lokal). Route: `POST /api/listings/<id>/contact-text`. Im Modal: „✨ Generieren"-Button → editierbare Textarea → „📋 Kopieren". Text wird nie automatisch gesendet. Optionaler Ollama-Service: `docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d`, dann `docker exec marktcrawler-ollama ollama pull gemma2:2b`. **Nicht empfohlen für RPi4** (CPU-only, ~2–5 Min/Antwort).
 
 ### Dashboard: Per-Plattform-Statusübersicht
 Die ersten drei Status-Kacheln (Status / Letzter Lauf / Nächster Lauf) wurden durch eine kompakte Plattform-Tabelle (3 Spalten breit) ersetzt. Spalten: Plattform | Status (✓ Bereit / ⟳ Läuft… / deaktiviert) | Letzter Lauf (relativ mit Tooltip) | Nächster Lauf | Neue (Badge). Deaktivierte Plattformen werden gedimmt (opacity-40). `/api/status` liefert jetzt `platforms`-Array mit `{id, display, enabled, is_running, last_crawl_end, last_crawl_found, next_run}`. `_build_platform_stats(settings, next_runs)` in `routes.py` erzeugt dieses Array für Template und API. `updatePlatformTable(platforms)` in JS aktualisiert die Tabelle live beim Polling.

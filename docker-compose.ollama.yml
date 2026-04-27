@@ -4,9 +4,9 @@
 #   docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d
 #
 # Modell laden (einmalig, danach bleibt es im Volume):
-#   docker exec baby-crawler-ollama ollama pull gemma2:2b
+#   docker exec marktcrawler-ollama ollama pull gemma2:2b
 #
-# Danach in den Baby-Crawler-Einstellungen (Tab "KI-Assistent"):
+# Danach in den Marktcrawler-Einstellungen (Tab "KI-Assistent"):
 #   Modell:    gemma2:2b
 #   Base-URL:  http://ollama:11434/v1
 #   API-Key:   (leer lassen)
@@ -25,7 +25,7 @@
 services:
   ollama:
     image: ollama/ollama
-    container_name: baby-crawler-ollama
+    container_name: marktcrawler-ollama
     restart: unless-stopped
     ports:
       - "11434:11434"

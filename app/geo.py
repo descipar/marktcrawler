@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 _nominatim_lock = threading.Lock()
 _last_nominatim_call: float = 0.0
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
-NOMINATIM_HEADERS = {"User-Agent": "baby-crawler/1.0 (private use)"}
+NOMINATIM_HEADERS = {"User-Agent": "marktcrawler/1.0 (private use)"}
 
 
 def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

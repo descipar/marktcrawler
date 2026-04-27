@@ -1,4 +1,4 @@
-"""Einstiegspunkt für den Baby-Crawler."""
+"""Einstiegspunkt für den Marktcrawler."""
 from pathlib import Path
 from dotenv import load_dotenv
 

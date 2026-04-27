@@ -1,6 +1,6 @@
-# 🍼 Baby-Crawler
+# 🔍 Marktcrawler
 
-Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanzeigen.de**, **Shpock**, **Vinted**, **eBay** und optional **Facebook Marketplace** automatisch nach Babysachen und benachrichtigt per E-Mail über neue Treffer.
+Ein selbst gehosteter Web-Crawler – durchsucht **Kleinanzeigen.de**, **Shpock**, **Vinted**, **eBay** und optional **Facebook Marketplace** automatisch nach beliebigen Suchbegriffen und benachrichtigt per E-Mail über neue Treffer.
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
@@ -21,8 +21,8 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 ## Schnellstart (Docker)
 
 ```bash
-git clone https://github.com/descipar/baby-crawler.git
-cd baby-crawler
+git clone https://github.com/descipar/baby-crawler.git marktcrawler
+cd marktcrawler
 docker compose up -d --build
 ```
 
@@ -97,8 +97,8 @@ Stromsparend (~5 Watt), läuft still 24/7:
 ```bash
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker pi
-git clone https://github.com/descipar/baby-crawler.git /home/pi/baby-crawler
-cd /home/pi/baby-crawler
+git clone https://github.com/descipar/baby-crawler.git /home/pi/marktcrawler
+cd /home/pi/marktcrawler
 docker compose up -d --build
 ```
 
@@ -180,7 +180,7 @@ Die Einstellungsseite ist in fünf Tabs gegliedert: **Plattformen**, **Benachric
 Einmaliger interaktiver Login nötig:
 
 ```bash
-docker exec -it baby-crawler python -c \
+docker exec -it marktcrawler python -c \
   "from app.scrapers.facebook import FacebookScraper; FacebookScraper({}).interactive_login()"
 ```
 
@@ -240,7 +240,7 @@ Vollständig offline, kein API-Key nötig. Benötigt mehr Hardware-Ressourcen.
 docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d
 
 # Modell laden (einmalig, ~1,6 GB Download)
-docker exec baby-crawler-ollama ollama pull gemma2:2b
+docker exec marktcrawler-ollama ollama pull gemma2:2b
 ```
 
 Danach in **Einstellungen → KI-Assistent**:
@@ -264,7 +264,7 @@ Dann Base-URL auf `http://localhost:11434/v1` setzen.
 ## 🏗️ Architektur
 
 ```
-baby-crawler/
+marktcrawler/
 ├── Dockerfile / docker-compose.yml
 ├── requirements.txt / pytest.ini
 ├── run.py                  # Einstiegspunkt
@@ -324,7 +324,7 @@ Alle Tests laufen ohne externe Abhängigkeiten (HTTP und DB werden gemockt).
 cp ./data/baby_crawler.db ./backup_$(date +%Y%m%d).db
 
 # Logs ansehen
-docker compose logs -f baby-crawler
+docker compose logs -f marktcrawler
 ```
 
 Anzeigen älter als 30 Tage werden automatisch bereinigt. **Favoriten werden dabei nie gelöscht.**
@@ -337,4 +337,4 @@ MIT – frei verwendbar für private und kommerzielle Zwecke.
 
 ---
 
-*Viel Erfolg bei der Schnäppchenjagd! 🍼*
+*Viel Erfolg bei der Schnäppchenjagd! 🔍*

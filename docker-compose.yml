@@ -1,9 +1,9 @@
 version: "3.9"
 
 services:
-  baby-crawler:
+  marktcrawler:
     build: .
-    container_name: baby-crawler
+    container_name: marktcrawler
     restart: unless-stopped
     ports:
       - "5000:5000"        # Admin-UI: http://<proxmox-ip>:5000

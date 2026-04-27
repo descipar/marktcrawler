@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 _lock = threading.Lock()
 _running = False
 
-_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; baby-crawler/1.0)"}
+_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; marktcrawler/1.0)"}
 _GONE_CODES = {404, 410}
 _TIMEOUT = 8
 _DELAY = 0.5

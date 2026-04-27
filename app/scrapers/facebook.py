@@ -1,6 +1,6 @@
 """
 Scraper für Facebook Marketplace (Playwright – headless).
-Benötigt einmaligen Login: docker exec -it baby-crawler python -c
+Benötigt einmaligen Login: docker exec -it marktcrawler python -c
   "from app.scrapers.facebook import FacebookScraper; FacebookScraper({}).interactive_login()"
 """
 

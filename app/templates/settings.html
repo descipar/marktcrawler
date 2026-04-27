@@ -95,7 +95,7 @@
     {% call platform_section('Facebook Marketplace', 'facebook', 'indigo', has_radius=false, default_interval=60) %}
     <div class="px-5 pb-4 text-xs text-amber-700 bg-amber-50 border-t border-amber-100 py-2">
       ⚠️ Facebook benötigt einen einmaligen Login. Nach dem Start:
-      <code class="bg-amber-100 px-1 rounded">docker exec -it baby-crawler python -c "from app.scrapers.facebook import FacebookScraper; FacebookScraper({}).interactive_login()"</code>
+      <code class="bg-amber-100 px-1 rounded">docker exec -it marktcrawler python -c "from app.scrapers.facebook import FacebookScraper; FacebookScraper({}).interactive_login()"</code>
     </div>
     {% endcall %}
 

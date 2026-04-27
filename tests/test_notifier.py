@@ -252,7 +252,7 @@ class TestNotifyPending:
         "email_recipient": "recv@example.com",
         "email_smtp_server": "smtp.example.com",
         "email_smtp_port": "587",
-        "email_subject_alert": "🍼 Baby-Crawler: {n} neue Anzeige(n) gefunden!",
+        "email_subject_alert": "🔍 Marktcrawler: {n} neue Anzeige(n) gefunden!",
     }
 
     def test_sendet_nicht_wenn_email_deaktiviert(self):

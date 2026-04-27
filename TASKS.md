@@ -230,4 +230,16 @@ Alle KI-Features nutzen einen gemeinsamen API-Key (Claude / OpenAI / andere), ko
 - [x] Ollama-kein-API-Key-nötig wenn `ai_base_url` gesetzt
 - [x] 18 neue Tests in `test_ai.py` (342 gesamt)
 
-*Letzte Aktualisierung: 2026-04-27 (Phase 22 abgeschlossen)*
+### Phase 23 – Umbenennung, KI-Verbesserungen & Bugfixes
+- [x] Projekt von „Baby-Crawler" in „Marktcrawler" umbenannt (UI, Docs, Container-Namen, E-Mail-Betreffs, User-Agent-Header)
+- [x] `v5_rename_email_subjects`-Migration: aktualisiert E-Mail-Betreffs in bestehenden Installationen automatisch (nur Default-Werte, keine Custom-Betreffs)
+- [x] CC BY-NC 4.0 Lizenz (statt MIT): frei für privaten/nicht-kommerziellen Gebrauch
+- [x] Bugfix: Karten-Klick öffnet jetzt Detail-Modal (statt zur Plattform zu navigieren) — `<a>`-Wrapper aus `_listing_card.html` und JS `buildCard()` entfernt; `↗ öffnen`-Link auf jeder Karte für direkten Plattformzugriff
+- [x] KI: Modell-Selector als `<select>`-Dropdown mit `<optgroup>` nach Anbieter (Anthropic / OpenAI / Ollama); „🔄 Laden"-Button holt aktuelle Modellliste vom Anbieter; `GET /api/ai-models`-Route
+- [x] KI: Provider-Erkennung anhand API-Key-Prefix (`sk-ant-` → Anthropic, `sk-` → OpenAI) hat Vorrang vor Modellname
+- [x] KI: `ai_prompt_hints`-Setting — persönliche Käufer-Hinweise werden in jeden generierten Anfragetext eingebaut
+- [x] `anthropic` und `openai` als Pflicht-Dependencies in `requirements.txt` (statt optional)
+- [x] Screenshots aktualisiert: Modal-Detail und Modal-KI-Anfragetext als neue Vorschaubilder in README
+- [x] 2 neue Tests (344 gesamt)
+
+*Letzte Aktualisierung: 2026-04-27 (Phase 23 abgeschlossen)*

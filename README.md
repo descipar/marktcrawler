@@ -5,7 +5,7 @@ Ein selbst gehosteter Web-Crawler – durchsucht **Kleinanzeigen.de**, **Shpock*
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-342%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-344%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)
 
 ---
@@ -27,7 +27,7 @@ Ein selbst gehosteter Web-Crawler – durchsucht **Kleinanzeigen.de**, **Shpock*
 ## Schnellstart (Docker)
 
 ```bash
-git clone https://github.com/descipar/baby-crawler.git marktcrawler
+git clone https://github.com/descipar/marktcrawler.git
 cd marktcrawler
 docker compose up -d --build
 ```
@@ -73,6 +73,8 @@ Admin-UI aufrufen: **`http://localhost:5000`**
 ### KI-Assistent
 - **✨ Anfragetext-Generator** – generiert per Knopfdruck im Detail-Modal einen höflichen Kontakttext an den Verkäufer
 - **💰 VB-Preisvorschlag** – bei „Verhandlungsbasis"-Anzeigen schlägt die KI automatisch einen Preis vor (basiert auf dem Durchschnitt deiner eigenen gesammelten Daten)
+- **Persönliche Hinweise** – eigene Instruktionen für alle generierten Texte, z.B. „Keine Besichtigung bei Kleidung nötig"
+- **Modell-Selector** – Dropdown mit vordefinierten Modellen; „🔄 Laden" holt aktuelle Modellliste direkt vom Anbieter (Anthropic/OpenAI/Ollama); Provider wird automatisch am API-Key-Prefix erkannt
 - **Drei Betriebsmodi** – Cloud-API (Claude/OpenAI) oder lokal via Ollama; einfach in den Einstellungen umschalten
 - Text erscheint immer in einer **editierbaren Textarea**, wird nie automatisch gesendet
 
@@ -103,7 +105,7 @@ Stromsparend (~5 Watt), läuft still 24/7:
 ```bash
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker pi
-git clone https://github.com/descipar/baby-crawler.git /home/pi/marktcrawler
+git clone https://github.com/descipar/marktcrawler.git /home/pi/marktcrawler
 cd /home/pi/marktcrawler
 docker compose up -d --build
 ```
@@ -156,7 +158,7 @@ Die Einstellungsseite ist in fünf Tabs gegliedert: **Plattformen**, **Benachric
 | Anzeigen-Verwaltung | Crawler & Daten | Altersfilter (Anzeige), Anzeigen löschen die älter als X Stunden sind |
 | Verfügbarkeits-Check | Crawler & Daten | Aktiviert, Intervall (Stunden), „Jetzt prüfen"-Button |
 | Heimstandort | Crawler & Daten | Stadt für Entfernungsberechnung |
-| KI-Assistent | KI-Assistent | Aktiviert, API-Key, Modell, Base-URL (für Ollama) |
+| KI-Assistent | KI-Assistent | Aktiviert, API-Key, Modell (Selector + Live-Fetch), Persönliche Hinweise, Base-URL (für Ollama) |
 
 ---
 

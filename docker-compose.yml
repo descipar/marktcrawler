@@ -16,6 +16,7 @@ services:
       - ./data:/data       # SQLite-Datenbank + Facebook-Session persistent
     environment:
       - TZ=Europe/Berlin
+      - GITHUB_REPO=descipar/marktcrawler
     logging:
       driver: "json-file"
       options:

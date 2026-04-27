@@ -10,6 +10,14 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 
 ---
 
+## 📸 Vorschau
+
+| Dashboard | Einstellungen | KI-Assistent |
+|:---------:|:-------------:|:------------:|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Einstellungen](docs/screenshots/settings.png) | ![KI-Assistent](docs/screenshots/settings-ai.png) |
+
+---
+
 ## Schnellstart (Docker)
 
 ```bash

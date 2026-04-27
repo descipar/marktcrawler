@@ -55,6 +55,8 @@ def generate_contact_text(listing: dict, price_stats: list, settings: dict) -> s
             f"Schlage einen Preis von {suggested} € vor, falls es zur Anzeige passt."
         )
 
+    hints = settings.get("ai_prompt_hints", "").strip()
+
     prompt = f"""Schreib eine kurze, freundliche Kaufanfrage auf Deutsch für folgende Kleinanzeige.
 
 Artikel: {title}
@@ -68,9 +70,10 @@ Anforderungen:
 - Maximal 4–5 Sätze
 - Höflich und natürlich, keine übertriebene Förmlichkeit
 - Interesse am Artikel bekunden
-- Nach Verfügbarkeit / Besichtigung fragen{" und einen Preisvorschlag machen" if vb else ""}
+- Nach Verfügbarkeit / Abholung fragen{" und einen Preisvorschlag machen" if vb else ""}
 - Keinen Namen unterschreiben (wird manuell ergänzt)
-- Nur den Text, keine Erklärungen drum herum"""
+- Nur den Text, keine Erklärungen drum herum
+{("- Persönliche Hinweise des Käufers beachten: " + hints) if hints else ""}"""
 
     try:
         if provider == "anthropic":

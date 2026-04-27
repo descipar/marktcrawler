@@ -365,6 +365,13 @@
           </p>
         {% endcall %}
 
+        {% call field("Persönliche Hinweise") %}
+          <textarea name="ai_prompt_hints" rows="3"
+            class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 resize-y"
+            placeholder="z.B. Ich benötige keine Besichtigung bei Kleidung. Ich zahle bar bei Abholung. Bitte keine Versandangebote.">{{ s.get('ai_prompt_hints','') }}</textarea>
+          <p class="text-xs text-slate-400 mt-1">Wird in jeden generierten Anfragetext eingebaut. Jeder Satz auf einer Zeile empfohlen.</p>
+        {% endcall %}
+
         {% call field("Base-URL (optional)") %}
           <input type="text" name="ai_base_url" value="{{ s.get('ai_base_url','') }}"
             class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"

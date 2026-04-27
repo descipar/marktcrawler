@@ -12,9 +12,13 @@ Ein selbst gehosteter Web-Crawler – durchsucht **Kleinanzeigen.de**, **Shpock*
 
 ## 📸 Vorschau
 
-| Dashboard | Einstellungen | KI-Assistent |
-|:---------:|:-------------:|:------------:|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Einstellungen](docs/screenshots/settings.png) | ![KI-Assistent](docs/screenshots/settings-ai.png) |
+| Dashboard | Plattformen | Benachrichtigungen |
+|:---------:|:-----------:|:------------------:|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Plattformen](docs/screenshots/settings.png) | ![Benachrichtigungen](docs/screenshots/settings-notifications.png) |
+
+| Crawler & Daten | KI-Assistent | Profile |
+|:---------------:|:------------:|:-------:|
+| ![Crawler & Daten](docs/screenshots/settings-crawler.png) | ![KI-Assistent](docs/screenshots/settings-ai.png) | ![Profile](docs/screenshots/settings-profiles.png) |
 
 ---
 

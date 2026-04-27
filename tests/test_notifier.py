@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 
 from app.notifier import (
     _card_html, _html_from_dicts, _html_grouped, _html_email, _text_from_dicts, _smtp_send,
-    notify_pending, _get_email_config,
+    notify_pending, _get_email_config, _normalize_server_url,
 )
 from app.scrapers.base import Listing
 
@@ -436,3 +436,30 @@ class TestHtmlEmail:
         html = _html_email([listing])
         assert "<script>" not in html
         assert "&lt;script&gt;" in html
+
+
+class TestNormalizeServerUrl:
+
+    def test_nur_ip_erhaelt_schema_und_port(self):
+        assert _normalize_server_url("192.168.1.10") == "http://192.168.1.10:5000"
+
+    def test_hostname_erhaelt_schema_und_port(self):
+        assert _normalize_server_url("raspberrypi.local") == "http://raspberrypi.local:5000"
+
+    def test_volle_url_bleibt_unveraendert(self):
+        assert _normalize_server_url("http://192.168.1.10:5000") == "http://192.168.1.10:5000"
+
+    def test_schema_vorhanden_port_fehlt(self):
+        assert _normalize_server_url("http://192.168.1.10") == "http://192.168.1.10:5000"
+
+    def test_eigener_port_bleibt_erhalten(self):
+        assert _normalize_server_url("192.168.1.10:8080") == "http://192.168.1.10:8080"
+
+    def test_https_wird_nicht_ueberschrieben(self):
+        assert _normalize_server_url("https://myserver.example.com") == "https://myserver.example.com:5000"
+
+    def test_trailing_slash_wird_entfernt(self):
+        assert _normalize_server_url("http://192.168.1.10:5000/") == "http://192.168.1.10:5000"
+
+    def test_leerstring_bleibt_leer(self):
+        assert _normalize_server_url("") == ""

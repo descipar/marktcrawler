@@ -463,3 +463,22 @@ class TestNormalizeServerUrl:
 
     def test_leerstring_bleibt_leer(self):
         assert _normalize_server_url("") == ""
+
+
+class TestCardHtmlDashboardLink:
+
+    def test_dashboard_btn_vorhanden_wenn_db_id_und_server_url_gesetzt(self):
+        html = _card_html("T", "P", "t", "10 €", "Ort", "https://x.com",
+                          db_id=42, server_url="http://192.168.1.10:5000")
+        assert "Im Dashboard" in html
+        assert "/?modal=42" in html
+
+    def test_kein_dashboard_btn_ohne_server_url(self):
+        html = _card_html("T", "P", "t", "10 €", "Ort", "https://x.com",
+                          db_id=42, server_url="")
+        assert "Im Dashboard" not in html
+
+    def test_kein_dashboard_btn_ohne_db_id(self):
+        html = _card_html("T", "P", "t", "10 €", "Ort", "https://x.com",
+                          db_id=None, server_url="http://192.168.1.10:5000")
+        assert "Im Dashboard" not in html

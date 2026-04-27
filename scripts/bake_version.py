@@ -15,13 +15,15 @@ try:
     else:
         commit = head
 
-    # Branch-Log lesen (nicht HEAD-Log, der enthält auch checkout/fast-forward-Noise)
+    # Branch-Log lesen; rückwärts iterieren um checkout/pull/fast-forward zu überspringen
     branch_log = git / "logs" / ref if head.startswith("ref:") else git / "logs" / "HEAD"
     log_lines = branch_log.read_text().strip().splitlines()
-    last = log_lines[-1]
-    meta, _, message = last.partition("\t")
-    # "commit: <msg>" oder "commit (amend): <msg>" → alles nach erstem ": "
-    message = message.split(": ", 1)[-1].strip()
+    meta = message = ""
+    for line in reversed(log_lines):
+        m, _, msg = line.partition("\t")
+        if msg.startswith("commit"):
+            meta, message = m, msg.split(": ", 1)[-1].strip()
+            break
     parts = meta.split()
     ts = int(parts[-2]) if len(parts) >= 2 else 0
     date = datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%d")

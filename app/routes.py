@@ -338,7 +338,12 @@ def api_ai_models():
                 timeout=6,
             )
             resp.raise_for_status()
-            models = [m["id"] for m in resp.json().get("data", [])]
+            import re as _re
+            _ant_exclude = _re.compile(r"claude-[012][^-]|instant|legacy", _re.I)
+            models = [
+                m["id"] for m in resp.json().get("data", [])
+                if not _ant_exclude.search(m["id"])
+            ]
 
         elif provider == "openai":
             resp = _req.get(
@@ -347,8 +352,12 @@ def api_ai_models():
                 timeout=6,
             )
             resp.raise_for_status()
+            import re as _re
+            # Nur aktuelle Chat-Modelle, keine Snapshots, kein Audio/TTS/Embedding/Image
+            _oai_keep  = _re.compile(r"^(gpt-4o|gpt-4-turbo|o[1-9]|o[1-9]-mini|o[1-9]-pro)", _re.I)
+            _oai_skip  = _re.compile(r"audio|realtime|tts|whisper|dall|embed|instruct|search|\d{4}-\d{2}-\d{2}", _re.I)
             all_ids = [m["id"] for m in resp.json().get("data", [])]
-            models = sorted(m for m in all_ids if any(m.startswith(p) for p in ("gpt-", "o1", "o3", "o4")))
+            models = sorted(m for m in all_ids if _oai_keep.match(m) and not _oai_skip.search(m))
 
         elif provider == "ollama":
             ollama_root = base_url.rstrip("/").removesuffix("/v1")

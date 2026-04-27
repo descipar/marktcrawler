@@ -14,6 +14,8 @@ Selbst gehostet, Docker-ready, läuft unbeaufsichtigt auf einem Raspberry Pi.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
+📁 [Alle Screenshots ansehen](docs/screenshots/)
+
 ---
 
 ## ✨ Features

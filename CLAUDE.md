@@ -30,7 +30,7 @@ baby-crawler-v2/
     ├── database.py             # Gesamte SQLite-Schicht (kein ORM), Migration
     ├── routes.py               # Alle Flask-Routen + REST-API (Blueprint "main")
     ├── crawler.py              # Crawl-Orchestrierung, threading.Lock, run_crawl_async()
-    ├── scheduler.py            # APScheduler: pro-Plattform-Crawl + Notify-Job (15 Min) + CronTrigger (Digest)
+    ├── scheduler.py            # APScheduler: pro-Plattform-Crawl + Notify-Job (15 Min) + CronTrigger (Digest); restart-resilient via start_date
     ├── notifier.py             # SMTP E-Mail: gebündelter Alert (notify_pending) + Sofort (manual) + Digest
     ├── ai.py                   # KI-Assistent: Verkäufer-Anfragetext, VB-Preisvorschlag (Claude/OpenAI)
     ├── geo.py                  # Haversine-Formel + Nominatim-Geocoding mit DB-Cache
@@ -166,7 +166,10 @@ Täglich zur konfigurierten Uhrzeit (CronTrigger) sendet `notifier.send_digest()
 `db.get_listings(sort_by=...)` unterstützt: `date_desc` (Standard), `date_asc`, `price_asc`, `price_desc`, `distance_asc`. Preise werden via `CASE WHEN price GLOB '*[0-9]*'` auf numerischen Wert gecastet – Textwerte (k.A., Kostenlos) ergeben NULL und landen beim Sortieren immer am Ende. Favoriten stehen unabhängig von der Sortierung immer oben (`ORDER BY is_favorite DESC, ...`). `/api/listings?sort=` mit Whitelist-Validierung.
 
 ### Verfügbarkeits-Check
-`checker.py.run_availability_check()` iteriert alle Anzeigen aus `db.get_all_listing_urls(min_age_minutes=60)` – Anzeigen jünger als 60 Minuten werden übersprungen. Sendet pro URL einen HEAD-Request (8s Timeout, 0,5s Delay). HTTP 404/410 → `db.delete_listing_by_listing_id()` löscht den Eintrag **inkl. Favoriten**. Hat einen `_running`-Guard (wie der Crawler) gegen parallele Ausführung. Wird vom Scheduler alle N Stunden ausgeführt (`availability_job`, `IntervalTrigger`). Einstellungen: `availability_check_enabled` (0/1), `availability_check_interval_hours` (Default 3). Manuell auslösbar über `POST /api/availability-check`.
+`checker.py.run_availability_check()` prüft Anzeigen parallel (ThreadPoolExecutor, Default 5 Worker) via HEAD-Request (6s Timeout). HTTP 404/410 → `db.delete_listing_by_listing_id()` löscht den Eintrag **inkl. Favoriten**. Anzeigen jünger als 60 Min. werden übersprungen. Re-Check-Throttling: jede Anzeige höchstens alle `availability_recheck_hours` Stunden (Default 48h) erneut prüfen — `availability_checked_at` pro Listing in DB gespeichert (v8-Migration). Hat einen `_running`-Guard gegen parallele Ausführung. Einstellungen: `availability_check_enabled`, `availability_check_interval_hours` (Default 3), `availability_check_workers` (Default 5), `availability_recheck_hours` (Default 48). Manuell auslösbar über `POST /api/availability-check`.
+
+### Restart-resilientes Scheduling
+Alle Interval-Jobs (Plattform-Crawls, Availability-Check) berechnen beim Start ihren `start_date` aus dem letzten Lauf-Zeitstempel (`{platform}_last_crawl_end`, `availability_last_run`). War der nächste Lauf bereits überfällig, startet er ~1 Minute nach Server-Start statt erst nach dem vollen Intervall. Überfällige Plattform-Jobs starten gestaffelt (60s + 15s pro Plattform) um gleichzeitige Requests zu vermeiden. Logik in `scheduler._calc_start_date(last_end_str, minutes, stagger_seconds)`.
 
 ### E-Mail-Benachrichtigung (gebündelt)
 `notifier.notify_pending(settings)` läuft alle 15 Min. als `notify_job` im Scheduler. Es holt alle Listings mit `notified_at IS NULL` aus der DB (`db.get_unnotified_listings()`), sendet eine gruppierte HTML-E-Mail (nach Plattform → Suchbegriff mit Inhaltsverzeichnis, Gratis-Items grün hervorgehoben) und setzt `notified_at = NOW()` via `db.mark_listings_notified()`. Automatische Crawls rufen `notify()` nicht auf — nur der Job. Bei manuellem Crawl (`manual=True`) ruft `run_crawl()` direkt `notify()` auf, das ebenfalls `mark_listings_notified()` aufruft, damit der Job dieselben Listings nicht nochmals versendet.

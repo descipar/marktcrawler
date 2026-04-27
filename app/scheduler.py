@@ -43,6 +43,26 @@ def init_scheduler(app):
     return _scheduler
 
 
+def _calc_start_date(last_end_str: str, minutes: int, stagger_seconds: int) -> datetime | None:
+    """Berechnet start_date für IntervalTrigger nach Server-Neustart.
+
+    Ist der nächste fällige Lauf bereits überfällig, wird er nach
+    stagger_seconds gestartet statt erst nach dem vollen Intervall zu warten.
+    Ist er noch nicht fällig, wird der exakte Fälligkeitszeitpunkt gesetzt.
+    Fehlt last_end, wird None zurückgegeben (APScheduler-Standard).
+    """
+    if not last_end_str:
+        return None
+    try:
+        last_end = datetime.fromisoformat(last_end_str)
+        next_due = last_end + timedelta(minutes=minutes)
+        if next_due <= datetime.now():
+            return datetime.now() + timedelta(seconds=stagger_seconds)
+        return next_due
+    except ValueError:
+        return None
+
+
 def _schedule_platform_jobs():
     """Richtet einen APScheduler-Job pro aktivierter Plattform ein."""
     global _scheduler
@@ -50,6 +70,7 @@ def _schedule_platform_jobs():
         return
 
     global_default = _safe_int(db.get_setting("crawler_interval", "30"), 30)
+    stagger_idx = 0  # Versatz-Zähler für überfällige Starts
 
     for platform in PLATFORMS:
         job_id = f"crawl_{platform}"
@@ -66,15 +87,24 @@ def _schedule_platform_jobs():
         )
         minutes = max(1, minutes)
 
+        # 60s Basisverzögerung + 15s pro Plattform → kein gleichzeitiger Start
+        start_date = _calc_start_date(
+            db.get_setting(f"{platform}_last_crawl_end", ""),
+            minutes,
+            stagger_seconds=60 + stagger_idx * 15,
+        )
+        stagger_idx += 1
+
         _scheduler.add_job(
             run_crawl,
-            trigger=IntervalTrigger(minutes=minutes),
+            trigger=IntervalTrigger(minutes=minutes, start_date=start_date),
             kwargs={"platform": platform},
             id=job_id,
             name=f"Marktcrawler [{platform}]",
             replace_existing=True,
         )
-        logger.info(f"[{platform}] Crawl-Job: alle {minutes} Minuten.")
+        next_info = f", nächster Start: {start_date.strftime('%H:%M:%S')}" if start_date else ""
+        logger.info(f"[{platform}] Crawl-Job: alle {minutes} Minuten{next_info}.")
 
 
 def _schedule_notify_job():

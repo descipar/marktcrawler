@@ -1234,3 +1234,52 @@ class TestSaveListingSingleConnection:
         listings = temp_db.get_listings()
         second_saved = next(r for r in listings if r["listing_id"] == "dup-2")
         assert second_saved["potential_duplicate"] == "Shpock"
+
+
+# ── Preisstatistik ───────────────────────────────────────────
+
+class TestGetPriceStats:
+
+    def _save(self, temp_db, listing_id, term, price, is_free=False):
+        temp_db.save_listing(Listing(
+            platform="Kleinanzeigen", title="Artikel", price=price,
+            location="Dortmund", url=f"https://example.com/{listing_id}",
+            listing_id=listing_id, search_term=term, is_free=is_free,
+        ))
+
+    def test_leere_db_liefert_leere_liste(self, temp_db):
+        assert temp_db.get_price_stats() == []
+
+    def test_aggregation_pro_suchbegriff(self, temp_db):
+        self._save(temp_db, "p1", "kinderwagen", "40 €")
+        self._save(temp_db, "p2", "kinderwagen", "60 €")
+        stats = temp_db.get_price_stats()
+        assert len(stats) == 1
+        row = stats[0]
+        assert row["search_term"] == "kinderwagen"
+        assert row["count"] == 2
+        assert row["avg_price"] == 50.0
+        assert row["min_price"] == 40.0
+        assert row["max_price"] == 60.0
+
+    def test_mehrere_terme_je_eigene_zeile(self, temp_db):
+        self._save(temp_db, "a1", "kinderwagen", "50 €")
+        self._save(temp_db, "b1", "babyschale", "80 €")
+        terms = {r["search_term"] for r in temp_db.get_price_stats()}
+        assert terms == {"kinderwagen", "babyschale"}
+
+    def test_unbekannte_preise_werden_ignoriert(self, temp_db):
+        self._save(temp_db, "u1", "kinderwagen", "k.A.")
+        self._save(temp_db, "u2", "kinderwagen", "Preis nicht angegeben")
+        self._save(temp_db, "u3", "kinderwagen", "")
+        assert temp_db.get_price_stats() == []
+
+    def test_gratis_anzeigen_werden_gezaehlt(self, temp_db):
+        self._save(temp_db, "f1", "kinderwagen", "0 €", is_free=True)
+        self._save(temp_db, "f2", "kinderwagen", "50 €", is_free=False)
+        # Preis 0 wird durch WHERE > 0 gefiltert; is_free=True auf einer
+        # bezahlten Anzeige (z.B. "gratis Zubehör dabei") muss gezählt werden
+        stats = temp_db.get_price_stats()
+        paid_row = next((r for r in stats if r["search_term"] == "kinderwagen"), None)
+        assert paid_row is not None
+        assert paid_row["free_count"] == 0  # is_free=False bei der 50-€-Anzeige

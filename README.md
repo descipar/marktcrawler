@@ -6,7 +6,7 @@ Ein selbst gehosteter Web-Crawler – durchsucht **Kleinanzeigen.de**, **Shpock*
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
 ![Tests](https://img.shields.io/badge/Tests-342%20passed-brightgreen?logo=pytest)
-![License](https://img.shields.io/badge/License-MIT-green)
+![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)
 
 ---
 
@@ -333,7 +333,9 @@ Anzeigen älter als 30 Tage werden automatisch bereinigt. **Favoriten werden dab
 
 ## 📄 Lizenz
 
-MIT – frei verwendbar für private und kommerzielle Zwecke.
+[Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)](https://creativecommons.org/licenses/by-nc/4.0/)
+
+Frei nutzbar für private und nicht-kommerzielle Zwecke. Eine kommerzielle Nutzung ist nicht gestattet.
 
 ---
 

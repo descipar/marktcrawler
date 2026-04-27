@@ -44,6 +44,7 @@ def _build_platform_stats(settings: dict, next_runs: dict) -> list:
             "is_running": is_running(p),
             "last_crawl_end": settings.get(f"{p}_last_crawl_end", ""),
             "last_crawl_found": int(settings.get(f"{p}_last_crawl_found", 0) or 0),
+            "last_crawl_duration": int(settings.get(f"{p}_last_crawl_duration", 0) or 0),
             "next_run": next_runs.get(p, ""),
         })
     return result

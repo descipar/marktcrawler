@@ -1,6 +1,8 @@
 """APScheduler-Integration: ein Job pro Plattform + Tages-Digest + Verfügbarkeits-Check."""
 
 import logging
+from datetime import datetime, timedelta
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
@@ -131,14 +133,28 @@ def _schedule_availability_check():
         return
 
     hours = max(1, _safe_int(db.get_setting("availability_check_interval_hours", "3"), 3))
+
+    # start_date berechnen: verhindert, dass nach Server-Neustart der volle
+    # Intervall neu abgewartet wird. Wenn der letzte Lauf bekannt ist und der
+    # nächste fällige Termin in der Vergangenheit liegt, 1 Min. Vorlauf setzen.
+    start_date = None
+    last_run_str = db.get_setting("availability_last_run", "")
+    if last_run_str:
+        try:
+            last_run = datetime.fromisoformat(last_run_str)
+            next_due = last_run + timedelta(hours=hours)
+            start_date = datetime.now() + timedelta(minutes=1) if next_due <= datetime.now() else next_due
+        except ValueError:
+            pass
+
     _scheduler.add_job(
         run_availability_check,
-        trigger=IntervalTrigger(hours=hours),
+        trigger=IntervalTrigger(hours=hours, start_date=start_date),
         id="availability_job",
         name="Marktcrawler Verfügbarkeits-Check",
         replace_existing=True,
     )
-    logger.info(f"Verfügbarkeits-Check: alle {hours} Stunden.")
+    logger.info(f"Verfügbarkeits-Check: alle {hours} Stunden (nächster Lauf: {start_date or 'sofort +interval'}).")
 
 
 def update_platform_schedules():

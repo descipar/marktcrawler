@@ -198,12 +198,13 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
             is_last = not _running
         if is_last:
             db.set_setting("crawl_status", "idle")
-        db.set_setting(f"{platform}_last_crawl_end", now_str)
-        db.set_setting(f"{platform}_last_crawl_found", str(stats["new"]))
-        db.set_setting("last_crawl_end", now_str)
         duration_s = (
             datetime.fromisoformat(now_str) - datetime.fromisoformat(_started_at)
         ).total_seconds()
+        db.set_setting(f"{platform}_last_crawl_end", now_str)
+        db.set_setting(f"{platform}_last_crawl_found", str(stats["new"]))
+        db.set_setting(f"{platform}_last_crawl_duration", str(int(round(duration_s, 0))))
+        db.set_setting("last_crawl_end", now_str)
         db.log_crawl_run(platform, _started_at, now_str, round(duration_s, 1),
                          stats["new"], _term_count)
 

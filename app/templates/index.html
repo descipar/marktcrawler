@@ -14,6 +14,7 @@
           <th class="text-left pb-1.5 font-medium w-28">Plattform</th>
           <th class="text-left pb-1.5 font-medium w-24">Status</th>
           <th class="text-left pb-1.5 font-medium">Letzter Lauf</th>
+          <th class="text-left pb-1.5 font-medium w-16">Dauer</th>
           <th class="text-left pb-1.5 font-medium">Nächster Lauf</th>
           <th class="text-right pb-1.5 font-medium w-10">Neu</th>
         </tr>
@@ -38,6 +39,12 @@
                     title="{{ p.last_crawl_end | replace('T', ' ') }}">
                 {{ p.last_crawl_end | replace('T', ' ') }}
               </span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="py-1.5 text-slate-400">
+            {% set dur = p.last_crawl_duration %}
+            {% if dur >= 60 %}{{ dur // 60 }}m {{ dur % 60 }}s
+            {% elif dur > 0 %}{{ dur }}s
             {% else %}—{% endif %}
           </td>
           <td class="py-1.5 text-slate-500">
@@ -924,13 +931,18 @@ function updatePlatformCounts(counts) {
 }
 
 // ── Plattform-Status-Tabelle live updaten ─────────────────
+function fmtDuration(s) {
+  if (!s) return '—';
+  return s >= 60 ? `${Math.floor(s/60)}m ${s%60}s` : `${s}s`;
+}
+
 function updatePlatformTable(platforms) {
   if (!platforms || !platforms.length) return;
   platforms.forEach(p => {
     const row = document.getElementById(`prow-${p.id}`);
     if (!row) return;
     row.className = `border-b border-slate-50 last:border-0${p.enabled ? '' : ' opacity-40'}`;
-    const [tdName, tdStatus, tdLast, tdNext, tdNew] = row.querySelectorAll('td');
+    const [tdName, tdStatus, tdLast, tdDuration, tdNext, tdNew] = row.querySelectorAll('td');
     // Status
     if (!p.enabled) {
       tdStatus.innerHTML = '<span class="text-slate-400">— deaktiviert</span>';
@@ -945,6 +957,8 @@ function updatePlatformTable(platforms) {
     } else {
       tdLast.textContent = '—';
     }
+    // Dauer
+    tdDuration.textContent = fmtDuration(p.last_crawl_duration);
     // Nächster Lauf
     tdNext.textContent = p.next_run || '—';
     // Neue

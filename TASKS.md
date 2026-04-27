@@ -14,7 +14,7 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 - [x] `server_url`-Eingabe in Settings tolerant: IP oder Hostname reicht (`192.168.1.10`, `raspberrypi.local`), `http://` und `:5000` werden automatisch ergänzt; `_normalize_server_url()` mit 8 Unit-Tests abgedeckt
 - [x] Settings: Datenverwaltungs-Block in eigenen Tab „🗑️ Daten" verschoben; Speichern-Button auf diesem Tab ausgeblendet
 - [x] Info-Seite: aktuellen Commit (Hash, Datum, Message) und verfügbare GitHub-Updates anzeigen; `app/version.py` liest `.git` beim `docker build` via `scripts/bake_version.py` ein — kein Build-Arg, kein Script nötig, `git pull && docker compose up -d --build` reicht
-- [x] 13 neue Tests — gesamt 401
+- [x] 13 neue Tests — gesamt 419
 
 ---
 

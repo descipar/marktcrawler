@@ -18,7 +18,33 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") ode
 
 ### Features – KI-Integration
 
-- [ ] **KI** – KI-Anfragetext-Generator: auf Wunsch pro Anzeige einen Verkäufer-Text per Knopfdruck generieren; bei VB-Anzeigen automatisch einen sinnvollen Preisvorschlag einbauen (basiert auf `price_stats` der eigenen Daten); API-Key konfigurierbar (Claude, OpenAI, oder andere); Text wird immer in einer editierbaren Textarea angezeigt, kein direktes Absenden; Modell + API-Key in Einstellungen hinterlegbar
+Alle KI-Features nutzen einen gemeinsamen API-Key (Claude / OpenAI / andere), konfigurierbar in Einstellungen (Modell + Key). Implementierung erfolgt schrittweise – jede Option ist unabhängig aktivierbar.
+
+**Option A – Verkäufer-Anfragetext (ursprüngliche Idee)**
+- [ ] Pro Anzeige: Knopfdruck generiert Kontakttext an den Verkäufer (höfliche Anfrage, Interesse bekunden)
+- [ ] Bei VB-Anzeigen: sinnvollen Preisvorschlag einbauen basierend auf `price_stats` der eigenen gesammelten Daten
+- [ ] Text erscheint in editierbarer Textarea im Listing-Modal (nie direktes Absenden, immer manuell kopieren)
+- [ ] API-Key + Modell in Settings hinterlegbar
+
+**Option B – Listing-Bewertung (Score 1–10)**
+- [ ] Beim Crawl: Claude bewertet jedes neue Listing anhand von Titel + Beschreibung (Relevanz, Preis-Leistung, Zustand)
+- [ ] Score wird in DB gespeichert (neues Feld `ai_score`), im Dashboard als Badge angezeigt
+- [ ] Dashboard: nach Score sortieren/filtern
+- [ ] Nur neue Listings werden bewertet (kein Re-Scoring bestehender)
+
+**Option C – Smarte Benachrichtigung**
+- [ ] E-Mail/Notify-Job sendet nur Listings ab konfiguriertem Mindest-Score (z.B. ≥ 7)
+- [ ] Einstellung `ai_notify_min_score` in Settings
+- [ ] Abhängig von Option B (Score muss vorhanden sein)
+
+**Option D – Zustand & Details extrahieren**
+- [ ] KI extrahiert aus Beschreibung: Zustand (neu/gut/gebraucht/defekt), Altersangabe des Artikels, enthaltenes Zubehör
+- [ ] Strukturiert gespeichert, filtert "defekt"-Anzeigen zuverlässiger als die aktuelle Keyword-Blacklist
+- [ ] Wird als Tooltip/Badge im Dashboard angezeigt
+
+**Option E – Duplikat-Erkennung verbessern**
+- [ ] Aktueller Ansatz: einfacher String-Vergleich des Titelanfangs
+- [ ] KI-gestützt: erkennt semantische Duplikate auch bei unterschiedlichen Titeln (gleicher Artikel, andere Formulierung)
 
 ---
 

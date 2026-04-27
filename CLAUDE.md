@@ -26,9 +26,22 @@ baby-crawler-v2/
 ├── requirements.txt
 ├── data/                       # Persistentes Volume (SQLite-DB, FB-Session)
 └── app/
-    ├── __init__.py             # Flask App Factory, initialisiert DB + Scheduler
-    ├── database.py             # Gesamte SQLite-Schicht (kein ORM), Migration
-    ├── routes.py               # Alle Flask-Routen + REST-API (Blueprint "main")
+    ├── __init__.py             # Flask App Factory, initialisiert DB + Scheduler; SECRET_KEY-Persistenz
+    ├── database/               # SQLite-Schicht (kein ORM), versioniertes Migrations-Framework
+    │   ├── __init__.py         # Re-Exports aller öffentlichen Symbole (Rückwärtskompatibilität)
+    │   ├── core.py             # DB_PATH, get_db()/_db(), init_db(), Migrations, utcnow()
+    │   ├── settings.py         # get_settings(), set_setting(), save_settings()
+    │   ├── search_terms.py     # get_search_terms(), create/delete/toggle/update_max_price
+    │   ├── listings.py         # save_listing(), get_listings(), clear_old_listings(), claim_unnotified_listings()
+    │   ├── geocache.py         # get_geocache(), save_geocache() – Keys lowercase-normalisiert
+    │   ├── profiles.py         # get_profiles(), create/update/delete_profile()
+    │   └── stats.py            # get_price_stats(), get_platform_counts(), log_crawl_run()
+    ├── routes/                 # Flask-Routen (Blueprint "main")
+    │   ├── __init__.py         # Blueprint-Definition; importiert views, api, profiles
+    │   ├── views.py            # Dashboard, Settings, Favoriten, Dismiss, Notiz (HTML-Routen)
+    │   ├── api.py              # REST-API (/api/*)
+    │   ├── profiles.py         # /profiles/*-Routen
+    │   └── _helpers.py         # PLATFORMS, build_platform_stats(), build_platform_max_ages()
     ├── crawler.py              # Crawl-Orchestrierung, threading.Lock, run_crawl_async()
     ├── scheduler.py            # APScheduler: pro-Plattform-Crawl + Notify-Job (15 Min) + CronTrigger (Digest); restart-resilient via start_date
     ├── notifier.py             # SMTP E-Mail: gebündelter Alert (notify_pending) + Sofort (manual) + Digest
@@ -38,11 +51,15 @@ baby-crawler-v2/
     │   ├── base.py             # Listing-Dataclass (gemeinsame Datenstruktur)
     │   ├── kleinanzeigen.py    # requests + BeautifulSoup
     │   ├── shpock.py           # GraphQL-API POST
-    │   └── facebook.py        # Playwright headless (optional)
+    │   ├── vinted.py           # REST-API mit Session-Cookie; Altersfilter via created_at_ts
+    │   ├── ebay.py             # requests + BeautifulSoup; URL-Encoding mit quote_plus
+    │   └── facebook.py         # Playwright headless (optional)
     └── templates/
         ├── base.html           # Navbar, Flash-Messages, Tailwind-Setup
         ├── index.html          # Dashboard: Suchbegriffe + Anzeigen-Grid + Live-Status
-        └── settings.html      # Einstellungsformular (alle Plattformen + Features)
+        ├── settings.html       # Einstellungsformular (5 Tabs)
+        ├── profiles_select.html # Profil-Auswahl (Netflix-Stil)
+        └── _listing_card.html  # Anzeigenkarte (Jinja2-Partial)
 ```
 
 ## Datenbankschema
@@ -176,6 +193,12 @@ Alle Interval-Jobs (Plattform-Crawls, Availability-Check) berechnen beim Start i
 
 ### Radius 0 = kein Filter (Vinted & Shpock)
 Beide Scraper lesen `vinted_radius` / `shpock_radius` via `_int()`; ist der Wert `0`, wird der Entfernungsfilter vollständig deaktiviert (kein Geocoding-Aufruf). Muster: `raw = _int(settings.get(..., "30")); self.radius_km = 30 if raw is None else raw`, Filter-Block: `if self._home and self.radius_km > 0:`.
+
+### Vinted: Altersfilter beim Crawlen
+`VintedScraper` liest `vinted_max_age_hours` aus den Settings (Default 48h). Items werden anhand des API-Felds `created_at_ts` (Unix-Timestamp) gefiltert — Items, die auf Vinted älter als der konfigurierte Wert sind, werden **vor dem Speichern** verworfen. `max_age_hours = 0` deaktiviert den Filter. Verhindert, dass wochenlang aktive Vinted-Anzeigen als „neu" gespeichert werden.
+
+### Automatischer Cleanup dismisst Anzeigen
+`clear_old_listings(days=30)` (läuft nach jedem Crawl) trägt alle zu löschenden `listing_id`s vor dem DELETE in `dismissed_listings` ein. Damit tauchen nach 30 Tagen aus der DB entfernte Anzeigen beim nächsten Crawl nicht wieder als „neu" auf — identisches Verhalten wie `clear_listings_older_than()` (manuelle Bulk-Löschung).
 
 ### Suchbegriff-Filter im Dashboard (Mehrfachauswahl)
 Jeder Suchbegriff in der linken Sidebar ist ein klickbarer `<button data-term="...">`. Klick togglet den Term im JS-`Set activeTerms` (hinzufügen/entfernen). Aktive Terms werden visuell hervorgehoben (blauer Text, fetter Font, `bg-brand-50`). Die Anzeigenliste wird via `/api/listings?term=a&term=b` gefiltert. Das Filter-Label zeigt alle aktiven Terme kommagetrennt. `clearFilter()` leert das Set und setzt alle Buttons zurück. Backend: `db.get_listings(search_terms: List[str])` — ein Term → `= ?`, mehrere → `IN (?, ...)`. Route: `request.args.getlist("term")`.

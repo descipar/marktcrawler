@@ -201,7 +201,7 @@ marktcrawler/
 ├── data/                   # Persistentes Volume (SQLite-DB, FB-Session)
 ├── docs/
 │   └── screenshots/        # UI-Vorschaubilder
-├── tests/                  # 344 Unit-Tests (alle ohne externe Abhängigkeiten)
+├── tests/                  # 388 Unit-Tests (alle ohne externe Abhängigkeiten)
 │   ├── conftest.py
 │   ├── test_crawler.py
 │   ├── test_crawl_run.py
@@ -213,9 +213,19 @@ marktcrawler/
 │   ├── test_checker.py
 │   └── test_ai.py
 └── app/
-    ├── __init__.py         # Flask App Factory, DB + Scheduler initialisieren
-    ├── database.py         # SQLite-Schicht (kein ORM), versioniertes Migrations-Framework
-    ├── routes.py           # Alle Flask-Routen & REST-API (Blueprint "main")
+    ├── __init__.py         # Flask App Factory, DB + Scheduler initialisieren; SECRET_KEY-Persistenz
+    ├── database/           # SQLite-Schicht (kein ORM), versioniertes Migrations-Framework
+    │   ├── __init__.py     # Re-Exports aller öffentlichen Symbole
+    │   ├── core.py         # DB-Pfad, get_db(), init_db(), Migrations
+    │   ├── listings.py     # save_listing(), get_listings(), claim_unnotified_listings()
+    │   ├── geocache.py     # Geocoding-Cache (lowercase-normalisiert)
+    │   └── …               # settings, search_terms, profiles, stats
+    ├── routes/             # Alle Flask-Routen & REST-API (Blueprint "main")
+    │   ├── __init__.py     # Blueprint-Definition
+    │   ├── views.py        # HTML-Routen (Dashboard, Settings, …)
+    │   ├── api.py          # REST-API (/api/*)
+    │   ├── profiles.py     # /profiles/*-Routen
+    │   └── _helpers.py     # Plattform-Konstanten, build_platform_stats()
     ├── crawler.py          # Crawl-Orchestrierung (Thread-safe, threading.Lock)
     ├── checker.py          # Verfügbarkeits-Check (HEAD-Requests, Running-Guard)
     ├── scheduler.py        # APScheduler: Pro-Plattform-Crawl + Notify-Job + Digest + Checker
@@ -226,15 +236,15 @@ marktcrawler/
     │   ├── base.py         # Listing-Dataclass, BaseScraper ABC, Hilfsfunktionen
     │   ├── kleinanzeigen.py  # requests + BeautifulSoup
     │   ├── shpock.py         # GraphQL-API
-    │   ├── vinted.py         # REST-API mit Session-Cookie
-    │   ├── ebay.py           # requests + BeautifulSoup
+    │   ├── vinted.py         # REST-API mit Session-Cookie; Altersfilter via created_at_ts
+    │   ├── ebay.py           # requests + BeautifulSoup; URL-Encoding mit quote_plus
     │   └── facebook.py       # Playwright headless
     └── templates/
-        ├── base.html           # Navbar, Flash-Messages, Tailwind
-        ├── index.html          # Dashboard
-        ├── settings.html       # Einstellungsformular (5 Tabs)
-        ├── profiles.html       # Profil-Auswahl
-        └── _listing_card.html  # Anzeigenkarte (Jinja2-Partial)
+        ├── base.html              # Navbar, Flash-Messages, Tailwind
+        ├── index.html             # Dashboard
+        ├── settings.html          # Einstellungsformular (5 Tabs)
+        ├── profiles_select.html   # Profil-Auswahl (Netflix-Stil)
+        └── _listing_card.html     # Anzeigenkarte (Jinja2-Partial)
 ```
 
 **Tech-Stack**: Python 3.12 · Flask 3 · APScheduler 3 · SQLite (kein ORM) · Tailwind CSS via CDN (kein Build-Step) · Gunicorn 1 Worker · Docker + docker-compose

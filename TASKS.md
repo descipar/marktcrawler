@@ -242,4 +242,19 @@ Alle KI-Features nutzen einen gemeinsamen API-Key (Claude / OpenAI / andere), ko
 - [x] Screenshots aktualisiert: Modal-Detail und Modal-KI-Anfragetext als neue Vorschaubilder in README
 - [x] 2 neue Tests (344 gesamt)
 
-*Letzte Aktualisierung: 2026-04-27 (Phase 23 abgeschlossen)*
+### Phase 24 – Architektur-Refactoring, Sicherheit & Vinted-Fix
+
+- [x] A7: `database.py` → `database/`-Package (core, settings, search_terms, listings, geocache, profiles, stats, __init__)
+- [x] A12: `routes.py` → `routes/`-Package (views.py, api.py, profiles.py, _helpers.py, __init__.py)
+- [x] B5: Atomare TOCTOU-sichere Benachrichtigung: `claim_unnotified_listings()` in einer Transaktion (vorher zwei getrennte Queries)
+- [x] B9: UTC-Konsistenz: `datetime.now(timezone.utc).replace(tzinfo=None)` durchgängig in crawler.py, checker.py, scheduler.py
+- [x] Q13: SECRET_KEY-Persistenz via `DATA_DIR/secret_key.txt` (Sessions überleben Server-Neustarts)
+- [x] B13: eBay URL-Encoding mit `quote_plus()` für Suchbegriffe und Standort
+- [x] B16: Geocache-Keys lowercase-normalisiert (verhindert Duplikate bei „Dortmund" vs. „dortmund")
+- [x] B11: Vinted-Authentifizierung gibt `bool` zurück, loggt HTTP-Status bei Fehler statt still zu ignorieren
+- [x] Vinted: `created_at_ts`-Altersfilter beim Crawlen — Items älter als `vinted_max_age_hours` werden verworfen, nicht nur versteckt
+- [x] `clear_old_listings()`: trägt vor dem Löschen in `dismissed_listings` ein (verhindert Recycling von Anzeigen nach 30 Tagen)
+- [x] Tests: T1 `TestApiAiModels` (Provider-Erkennung + Fehlerfall), T3 `TestGeocodeConcurrency`, T5 HTML-Injection-Escaping in E-Mail
+- [x] 44 neue Tests — gesamt 388
+
+*Letzte Aktualisierung: 2026-04-27 (Phase 24 abgeschlossen)*

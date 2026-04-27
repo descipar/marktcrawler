@@ -12,7 +12,7 @@ Selbst gehostet, Docker-ready, läuft unbeaufsichtigt auf einem Raspberry Pi.
 
 ---
 
-![Dashboard](docs/screenshots/dashboard.png)
+<img src="docs/screenshots/dashboard.png" width="700" alt="Dashboard">
 
 📁 [Alle Screenshots ansehen](docs/screenshots/)
 

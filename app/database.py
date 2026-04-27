@@ -210,6 +210,18 @@ def _mig_search_terms_max_price(conn: sqlite3.Connection):
         conn.execute("ALTER TABLE search_terms ADD COLUMN max_price INTEGER NULL")
 
 
+def _mig_backfill_notified_at(conn: sqlite3.Connection):
+    """Markiert alle bestehenden Anzeigen als bereits benachrichtigt.
+
+    Ohne diesen Schritt würden alle Einträge, die vor Einführung der
+    notified_at-Spalte existierten, beim nächsten notify_pending()-Aufruf
+    als "neu unbenachrichtigt" gelten und eine Massen-E-Mail auslösen.
+    """
+    conn.execute(
+        "UPDATE listings SET notified_at=datetime('now') WHERE notified_at IS NULL"
+    )
+
+
 def _ensure_indexes(conn: sqlite3.Connection):
     """Erstellt Performance-Indizes nur für vorhandene Spalten (idempotent)."""
     existing = {row[1] for row in conn.execute("PRAGMA table_info(listings)")}
@@ -233,6 +245,7 @@ _MIGRATIONS = [
     ("v1_settings_rename",          _mig_settings_rename),
     ("v2_listings_columns",         _mig_listings_columns),
     ("v3_search_terms_max_price",   _mig_search_terms_max_price),
+    ("v4_backfill_notified_at",     _mig_backfill_notified_at),
 ]
 
 
@@ -558,15 +571,18 @@ def get_unnotified_listings() -> List[Dict]:
 
 
 def mark_listings_notified(listing_ids: List[str]):
-    """Setzt notified_at für die angegebenen listing_ids."""
+    """Setzt notified_at für die angegebenen listing_ids (in Chunks à 500)."""
     if not listing_ids:
         return
     with _db() as conn:
-        placeholders = ",".join("?" * len(listing_ids))
-        conn.execute(
-            f"UPDATE listings SET notified_at=datetime('now') WHERE listing_id IN ({placeholders})",
-            listing_ids,
-        )
+        for i in range(0, len(listing_ids), 500):
+            chunk = listing_ids[i:i + 500]
+            placeholders = ",".join("?" * len(chunk))
+            conn.execute(
+                f"UPDATE listings SET notified_at=datetime('now') WHERE listing_id IN ({placeholders})",
+                chunk,
+            )
+        conn.commit()
         conn.commit()
 
 

@@ -686,10 +686,48 @@ class TestMigrationFramework:
         conn = sqlite3.connect(str(old_db))
         names = {r[0] for r in conn.execute("SELECT name FROM _migrations")}
         conn.close()
-        # Die drei Kernmigrationen müssen eingetragen sein (mit vN_-Prefix)
+        # Alle vier Kernmigrationen müssen eingetragen sein (mit vN_-Prefix)
+        assert "v1_settings_rename" in names
         assert "v2_listings_columns" in names
         assert "v3_search_terms_max_price" in names
-        assert "v1_settings_rename" in names
+        assert "v4_backfill_notified_at" in names
+
+    def test_backfill_migration_markiert_bestehende_listings(self, tmp_path, monkeypatch):
+        """v4-Migration setzt notified_at für alle NULL-Einträge – verhindert Massen-E-Mail."""
+        import sqlite3
+        import app.database as db
+
+        old_db = tmp_path / "mig_backfill.db"
+        monkeypatch.setattr(db, "DB_PATH", old_db)
+        # Alte DB mit Listings ohne notified_at
+        conn = sqlite3.connect(str(old_db))
+        conn.executescript("""
+            CREATE TABLE listings (
+                id INTEGER PRIMARY KEY, listing_id TEXT UNIQUE, platform TEXT,
+                title TEXT, price TEXT, location TEXT, url TEXT,
+                found_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+            CREATE TABLE search_terms (
+                id INTEGER PRIMARY KEY, term TEXT UNIQUE, enabled INTEGER DEFAULT 1
+            );
+            CREATE TABLE geocache (location_text TEXT PRIMARY KEY, lat REAL, lon REAL);
+            INSERT INTO listings (listing_id, platform, title, price, location, url)
+            VALUES ('alt-1', 'Shpock', 'Alter Eintrag', '10 €', 'Berlin', 'https://x.com/1');
+            INSERT INTO listings (listing_id, platform, title, price, location, url)
+            VALUES ('alt-2', 'Shpock', 'Noch ein alter', '20 €', 'Hamburg', 'https://x.com/2');
+        """)
+        conn.commit()
+        conn.close()
+
+        db.init_db()
+
+        conn = sqlite3.connect(str(old_db))
+        nulls = conn.execute(
+            "SELECT COUNT(*) FROM listings WHERE notified_at IS NULL"
+        ).fetchone()[0]
+        conn.close()
+        assert nulls == 0, "Alle bestehenden Listings müssen nach Migration notified_at haben"
 
 
 class TestEnsureIndexes:

@@ -174,6 +174,12 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") ode
 - [x] HTML-E-Mail-Builder vereinheitlicht: `_html_email()` ersetzt zwei separate Builder; Aliases für Rückwärtskompatibilität
 - [x] 23 neue Tests (323 gesamt): Migrations-Framework, Indexes, Env-Var-Priorität, Race-Condition-Fix, BaseScraper-Vererbung, `_html_email` direkt
 
+### Phase 21a – Migration-Fix: notified_at-Backfill verhindert Massen-E-Mail
+- [x] `v4_backfill_notified_at`-Migration: setzt `notified_at = NOW()` für alle bestehenden NULL-Einträge beim Upgrade
+- [x] `mark_listings_notified()` in Chunks à 500 IDs (SQLite-Variablen-Limit-Schutz)
+- [x] Test: Backfill-Migration markiert alle bestehenden Listings, kein NULL übrig
+- [x] CLAUDE.md: v4-Migration dokumentiert
+
 ### Phase 21 – Per-Plattform-Statusübersicht im Dashboard
 - [x] `/api/status` liefert `platforms`-Array: pro Plattform `id`, `display`, `enabled`, `is_running`, `last_crawl_end`, `last_crawl_found`, `next_run`
 - [x] Hilfsfunktion `_build_platform_stats()` in `routes.py` (für Template und API gemeinsam genutzt)

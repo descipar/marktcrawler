@@ -16,8 +16,23 @@ class Listing:
     search_term: str = ""
     description: str = ""
     image_url: str = ""
+    image_url_large: str = ""
     is_free: bool = False
     distance_km: Optional[float] = None
+
+
+def _large_image_url(url: str) -> str:
+    """Leitet aus einer CDN-Thumbnail-URL die hochauflösende Variante ab."""
+    if not url:
+        return url
+    if "i.ebayimg.com" in url:
+        url = url.replace("/thumbs/images/", "/images/")
+        url = re.sub(r"/s-l\d+\.", "/s-l1600.", url)
+        return url
+    if "img.kleinanzeigen.de" in url:
+        url = re.sub(r"\$_\d+\.JPG", "$_2.JPG", url)
+        return url
+    return url
 
 
 # ── Gemeinsame Hilfsfunktionen ───────────────────────────────

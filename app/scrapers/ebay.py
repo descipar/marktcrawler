@@ -7,7 +7,7 @@ from typing import List, Optional
 import requests
 from bs4 import BeautifulSoup
 
-from .base import BaseScraper, Listing, _float, _int, price_within_limit
+from .base import BaseScraper, Listing, _float, _int, price_within_limit, _large_image_url
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +95,7 @@ class EbayScraper(BaseScraper):
                 listing_id=f"eb_{lid}",
                 search_term=term,
                 image_url=image_url,
+                image_url_large=_large_image_url(image_url),
             )
         except Exception as e:
             logger.debug(f"[eBay] Parse-Fehler: {e}")

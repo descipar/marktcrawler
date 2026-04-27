@@ -247,6 +247,13 @@ def _ensure_indexes(conn: sqlite3.Connection):
     conn.commit()
 
 
+def _mig_image_url_large(conn: sqlite3.Connection):
+    """Ergänzt image_url_large-Spalte für hochauflösende Bilder im Modal."""
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(listings)")}
+    if "image_url_large" not in existing:
+        conn.execute("ALTER TABLE listings ADD COLUMN image_url_large TEXT NOT NULL DEFAULT ''")
+
+
 def _mig_rename_email_subjects(conn: sqlite3.Connection):
     """Aktualisiert die E-Mail-Betreff-Defaults von Baby-Crawler auf Marktcrawler.
 
@@ -271,6 +278,7 @@ _MIGRATIONS = [
     ("v3_search_terms_max_price",   _mig_search_terms_max_price),
     ("v4_backfill_notified_at",     _mig_backfill_notified_at),
     ("v5_rename_email_subjects",    _mig_rename_email_subjects),
+    ("v6_image_url_large",          _mig_image_url_large),
 ]
 
 
@@ -401,12 +409,14 @@ def save_listing(listing: "Listing") -> bool:
         with _db() as conn:
             conn.execute(
                 """INSERT INTO listings
-                   (listing_id,platform,title,price,location,url,image_url,
+                   (listing_id,platform,title,price,location,url,image_url,image_url_large,
                     description,search_term,is_free)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                 (listing.listing_id, listing.platform, listing.title, listing.price,
-                 listing.location, listing.url, listing.image_url, listing.description,
-                 listing.search_term, int(getattr(listing, "is_free", False))),
+                 listing.location, listing.url, listing.image_url,
+                 getattr(listing, "image_url_large", ""),
+                 listing.description, listing.search_term,
+                 int(getattr(listing, "is_free", False))),
             )
             conn.commit()
         # Duplikat-Erkennung nach erfolgreichem INSERT

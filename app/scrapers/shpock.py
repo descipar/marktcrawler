@@ -151,6 +151,7 @@ class ShpockScraper(BaseScraper):
 
             media = item.get("media") or []
             image_url = f"https://m1.secondhandapp.at/full/{media[0]['id']}" if media else ""
+            image_url_large = image_url
             path = item.get("path", "")
 
             return Listing(
@@ -163,6 +164,7 @@ class ShpockScraper(BaseScraper):
                 search_term=term,
                 description=item.get("description", ""),
                 image_url=image_url,
+                image_url_large=image_url_large,
             )
         except Exception as e:
             logger.debug(f"[Shpock] Parse-Fehler: {e}")

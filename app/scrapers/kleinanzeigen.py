@@ -13,7 +13,7 @@ from typing import List, Optional
 import requests
 from bs4 import BeautifulSoup
 
-from .base import BaseScraper, Listing, _int, price_within_limit
+from .base import BaseScraper, Listing, _int, price_within_limit, _large_image_url
 
 logger = logging.getLogger(__name__)
 
@@ -158,7 +158,8 @@ class KleinanzeigenScraper(BaseScraper):
                 platform="Kleinanzeigen",
                 title=title, price=price, location=location,
                 url=href, listing_id=f"ka_{lid}",
-                search_term=term, description=description, image_url=image_url,
+                search_term=term, description=description,
+                image_url=image_url, image_url_large=_large_image_url(image_url),
             )
         except Exception as e:
             logger.debug(f"[Kleinanzeigen] Parse-Fehler: {e}")

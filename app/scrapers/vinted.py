@@ -107,6 +107,7 @@ class VintedScraper(BaseScraper):
 
             photo = item.get("photo") or {}
             image_url = photo.get("url", "")
+            image_url_large = photo.get("full_size_url") or image_url
 
             return Listing(
                 platform="Vinted",
@@ -118,6 +119,7 @@ class VintedScraper(BaseScraper):
                 search_term=term,
                 description=item.get("description", ""),
                 image_url=image_url,
+                image_url_large=image_url_large,
             )
         except Exception as e:
             logger.debug(f"[Vinted] Parse-Fehler: {e}")

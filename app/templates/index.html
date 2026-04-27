@@ -698,8 +698,9 @@ function openModal(id) {
   const content = document.getElementById('modal-content');
   const absTs = (l.found_at||'').replace('T',' ');
   const relTs = relativeTime(l.found_at);
-  const img = l.image_url
-    ? `<img src="${escHtml(l.image_url)}" alt="" referrerpolicy="no-referrer" class="w-full max-h-64 object-contain bg-slate-100 rounded-t-xl">`
+  const _modalSrc = l.image_url_large || l.image_url;
+  const img = _modalSrc
+    ? `<img src="${escHtml(_modalSrc)}" alt="" referrerpolicy="no-referrer" class="w-full max-h-80 object-contain bg-slate-100 rounded-t-xl">`
     : `<div class="w-full h-32 bg-slate-100 flex items-center justify-center text-5xl rounded-t-xl">🛍️</div>`;
   const pc = getPlatformBadgeClass(l.platform);
   const distTxt = l.distance_km != null ? `<span class="text-xs text-slate-500">${Math.round(l.distance_km)} km entfernt</span>` : '';

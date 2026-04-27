@@ -89,44 +89,6 @@
   </div>
 </div>
 
-<!-- ── Preisstatistik ────────────────────────────────────── -->
-{% if price_stats %}
-<div class="bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
-  <button onclick="toggleStats()" class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50">
-    <span class="font-semibold text-slate-700 text-sm">📊 Preisstatistik</span>
-    <span id="stats-chevron" class="text-slate-400 text-xs">▼ anzeigen</span>
-  </button>
-  <div id="stats-panel" class="hidden overflow-x-auto">
-    <table class="w-full text-xs">
-      <thead>
-        <tr class="bg-slate-50 border-y border-slate-100">
-          <th class="text-left px-4 py-2 font-medium text-slate-500">Suchbegriff</th>
-          <th class="text-right px-3 py-2 font-medium text-slate-500">Anzeigen</th>
-          <th class="text-right px-3 py-2 font-medium text-slate-500">Ø Preis</th>
-          <th class="text-right px-3 py-2 font-medium text-slate-500">Günstigster</th>
-          <th class="text-right px-3 py-2 font-medium text-slate-500">Teuerster</th>
-          <th class="text-right px-4 py-2 font-medium text-slate-500">Gratis</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-50">
-        {% for s in price_stats %}
-        <tr class="hover:bg-slate-50 cursor-pointer" onclick="toggleTermFilter('{{ s.search_term }}')">
-          <td class="px-4 py-2 font-medium text-slate-700">{{ s.search_term }}</td>
-          <td class="text-right px-3 py-2 text-slate-600">{{ s.count }}</td>
-          <td class="text-right px-3 py-2 text-slate-600">{{ '%.0f €' % s.avg_price if s.avg_price else '–' }}</td>
-          <td class="text-right px-3 py-2 text-green-700 font-medium">{{ '%.0f €' % s.min_price if s.min_price else '–' }}</td>
-          <td class="text-right px-3 py-2 text-slate-500">{{ '%.0f €' % s.max_price if s.max_price else '–' }}</td>
-          <td class="text-right px-4 py-2">
-            {% if s.free_count %}<span class="bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">{{ s.free_count }}</span>{% else %}–{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
-
 <!-- ── Hauptbereich ──────────────────────────────────────── -->
 <div class="flex flex-col lg:flex-row gap-6">
 
@@ -682,12 +644,6 @@ function setBtn(id,on,color){
   btn.classList.toggle(`bg-${color}-50`,on);
   btn.classList.toggle(`border-${color}-300`,on);
   btn.classList.toggle(`text-${color}-700`,on);
-}
-
-function toggleStats(){
-  const p=document.getElementById('stats-panel'), c=document.getElementById('stats-chevron');
-  p.classList.toggle('hidden');
-  c.textContent=p.classList.contains('hidden')?'▼ anzeigen':'▲ schließen';
 }
 
 // ── Task 6: Listing-Detailansicht per Modal ───────────────

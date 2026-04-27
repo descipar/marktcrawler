@@ -187,6 +187,37 @@
       {{ stats.price_unknown_count }} Anzeige(n) ohne Preisangabe (k.A.) nicht eingerechnet.
     </p>
     {% endif %}
+
+    {% if price_stats %}
+    <div class="mt-4 bg-white rounded-xl border border-slate-200 overflow-x-auto">
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="bg-slate-50 border-y border-slate-100">
+            <th class="text-left px-4 py-2 font-medium text-slate-500">Suchbegriff</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500">Anzeigen</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500">Ø Preis</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500">Günstigster</th>
+            <th class="text-right px-3 py-2 font-medium text-slate-500">Teuerster</th>
+            <th class="text-right px-4 py-2 font-medium text-slate-500">Gratis</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-50">
+          {% for s in price_stats %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-2 font-medium text-slate-700">{{ s.search_term }}</td>
+            <td class="text-right px-3 py-2 text-slate-600">{{ s.count }}</td>
+            <td class="text-right px-3 py-2 text-slate-600">{{ '%.0f €' % s.avg_price if s.avg_price else '–' }}</td>
+            <td class="text-right px-3 py-2 text-green-700 font-medium">{{ '%.0f €' % s.min_price if s.min_price else '–' }}</td>
+            <td class="text-right px-3 py-2 text-slate-500">{{ '%.0f €' % s.max_price if s.max_price else '–' }}</td>
+            <td class="text-right px-4 py-2">
+              {% if s.free_count %}<span class="bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">{{ s.free_count }}</span>{% else %}–{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
   </section>
 
   {# ── Crawl-Verlauf ──────────────────────────────────────── #}

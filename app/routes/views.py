@@ -48,14 +48,12 @@ def index():
         "crawl_status": settings.get("crawl_status", "idle"),
         "last_found": str(last_found),
     }
-    price_stats = db.get_price_stats()
     return render_template(
         "index.html",
         search_terms=search_terms,
         listings=listings,
         stats=stats,
         platform_stats=platform_stats,
-        price_stats=price_stats,
         only_fav=only_fav,
         only_free=only_free,
         active_profile=session.get("profile_name"),
@@ -179,4 +177,5 @@ def save_settings():
 @bp.route("/info")
 def info():
     stats = db.get_system_stats()
-    return render_template("info.html", stats=stats)
+    price_stats = db.get_price_stats()
+    return render_template("info.html", stats=stats, price_stats=price_stats)

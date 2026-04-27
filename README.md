@@ -56,6 +56,12 @@ Admin-UI aufrufen: **`http://localhost:5000`**
 - **Pro-Plattform-Scheduler** – jede Plattform hat ein eigenes konfigurierbares Intervall (z.B. Kleinanzeigen 15 Min., eBay 60 Min.), kein Cronjob nötig
 - **🔍 Verfügbarkeits-Check** – prüft periodisch ob Anzeigen noch online sind (HTTP 404/410 → automatisch löschen, inkl. Favoriten)
 
+### KI-Assistent
+- **✨ Anfragetext-Generator** – generiert per Knopfdruck im Detail-Modal einen höflichen Kontakttext an den Verkäufer
+- **💰 VB-Preisvorschlag** – bei „Verhandlungsbasis"-Anzeigen schlägt die KI automatisch einen Preis vor (basiert auf dem Durchschnitt deiner eigenen gesammelten Daten)
+- **Drei Betriebsmodi** – Cloud-API (Claude/OpenAI) oder lokal via Ollama; einfach in den Einstellungen umschalten
+- Text erscheint immer in einer **editierbaren Textarea**, wird nie automatisch gesendet
+
 ### Sonstiges
 - **📊 Preisstatistik** – Durchschnitt, Min, Max und Gratis-Zähler pro Suchbegriff
 - **📱 Mobil-optimiert** – responsive Layout, kollabierbare Sidebar, scrollbare Filter-Leiste
@@ -120,7 +126,7 @@ Die `.env`-Datei setzt `DATA_DIR=./data`. Optional: `SECRET_KEY=<langer-string>`
 
 ### Einstellungen (`/settings`)
 
-Die Einstellungsseite ist in drei Tabs gegliedert: **Plattformen**, **Benachrichtigungen**, **Crawler & Daten**. Deaktivierte Plattformen werden optisch gedimmt. Der Speichern-Button ist sticky am Seitenende. Ungespeicherte Änderungen werden beim Verlassen der Seite mit einem Browser-Dialog gewarnt.
+Die Einstellungsseite ist in fünf Tabs gegliedert: **Plattformen**, **Benachrichtigungen**, **Crawler & Daten**, **KI-Assistent**, **Profile**. Deaktivierte Plattformen werden optisch gedimmt. Der Speichern-Button ist sticky am Seitenende. Ungespeicherte Änderungen werden beim Verlassen der Seite mit einem Browser-Dialog gewarnt.
 
 | Bereich | Tab | Konfigurierbar |
 |---------|-----|---------------|
@@ -136,6 +142,7 @@ Die Einstellungsseite ist in drei Tabs gegliedert: **Plattformen**, **Benachrich
 | Anzeigen-Verwaltung | Crawler & Daten | Altersfilter (Anzeige), Anzeigen löschen die älter als X Stunden sind |
 | Verfügbarkeits-Check | Crawler & Daten | Aktiviert, Intervall (Stunden), „Jetzt prüfen"-Button |
 | Heimstandort | Crawler & Daten | Stadt für Entfernungsberechnung |
+| KI-Assistent | KI-Assistent | Aktiviert, API-Key, Modell, Base-URL (für Ollama) |
 
 ---
 
@@ -175,6 +182,77 @@ Danach Facebook in den Einstellungen aktivieren.
 
 ---
 
+## 🤖 KI-Assistent einrichten
+
+Der KI-Assistent generiert im Anzeigen-Modal per Klick auf „✨ Generieren" einen fertigen Anfragetext an den Verkäufer. Bei VB-Anzeigen (Verhandlungsbasis) schlägt er automatisch einen Preis vor — basierend auf dem Durchschnitt der eigenen gesammelten Daten.
+
+Der Text erscheint immer in einer **editierbaren Textarea** und wird nie automatisch gesendet.
+
+### Option 1: Cloud-API (empfohlen für Raspberry Pi)
+
+Günstig und ohne lokale Ressourcen. Ein Anfragetext kostet ca. **0,00005 €** mit Claude Haiku.
+
+**Anthropic (Claude):**
+1. API-Key erstellen: [console.anthropic.com](https://console.anthropic.com)
+2. In **Einstellungen → KI-Assistent** eintragen:
+   - API-Key: `sk-ant-…`
+   - Modell: `claude-haiku-4-5-20251001` (günstig) oder `claude-sonnet-4-6` (besser)
+   - Base-URL: *(leer lassen)*
+
+**OpenAI:**
+- API-Key: `sk-…`
+- Modell: `gpt-4o-mini`
+- Base-URL: *(leer lassen)*
+
+---
+
+### Option 2: Lokal via Ollama
+
+Vollständig offline, kein API-Key nötig. Benötigt mehr Hardware-Ressourcen.
+
+> ⚠️ **Nicht für Raspberry Pi 4 geeignet.** Der RPi4 hat keine GPU – Ollama läuft nur auf der CPU und braucht **2–5 Minuten** pro Antwort. Für den RPi4 empfehlen wir Option 1 (Cloud-API).
+
+**Mindestanforderungen:**
+- x86_64-CPU, mind. 4 Kerne
+- **8 GB RAM** (für `gemma2:2b`)
+- Optional: NVIDIA-GPU für deutlich schnellere Ausgabe
+
+**Empfohlene Modelle:**
+
+| Modell | Größe | Qualität | RAM-Bedarf |
+|--------|-------|----------|------------|
+| `gemma2:2b` | 1,6 GB | gut | 4 GB |
+| `phi3:mini` | 2,3 GB | besser | 6 GB |
+| `qwen2.5:0.5b` | 400 MB | ausreichend | 2 GB |
+
+**Einrichtung mit Docker (empfohlen):**
+
+```bash
+# Ollama als zweiten Container starten
+docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d
+
+# Modell laden (einmalig, ~1,6 GB Download)
+docker exec baby-crawler-ollama ollama pull gemma2:2b
+```
+
+Danach in **Einstellungen → KI-Assistent**:
+- Modell: `gemma2:2b`
+- Base-URL: `http://ollama:11434/v1`
+- API-Key: *(leer lassen)*
+
+**Einrichtung lokal (ohne Docker):**
+
+```bash
+# Ollama installieren (Mac)
+brew install ollama
+ollama serve &
+ollama pull gemma2:2b
+```
+
+Dann Base-URL auf `http://localhost:11434/v1` setzen.
+
+---
+
 ## 🏗️ Architektur
 
 ```
@@ -201,6 +279,7 @@ baby-crawler/
     ├── checker.py          # Verfügbarkeits-Check (HEAD-Requests)
     ├── scheduler.py        # APScheduler: Crawl (pro Plattform) + Notify-Job + Digest + Checker
     ├── notifier.py         # E-Mail (gebündelter Alert + Sofort bei manuellem Crawl + Digest)
+    ├── ai.py               # KI-Assistent: Anfragetext-Generator (Claude / OpenAI / Ollama)
     ├── geo.py              # Nominatim-Geocoding + Haversine
     ├── scrapers/
     │   ├── base.py         # Listing-Datenklasse + Hilfsfunktionen

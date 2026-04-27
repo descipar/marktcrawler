@@ -15,8 +15,9 @@ try:
     else:
         commit = head
 
-    # Datum + Message aus dem letzten Log-Eintrag
-    log_lines = (git / "logs" / "HEAD").read_text().strip().splitlines()
+    # Branch-Log lesen (nicht HEAD-Log, der enthält auch checkout/fast-forward-Noise)
+    branch_log = git / "logs" / ref if head.startswith("ref:") else git / "logs" / "HEAD"
+    log_lines = branch_log.read_text().strip().splitlines()
     last = log_lines[-1]
     meta, _, message = last.partition("\t")
     # "commit: <msg>" oder "commit (amend): <msg>" → alles nach erstem ": "

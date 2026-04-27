@@ -5,7 +5,7 @@ Ein selbst gehosteter Web-Crawler für werdende Eltern – durchsucht **Kleinanz
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-340%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-342%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
@@ -183,7 +183,7 @@ baby-crawler/
 ├── requirements.txt / pytest.ini
 ├── run.py                  # Einstiegspunkt
 ├── data/                   # SQLite-DB (persistentes Volume)
-├── tests/                  # 340 Unit-Tests
+├── tests/                  # 342 Unit-Tests
 │   ├── conftest.py
 │   ├── test_crawler.py     # _is_free(), _is_blacklisted()
 │   ├── test_crawl_run.py   # run_crawl() inkl. per-term Preisfilter

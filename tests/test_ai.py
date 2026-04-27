@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.ai import _avg_price_for_term, _detect_provider, _is_vb, generate_contact_text
+from app.ai import _avg_price_for_term, _detect_provider, _is_vb, _call_openai_compat, generate_contact_text
 
 LISTING = {
     "title": "Kinderwagen Bugaboo Cameleon",
@@ -49,6 +49,17 @@ class TestDetectProvider:
 
     def test_unbekanntes_modell(self):
         assert _detect_provider("llama-3") == "unknown"
+
+    def test_base_url_ergibt_ollama(self):
+        assert _detect_provider("gemma2:2b", "http://ollama:11434/v1") == "ollama"
+        assert _detect_provider("phi3:mini", "http://localhost:11434/v1") == "ollama"
+
+    def test_kein_api_key_bei_ollama_erlaubt(self):
+        settings = {**_SETTINGS_ON, "ai_api_key": "", "ai_base_url": "http://ollama:11434/v1", "ai_model": "gemma2:2b"}
+        with patch("app.ai._call_openai_compat", return_value="Hallo, ich interessiere mich.") as mock:
+            result = generate_contact_text(LISTING, PRICE_STATS, settings)
+        mock.assert_called_once()
+        assert "⚠️" not in result
 
 
 class TestAvgPriceForTerm:

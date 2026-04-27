@@ -334,8 +334,19 @@
             class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
             placeholder="claude-haiku-4-5-20251001">
           <p class="text-xs text-slate-400 mt-1">
-            Anthropic: <code>claude-haiku-4-5-20251001</code> (günstig) oder <code>claude-sonnet-4-6</code> (besser) ·
-            OpenAI: <code>gpt-4o-mini</code>
+            Anthropic: <code>claude-haiku-4-5-20251001</code> (günstig) · <code>claude-sonnet-4-6</code> (besser) ·
+            OpenAI: <code>gpt-4o-mini</code> · Ollama: <code>gemma2:2b</code>
+          </p>
+        {% endcall %}
+
+        {% call field("Base-URL (optional)") %}
+          <input type="text" name="ai_base_url" value="{{ s.get('ai_base_url','') }}"
+            class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+            placeholder="leer lassen für Cloud-API">
+          <p class="text-xs text-slate-400 mt-1">
+            Nur für lokales <strong>Ollama</strong> nötig. Kein API-Key erforderlich.<br>
+            Docker (mit <code>docker-compose.ollama.yml</code>): <code>http://ollama:11434/v1</code><br>
+            Lokal installiert: <code>http://localhost:11434/v1</code>
           </p>
         {% endcall %}
       </div>

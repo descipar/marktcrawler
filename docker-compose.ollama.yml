@@ -1,0 +1,36 @@
+# Optionaler Ollama-Service für lokale KI-Textgenerierung
+#
+# Verwendung (zusätzlich zum normalen Start):
+#   docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d
+#
+# Modell laden (einmalig, danach bleibt es im Volume):
+#   docker exec baby-crawler-ollama ollama pull gemma2:2b
+#
+# Danach in den Baby-Crawler-Einstellungen (Tab "KI-Assistent"):
+#   Modell:    gemma2:2b
+#   Base-URL:  http://ollama:11434/v1
+#   API-Key:   (leer lassen)
+#
+# Empfohlene Modelle (Kompromiss Qualität / Größe):
+#   gemma2:2b   ~1.6 GB  – gut für kurze Texte, empfohlen
+#   phi3:mini   ~2.3 GB  – etwas besser, braucht mehr RAM
+#   qwen2.5:0.5b ~400 MB – sehr klein, ausreichend für einfache Anfragen
+#
+# Mindestanforderungen Hardware:
+#   CPU:  x86_64 oder ARM64 mit mind. 4 Kernen
+#   RAM:  mind. 4 GB (8 GB empfohlen für gemma2:2b)
+#   ⚠️  Raspberry Pi 4: technisch möglich, aber sehr langsam (~2–5 Min/Antwort)
+#       Für RPi4 lieber Cloud-API (Claude Haiku) verwenden.
+
+services:
+  ollama:
+    image: ollama/ollama
+    container_name: baby-crawler-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  ollama_data:

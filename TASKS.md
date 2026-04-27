@@ -25,8 +25,10 @@ Alle KI-Features nutzen einen gemeinsamen API-Key (Claude / OpenAI / andere), ko
 - [x] Bei VB-Anzeigen: sinnvollen Preisvorschlag einbauen basierend auf `price_stats` der eigenen gesammelten Daten
 - [x] Text erscheint in editierbarer Textarea im Listing-Modal (nie direktes Absenden, immer manuell kopieren)
 - [x] API-Key + Modell in Settings hinterlegbar (eigener Tab „KI-Assistent")
-- [x] Unterstützt Anthropic Claude und OpenAI (Provider-Erkennung via Modellname)
-- [x] 16 Tests in `test_ai.py`
+- [x] Unterstützt Anthropic Claude, OpenAI und Ollama (lokal, via `ai_base_url`)
+- [x] `docker-compose.ollama.yml` als optionale Override-Datei mit Hinweisen zu Modellen + Hardware
+- [x] 18 Tests in `test_ai.py`
+- [ ] Install-Script (fragt ab ob Ollama gewünscht, erkennt Hardware/Arch) — als spätere Ergänzung vorgesehen
 
 **Option B – Listing-Bewertung (Score 1–10)**
 - [ ] Beim Crawl: Claude bewertet jedes neue Listing anhand von Titel + Beschreibung (Relevanz, Preis-Leistung, Zustand)
@@ -218,13 +220,14 @@ Alle KI-Features nutzen einen gemeinsamen API-Key (Claude / OpenAI / andere), ko
 
 ---
 
-### Phase 22 – KI-Assistent: Verkäufer-Anfragetext (Option A)
-- [x] `app/ai.py`: `generate_contact_text()`, `_call_anthropic()`, `_call_openai()`, VB-Erkennung, Preisvorschlag aus `price_stats`
+### Phase 22 – KI-Assistent: Verkäufer-Anfragetext + Ollama-Support
+- [x] `app/ai.py`: `generate_contact_text()`, `_call_anthropic()`, `_call_openai_compat()` (Claude/OpenAI/Ollama), VB-Erkennung, Preisvorschlag aus `price_stats`
 - [x] `db.get_listing_by_id()` für Route
 - [x] `POST /api/listings/<id>/contact-text` — gibt `{"text": "..."}` zurück, prüft `ai_enabled`
-- [x] Settings: neuer Tab „KI-Assistent" (Toggle, API-Key, Modell), `ai_enabled/ai_api_key/ai_model` in DB
+- [x] Settings: neuer Tab „KI-Assistent" (Toggle, API-Key, Modell, Base-URL), `ai_enabled/ai_api_key/ai_model/ai_base_url` in DB
 - [x] Modal: „✨ Generieren"-Button, editierbare Textarea, „📋 Kopieren"-Button
-- [x] `requirements.txt`: anthropic/openai als optionale Kommentar-Dependencies
-- [x] 16 neue Tests in `test_ai.py` (340 gesamt)
+- [x] `docker-compose.ollama.yml`: optionale Override-Datei für lokalen Ollama-Service inkl. Modell-Empfehlungen und Hardware-Hinweisen
+- [x] Ollama-kein-API-Key-nötig wenn `ai_base_url` gesetzt
+- [x] 18 neue Tests in `test_ai.py` (342 gesamt)
 
 *Letzte Aktualisierung: 2026-04-27 (Phase 22 abgeschlossen)*

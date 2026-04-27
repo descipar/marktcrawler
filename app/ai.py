@@ -25,14 +25,15 @@ def _avg_price_for_term(price_stats: list, search_term: str) -> Optional[float]:
 def generate_contact_text(listing: dict, price_stats: list, settings: dict) -> str:
     """Generiert einen Verkäufer-Anfragetext via KI-API.
 
-    Unterstützt Anthropic Claude (Standard) und OpenAI.
+    Unterstützt Anthropic Claude, OpenAI und Ollama (OpenAI-kompatibel via base_url).
     Gibt bei Fehler eine lesbare Fehlermeldung zurück (kein raise).
     """
     api_key = settings.get("ai_api_key", "").strip()
     model = settings.get("ai_model", "claude-haiku-4-5-20251001").strip()
-    provider = _detect_provider(model)
+    base_url = settings.get("ai_base_url", "").strip()
+    provider = _detect_provider(model, base_url)
 
-    if not api_key:
+    if not api_key and provider != "ollama":
         return "⚠️ Kein API-Key hinterlegt. Bitte in den Einstellungen unter KI-Assistent eintragen."
 
     title = listing.get("title", "")
@@ -74,16 +75,18 @@ Anforderungen:
     try:
         if provider == "anthropic":
             return _call_anthropic(api_key, model, prompt)
-        elif provider == "openai":
-            return _call_openai(api_key, model, prompt)
+        elif provider in ("openai", "ollama"):
+            return _call_openai_compat(api_key, model, prompt, base_url)
         else:
-            return f"⚠️ Unbekannter Provider für Modell '{model}'."
+            return f"⚠️ Unbekannter Provider für Modell '{model}'. Unterstützt: claude-*, gpt-*, oder Ollama via Base-URL."
     except Exception as e:
         logger.error(f"[KI] Fehler bei Textgenerierung: {e}")
         return f"⚠️ Fehler bei der Textgenerierung: {e}"
 
 
-def _detect_provider(model: str) -> str:
+def _detect_provider(model: str, base_url: str = "") -> str:
+    if base_url:
+        return "ollama"
     if model.startswith("claude"):
         return "anthropic"
     if model.startswith(("gpt-", "o1", "o3")):
@@ -106,16 +109,25 @@ def _call_anthropic(api_key: str, model: str, prompt: str) -> str:
     return msg.content[0].text.strip()
 
 
-def _call_openai(api_key: str, model: str, prompt: str) -> str:
+def _call_openai_compat(api_key: str, model: str, prompt: str, base_url: str = "") -> str:
+    """OpenAI-kompatibler Call – funktioniert für OpenAI und Ollama."""
     try:
         import openai
     except ImportError:
         return "⚠️ Paket 'openai' nicht installiert. Bitte: pip install openai"
 
-    client = openai.OpenAI(api_key=api_key)
+    kwargs = {"api_key": api_key or "ollama"}
+    if base_url:
+        kwargs["base_url"] = base_url
+    client = openai.OpenAI(**kwargs)
     resp = client.chat.completions.create(
         model=model,
         max_tokens=300,
         messages=[{"role": "user", "content": prompt}],
     )
     return resp.choices[0].message.content.strip()
+
+
+# Alias für Rückwärtskompatibilität mit Tests
+def _call_openai(api_key: str, model: str, prompt: str) -> str:
+    return _call_openai_compat(api_key, model, prompt)

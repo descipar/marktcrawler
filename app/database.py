@@ -69,6 +69,7 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "ai_enabled": "0",
     "ai_api_key": "",
     "ai_model": "claude-haiku-4-5-20251001",
+    "ai_base_url": "",
     # Status
     "last_crawl_start": "",
     "last_crawl_end": "",

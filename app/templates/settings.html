@@ -330,31 +330,32 @@
         {% endcall %}
 
         {% call field("Modell") %}
+          <input type="hidden" name="ai_model" id="ai_model_value" value="{{ s.get('ai_model','claude-haiku-4-5-20251001') }}">
           <div class="flex gap-2">
-            <input type="text" name="ai_model" id="ai_model_input"
-              list="ai_model_datalist"
-              value="{{ s.get('ai_model','claude-haiku-4-5-20251001') }}"
-              class="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              placeholder="claude-haiku-4-5-20251001">
-            <datalist id="ai_model_datalist">
-              <option value="claude-haiku-4-5-20251001">
-              <option value="claude-sonnet-4-6">
-              <option value="claude-opus-4-7">
-              <option value="gpt-4o-mini">
-              <option value="gpt-4o">
-              <option value="gemma2:2b">
-              <option value="phi3:mini">
-              <option value="qwen2.5:0.5b">
-              <option value="llama3.2:3b">
-            </datalist>
+            <select id="ai_model_select" onchange="onModelSelectChange()"
+              class="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white">
+              <option value="claude-haiku-4-5-20251001">claude-haiku-4-5-20251001</option>
+              <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
+              <option value="claude-opus-4-7">claude-opus-4-7</option>
+              <option value="gpt-4o-mini">gpt-4o-mini</option>
+              <option value="gpt-4o">gpt-4o</option>
+              <option value="gemma2:2b">gemma2:2b</option>
+              <option value="phi3:mini">phi3:mini</option>
+              <option value="qwen2.5:0.5b">qwen2.5:0.5b</option>
+              <option value="llama3.2:3b">llama3.2:3b</option>
+              <option value="__custom__">✏️ Manuell eingeben…</option>
+            </select>
             <button type="button" id="ai-model-load-btn" onclick="loadAiModels()"
               class="text-sm px-3 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors whitespace-nowrap"
               title="Verfügbare Modelle vom Anbieter laden">
               🔄 Laden
             </button>
           </div>
+          <input type="text" id="ai_model_custom" placeholder="Modellname eingeben…"
+            class="mt-2 w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 hidden"
+            oninput="document.getElementById('ai_model_value').value = this.value">
           <p class="text-xs text-slate-400 mt-1" id="ai-model-status">
-            Frei eingeben oder „🔄 Laden" für aktuelle Modellliste vom Anbieter.
+            „🔄 Laden" holt aktuelle Modelle vom Anbieter (API-Key muss gespeichert sein).
           </p>
         {% endcall %}
 
@@ -716,6 +717,20 @@ function deleteOldListings(btn) {
   }, 'Löschen');
 }
 
+function onModelSelectChange() {
+  const sel = document.getElementById('ai_model_select');
+  const custom = document.getElementById('ai_model_custom');
+  const hidden = document.getElementById('ai_model_value');
+  if (sel.value === '__custom__') {
+    custom.classList.remove('hidden');
+    custom.focus();
+    hidden.value = custom.value;
+  } else {
+    custom.classList.add('hidden');
+    hidden.value = sel.value;
+  }
+}
+
 async function loadAiModels() {
   const btn = document.getElementById('ai-model-load-btn');
   const status = document.getElementById('ai-model-status');
@@ -725,15 +740,25 @@ async function loadAiModels() {
   try {
     const resp = await fetch('/api/ai-models');
     const data = await resp.json();
-    if (data.error) {
-      status.textContent = '⚠️ ' + data.error;
-    } else if (!data.models.length) {
-      status.textContent = 'Keine Modelle gefunden. API-Key gespeichert?';
-    } else {
-      const dl = document.getElementById('ai_model_datalist');
-      dl.innerHTML = data.models.map(m => `<option value="${m}">`).join('');
-      status.textContent = `✓ ${data.models.length} Modelle geladen (${data.provider})`;
+    if (data.error && !data.models.length) {
+      status.textContent = '⚠️ ' + (data.error.includes('401') ? 'API-Key ungültig oder noch nicht gespeichert.' : data.error);
+      return;
     }
+    if (!data.models.length) {
+      status.textContent = 'Keine Modelle gefunden. API-Key gespeichert?';
+      return;
+    }
+    const currentVal = document.getElementById('ai_model_value').value;
+    const sel = document.getElementById('ai_model_select');
+    sel.innerHTML = data.models.map(m =>
+      `<option value="${m}"${m === currentVal ? ' selected' : ''}>${m}</option>`
+    ).join('') + '<option value="__custom__">✏️ Manuell eingeben…</option>';
+    if (!data.models.includes(currentVal)) {
+      document.getElementById('ai_model_custom').classList.remove('hidden');
+      document.getElementById('ai_model_custom').value = currentVal;
+      sel.value = '__custom__';
+    }
+    status.textContent = `✓ ${data.models.length} Modelle geladen (${data.provider})`;
   } catch (e) {
     status.textContent = '⚠️ Fehler beim Laden.';
   } finally {
@@ -741,6 +766,22 @@ async function loadAiModels() {
     btn.textContent = '🔄 Laden';
   }
 }
+
+// Gespeicherten Wert beim Laden im Select vorauswählen
+document.addEventListener('DOMContentLoaded', function() {
+  const hidden = document.getElementById('ai_model_value');
+  const sel = document.getElementById('ai_model_select');
+  if (!hidden || !sel) return;
+  const saved = hidden.value;
+  const opt = sel.querySelector(`option[value="${CSS.escape(saved)}"]`);
+  if (opt) {
+    sel.value = saved;
+  } else if (saved) {
+    sel.value = '__custom__';
+    document.getElementById('ai_model_custom').classList.remove('hidden');
+    document.getElementById('ai_model_custom').value = saved;
+  }
+});
 </script>
 
 {% endblock %}

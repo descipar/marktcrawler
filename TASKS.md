@@ -4,6 +4,20 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 
 ---
 
+## ✅ Abgeschlossene Phasen (seit v1.0)
+
+### Phase 25 – UX-Verbesserungen & Info-Seite
+
+- [x] Preisstatistik (per Suchbegriff) von Dashboard auf Info-Seite verschoben — passt besser zur dortigen Analyse-Ansicht
+- [x] `get_price_stats()` in `test_database.py` durch 5 Unit-Tests abgedeckt (leere DB, Aggregation, mehrere Terme, ungültige Preise, Gratis-Zähler)
+- [x] E-Mail-Benachrichtigung: „Im Dashboard →"-Button pro Anzeige mit Deep-Link `/?modal=<db_id>` — öffnet Modal direkt beim Seitenload
+- [x] `server_url`-Eingabe in Settings tolerant: IP oder Hostname reicht (`192.168.1.10`, `raspberrypi.local`), `http://` und `:5000` werden automatisch ergänzt; `_normalize_server_url()` mit 8 Unit-Tests abgedeckt
+- [x] Settings: Datenverwaltungs-Block in eigenen Tab „🗑️ Daten" verschoben; Speichern-Button auf diesem Tab ausgeblendet
+- [x] Info-Seite: aktuellen Commit (Hash, Datum, Message) und verfügbare GitHub-Updates anzeigen; `app/version.py` liest `.git` beim `docker build` via `scripts/bake_version.py` ein — kein Build-Arg, kein Script nötig, `git pull && docker compose up -d --build` reicht
+- [x] 13 neue Tests — gesamt 401
+
+---
+
 ## 🔜 Offene Aufgaben
 
 Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Tastaturkürzel") oder einzelne Tasks per Nummer (z.B. „mach 11 und 21").

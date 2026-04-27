@@ -4,10 +4,40 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.scrapers.base import Listing
+from app.scrapers.base import BaseScraper, Listing
 from app.scrapers.ebay import EbayScraper
+from app.scrapers.kleinanzeigen import KleinanzeigenScraper
 from app.scrapers.shpock import ShpockScraper
 from app.scrapers.vinted import VintedScraper
+
+
+# ── BaseScraper-Vererbung ─────────────────────────────────────
+
+class TestBaseScraperInheritance:
+    """Alle Scraper müssen BaseScraper implementieren."""
+
+    def test_vinted_ist_base_scraper(self):
+        with patch("app.scrapers.vinted.VintedScraper._authenticate"):
+            scraper = VintedScraper({})
+        assert isinstance(scraper, BaseScraper)
+
+    def test_shpock_ist_base_scraper(self):
+        scraper = ShpockScraper({})
+        assert isinstance(scraper, BaseScraper)
+
+    def test_ebay_ist_base_scraper(self):
+        scraper = EbayScraper({})
+        assert isinstance(scraper, BaseScraper)
+
+    def test_kleinanzeigen_ist_base_scraper(self):
+        scraper = KleinanzeigenScraper({})
+        assert isinstance(scraper, BaseScraper)
+
+    def test_base_scraper_ist_abstrakt(self):
+        """BaseScraper darf nicht direkt instanziiert werden."""
+        import pytest
+        with pytest.raises(TypeError):
+            BaseScraper({})  # type: ignore
 
 
 def _mock_response(json_data=None, text="", status=200):

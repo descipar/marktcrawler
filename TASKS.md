@@ -165,6 +165,15 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") ode
 - [x] Automatische Crawls benachrichtigen nicht direkt; `notify()` nur noch bei `manual=True`
 - [x] 13 neue Tests (300 gesamt)
 
+### Phase 20 – Architektur-Fixes & Test-Absicherung
+- [x] SQLite-Performance-Indexes auf `platform`, `search_term`, `found_at`, `is_favorite`, `notified_at` via `_ensure_indexes()` (nach Migrations ausgeführt)
+- [x] Versioniertes Migrations-Framework: `_migrations`-Tracking-Tabelle, `_run_pending_migrations()`, jede Migration läuft genau einmal
+- [x] E-Mail-Credentials via Env-Vars (`EMAIL_SENDER`, `EMAIL_PASSWORD`, `EMAIL_RECIPIENT`, `EMAIL_SMTP_SERVER`, `EMAIL_SMTP_PORT`) mit DB-Fallback
+- [x] Race Condition behoben: globaler `last_crawl_found`-Key aus Crawler entfernt; `routes.py` summiert `{platform}_last_crawl_found` aller Plattformen
+- [x] `BaseScraper(ABC)` mit `@abstractmethod search()` – alle 5 Scraper erben davon, Interface ist nun enforced
+- [x] HTML-E-Mail-Builder vereinheitlicht: `_html_email()` ersetzt zwei separate Builder; Aliases für Rückwärtskompatibilität
+- [x] 23 neue Tests (323 gesamt): Migrations-Framework, Indexes, Env-Var-Priorität, Race-Condition-Fix, BaseScraper-Vererbung, `_html_email` direkt
+
 ---
 
-*Letzte Aktualisierung: 2026-04-26 (Phase 19 abgeschlossen)*
+*Letzte Aktualisierung: 2026-04-26 (Phase 20 abgeschlossen)*

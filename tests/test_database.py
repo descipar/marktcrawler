@@ -618,6 +618,126 @@ class TestClearListingsOlderThan:
         assert deleted == 2
 
 
+class TestMigrationFramework:
+    """Tests für das versionierte Migrations-Framework (_migrations-Tabelle)."""
+
+    def _minimal_db(self, path):
+        """Erstellt eine minimale 'alte' DB ohne neue Spalten."""
+        import sqlite3
+        conn = sqlite3.connect(str(path))
+        conn.executescript("""
+            CREATE TABLE listings (
+                id INTEGER PRIMARY KEY, listing_id TEXT UNIQUE, platform TEXT,
+                title TEXT, price TEXT, location TEXT, url TEXT,
+                found_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+            CREATE TABLE search_terms (
+                id INTEGER PRIMARY KEY, term TEXT UNIQUE, enabled INTEGER DEFAULT 1
+            );
+            CREATE TABLE geocache (location_text TEXT PRIMARY KEY, lat REAL, lon REAL);
+        """)
+        conn.commit()
+        conn.close()
+
+    def test_migrations_tabelle_wird_angelegt(self, tmp_path, monkeypatch):
+        import sqlite3
+        import app.database as db
+
+        old_db = tmp_path / "mig_track.db"
+        monkeypatch.setattr(db, "DB_PATH", old_db)
+        self._minimal_db(old_db)
+        db.init_db()
+
+        conn = sqlite3.connect(str(old_db))
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        conn.close()
+        assert "_migrations" in tables
+
+    def test_jede_migration_wird_nur_einmal_ausgefuehrt(self, tmp_path, monkeypatch):
+        import sqlite3
+        import app.database as db
+
+        old_db = tmp_path / "mig_idem.db"
+        monkeypatch.setattr(db, "DB_PATH", old_db)
+        self._minimal_db(old_db)
+
+        # Zweimal init_db() aufrufen
+        db.init_db()
+        db.init_db()
+
+        conn = sqlite3.connect(str(old_db))
+        rows = conn.execute("SELECT name FROM _migrations").fetchall()
+        conn.close()
+
+        # Jeder Name darf nur einmal vorkommen
+        names = [r[0] for r in rows]
+        assert len(names) == len(set(names)), "Doppelte Migrations-Einträge gefunden"
+
+    def test_migration_traegt_alle_namen_ein(self, tmp_path, monkeypatch):
+        import sqlite3
+        import app.database as db
+
+        old_db = tmp_path / "mig_names.db"
+        monkeypatch.setattr(db, "DB_PATH", old_db)
+        self._minimal_db(old_db)
+        db.init_db()
+
+        conn = sqlite3.connect(str(old_db))
+        names = {r[0] for r in conn.execute("SELECT name FROM _migrations")}
+        conn.close()
+        # Die drei Kernmigrationen müssen eingetragen sein (mit vN_-Prefix)
+        assert "v2_listings_columns" in names
+        assert "v3_search_terms_max_price" in names
+        assert "v1_settings_rename" in names
+
+
+class TestEnsureIndexes:
+    """Tests für _ensure_indexes(): Indexes werden auf vollständiger DB angelegt."""
+
+    def test_indexes_werden_angelegt(self, tmp_path, monkeypatch):
+        import sqlite3
+        import app.database as db
+
+        test_db = tmp_path / "idx.db"
+        monkeypatch.setattr(db, "DB_PATH", test_db)
+        db.init_db()
+
+        conn = sqlite3.connect(str(test_db))
+        indexes = {r[1] for r in conn.execute("PRAGMA index_list(listings)")}
+        conn.close()
+        assert "idx_listings_platform" in indexes
+        assert "idx_listings_found_at" in indexes
+        assert "idx_listings_notified_at" in indexes
+
+    def test_keine_fehler_auf_alter_db_ohne_neue_spalten(self, tmp_path, monkeypatch):
+        """_ensure_indexes() darf nicht abstürzen wenn Spalten fehlen."""
+        import sqlite3
+        import app.database as db
+
+        old_db = tmp_path / "idx_old.db"
+        monkeypatch.setattr(db, "DB_PATH", old_db)
+        # Minimale DB ohne is_favorite / notified_at
+        conn = sqlite3.connect(str(old_db))
+        conn.executescript("""
+            CREATE TABLE listings (
+                id INTEGER PRIMARY KEY, listing_id TEXT UNIQUE, platform TEXT,
+                title TEXT, price TEXT, location TEXT, url TEXT,
+                found_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+            CREATE TABLE search_terms (
+                id INTEGER PRIMARY KEY, term TEXT UNIQUE, enabled INTEGER DEFAULT 1
+            );
+            CREATE TABLE geocache (location_text TEXT PRIMARY KEY, lat REAL, lon REAL);
+        """)
+        conn.commit()
+        conn.close()
+
+        # Darf nicht werfen
+        db.init_db()
+
+
 class TestMigration:
 
     def test_migration_fuegt_fehlende_spalten_hinzu(self, tmp_path, monkeypatch):

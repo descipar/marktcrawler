@@ -310,3 +310,38 @@ class TestRunCrawlLock:
             t = crawler_module.run_crawl_async("kleinanzeigen")
             assert isinstance(t, threading.Thread)
             t.join(timeout=5)
+
+
+# ── Race-Condition-Fix: kein globaler last_crawl_found ────────
+
+class TestLastCrawlFoundPerPlatform:
+    """Crawl schreibt last_crawl_found nur per Plattform, nicht global."""
+
+    def _run_with_mock(self, patched_db):
+        mock_scraper = MagicMock()
+        mock_scraper.search.return_value = [
+            make_listing(listing_id="rc-1"),
+        ]
+        written_keys = []
+
+        def capture_set_setting(key, value):
+            written_keys.append(key)
+
+        with patch("app.crawler.KleinanzeigenScraper", return_value=mock_scraper), \
+             patch("app.crawler.db.get_settings", return_value=_BASE_SETTINGS), \
+             patch("app.crawler.db.get_search_terms", return_value=[{"term": "kinderwagen", "max_price": None}]), \
+             patch("app.crawler.db.save_listing", return_value=True), \
+             patch("app.crawler.db.update_listing_distance"), \
+             patch("app.crawler.db.clear_old_listings"), \
+             patch("app.crawler.db.set_setting", side_effect=capture_set_setting), \
+             patch("app.crawler.notify"):
+            crawler_module.run_crawl("kleinanzeigen")
+        return written_keys
+
+    def test_kein_globaler_last_crawl_found_key(self, patched_db):
+        keys = self._run_with_mock(patched_db)
+        assert "last_crawl_found" not in keys
+
+    def test_plattform_last_crawl_found_wird_gesetzt(self, patched_db):
+        keys = self._run_with_mock(patched_db)
+        assert "kleinanzeigen_last_crawl_found" in keys

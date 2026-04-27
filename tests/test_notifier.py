@@ -6,8 +6,8 @@ from email.mime.text import MIMEText
 from unittest.mock import patch, MagicMock
 
 from app.notifier import (
-    _card_html, _html_from_dicts, _html_grouped, _text_from_dicts, _smtp_send,
-    notify_pending,
+    _card_html, _html_from_dicts, _html_grouped, _html_email, _text_from_dicts, _smtp_send,
+    notify_pending, _get_email_config,
 )
 from app.scrapers.base import Listing
 
@@ -330,3 +330,95 @@ class TestSmtpSend:
         with patch("smtplib.SMTP", mock_smtp):
             _smtp_send(self._make_msg(), "a@example.com", "pw", ["b@example.com"], settings)
         mock_smtp.assert_called_with("smtp.example.com", 587)
+
+    def test_env_smtp_server_hat_vorrang(self, monkeypatch):
+        """EMAIL_SMTP_SERVER env var überschreibt settings-Wert."""
+        monkeypatch.setenv("EMAIL_SMTP_SERVER", "smtp.override.com")
+        monkeypatch.setenv("EMAIL_SMTP_PORT", "465")
+        mock_smtp, _ = self._mock_smtp()
+        settings = {"email_smtp_server": "smtp.should-be-ignored.com", "email_smtp_port": "587"}
+        with patch("smtplib.SMTP", mock_smtp):
+            _smtp_send(self._make_msg(), "a@example.com", "pw", ["b@example.com"], settings)
+        mock_smtp.assert_called_with("smtp.override.com", 465)
+
+
+# ── _get_email_config: Env-Var-Priorität ─────────────────────
+
+class TestGetEmailConfig:
+
+    def test_db_werte_werden_verwendet(self, monkeypatch):
+        monkeypatch.delenv("EMAIL_SENDER", raising=False)
+        monkeypatch.delenv("EMAIL_PASSWORD", raising=False)
+        monkeypatch.delenv("EMAIL_RECIPIENT", raising=False)
+        settings = {
+            "email_sender": "db@example.com",
+            "email_password": "db-pw",
+            "email_recipient": "recv@example.com",
+        }
+        sender, pw, recipients = _get_email_config(settings)
+        assert sender == "db@example.com"
+        assert pw == "db-pw"
+        assert recipients == ["recv@example.com"]
+
+    def test_env_vars_haben_vorrang_vor_db(self, monkeypatch):
+        monkeypatch.setenv("EMAIL_SENDER", "env@example.com")
+        monkeypatch.setenv("EMAIL_PASSWORD", "env-pw")
+        monkeypatch.setenv("EMAIL_RECIPIENT", "env-recv@example.com")
+        settings = {
+            "email_sender": "db@example.com",
+            "email_password": "db-pw",
+            "email_recipient": "db-recv@example.com",
+        }
+        sender, pw, recipients = _get_email_config(settings)
+        assert sender == "env@example.com"
+        assert pw == "env-pw"
+        assert recipients == ["env-recv@example.com"]
+
+    def test_fehlende_konfiguration_gibt_leere_empfaengerliste(self, monkeypatch):
+        monkeypatch.delenv("EMAIL_SENDER", raising=False)
+        monkeypatch.delenv("EMAIL_PASSWORD", raising=False)
+        monkeypatch.delenv("EMAIL_RECIPIENT", raising=False)
+        sender, pw, recipients = _get_email_config({})
+        assert recipients == []
+
+    def test_mehrere_empfaenger_kommagetrennt(self, monkeypatch):
+        monkeypatch.delenv("EMAIL_SENDER", raising=False)
+        monkeypatch.delenv("EMAIL_PASSWORD", raising=False)
+        monkeypatch.delenv("EMAIL_RECIPIENT", raising=False)
+        settings = {
+            "email_sender": "s@e.com",
+            "email_password": "pw",
+            "email_recipient": "a@e.com, b@e.com, c@e.com",
+        }
+        _, _, recipients = _get_email_config(settings)
+        assert recipients == ["a@e.com", "b@e.com", "c@e.com"]
+
+
+# ── _html_email direkt ────────────────────────────────────────
+
+class TestHtmlEmail:
+    """Direkter Test von _html_email (nicht via Alias)."""
+
+    def _two_platform_listings(self):
+        return [
+            {**make_listing_dict(), "platform": "Kleinanzeigen", "listing_id": "ka-1"},
+            {**make_listing_dict(), "platform": "Shpock", "listing_id": "shp-1"},
+        ]
+
+    def test_gibt_html_string_zurueck(self):
+        html = _html_email(self._two_platform_listings())
+        assert isinstance(html, str)
+        assert "<html>" in html
+
+    def test_digest_heading_wenn_is_digest_true(self):
+        html = _html_email([make_listing_dict()], is_digest=True)
+        assert "Tages-Digest" in html
+
+    def test_alert_heading_wenn_is_digest_false(self):
+        html = _html_email([make_listing_dict()], is_digest=False)
+        assert "neue Babysachen" in html
+
+    def test_beide_plattformen_enthalten(self):
+        html = _html_email(self._two_platform_listings())
+        assert "Kleinanzeigen" in html
+        assert "Shpock" in html

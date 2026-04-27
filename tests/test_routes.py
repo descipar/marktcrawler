@@ -256,6 +256,24 @@ class TestApiStatus:
         data = json.loads(resp.data)
         assert data["crawl_status"] == "idle"
 
+    def test_last_found_summiert_alle_plattformen(self, client, app):
+        """last_found = Summe der {platform}_last_crawl_found-Werte aller Plattformen."""
+        import app.database as db
+        with app.app_context():
+            db.set_setting("kleinanzeigen_last_crawl_found", "3")
+            db.set_setting("shpock_last_crawl_found", "5")
+            db.set_setting("vinted_last_crawl_found", "2")
+
+        resp = client.get("/api/status")
+        data = json.loads(resp.data)
+        assert data["last_found"] == "10"
+
+    def test_last_found_kein_globaler_schluessel(self, client, app):
+        """last_crawl_found als globaler Key darf NICHT in der Antwort landen."""
+        resp = client.get("/api/status")
+        data = json.loads(resp.data)
+        assert "last_crawl_found" not in data
+
 
 # ── Listings-API ──────────────────────────────────────────────
 

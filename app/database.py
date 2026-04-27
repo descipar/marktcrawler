@@ -4,7 +4,7 @@ import os
 import sqlite3
 import logging
 from contextlib import contextmanager
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional
 
@@ -71,6 +71,8 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     # Verfügbarkeits-Check
     "availability_check_enabled": "1",
     "availability_check_interval_hours": "3",
+    "availability_check_workers": "5",
+    "availability_recheck_hours": "48",  # Anzeige frühestens nach N Stunden erneut prüfen
     # KI-Assistent
     "ai_enabled": "0",
     "ai_api_key": "",
@@ -293,6 +295,13 @@ def _mig_create_log_tables(conn: sqlite3.Connection):
     """)
 
 
+def _mig_availability_checked_at(conn: sqlite3.Connection):
+    """Ergänzt availability_checked_at für selektives Re-Check-Throttling."""
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(listings)")}
+    if "availability_checked_at" not in existing:
+        conn.execute("ALTER TABLE listings ADD COLUMN availability_checked_at TEXT")
+
+
 def _mig_image_url_large(conn: sqlite3.Connection):
     """Ergänzt image_url_large-Spalte für hochauflösende Bilder im Modal."""
     existing = {row[1] for row in conn.execute("PRAGMA table_info(listings)")}
@@ -326,6 +335,7 @@ _MIGRATIONS = [
     ("v5_rename_email_subjects",    _mig_rename_email_subjects),
     ("v6_image_url_large",          _mig_image_url_large),
     ("v7_create_log_tables",        _mig_create_log_tables),
+    ("v8_availability_checked_at",  _mig_availability_checked_at),
 ]
 
 
@@ -728,23 +738,46 @@ def clear_all_listings():
         conn.commit()
 
 
-def get_all_listing_urls(min_age_minutes: int = 0) -> List[Dict]:
-    """Gibt listing_id, url und title aller Anzeigen zurück (für Verfügbarkeits-Check).
-    min_age_minutes: nur Anzeigen die mindestens so alt sind zurückgeben (0 = alle).
+def get_all_listing_urls(min_age_minutes: int = 0,
+                         recheck_hours: int = 0) -> List[Dict]:
+    """Gibt listing_id, url und title der zu prüfenden Anzeigen zurück.
+
+    min_age_minutes: Anzeigen jünger als N Minuten überspringen.
+    recheck_hours:   Anzeigen überspringen die in den letzten N Stunden bereits
+                     geprüft wurden (0 = alle prüfen).
     """
+    conditions = []
+    params: List[Any] = []
+    if min_age_minutes > 0:
+        conditions.append("found_at <= datetime('now', ? || ' minutes')")
+        params.append(f"-{min_age_minutes}")
+    if recheck_hours > 0:
+        conditions.append(
+            "(availability_checked_at IS NULL "
+            "OR availability_checked_at < datetime('now', ? || ' hours'))"
+        )
+        params.append(f"-{recheck_hours}")
+    query = "SELECT listing_id, url, title FROM listings"
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY COALESCE(availability_checked_at, '1970-01-01') ASC"
     with _db() as conn:
-        if min_age_minutes > 0:
-            rows = conn.execute(
-                "SELECT listing_id, url, title FROM listings "
-                "WHERE found_at <= datetime('now', ? || ' minutes') "
-                "ORDER BY found_at DESC",
-                (f"-{min_age_minutes}",),
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT listing_id, url, title FROM listings ORDER BY found_at DESC"
-            ).fetchall()
+        rows = conn.execute(query, params).fetchall()
     return [dict(r) for r in rows]
+
+
+def mark_listings_availability_checked(listing_ids: List[str]):
+    """Setzt availability_checked_at = NOW() für die gegebenen listing_ids."""
+    if not listing_ids:
+        return
+    now = datetime.now().isoformat(timespec="seconds")
+    placeholders = ",".join("?" * len(listing_ids))
+    with _db() as conn:
+        conn.execute(
+            f"UPDATE listings SET availability_checked_at = ? WHERE listing_id IN ({placeholders})",
+            [now, *listing_ids],
+        )
+        conn.commit()
 
 
 def delete_listing_by_listing_id(listing_id: str):

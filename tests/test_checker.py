@@ -52,8 +52,7 @@ class TestRunAvailabilityCheck:
                 return self._mock_response(404)
             return self._mock_response(200)
 
-        with patch("app.checker.requests.head", side_effect=fake_head), \
-             patch("app.checker.time.sleep"):
+        with patch("app.checker.requests.head", side_effect=fake_head):
             result = checker_module.run_availability_check()
 
         assert result["deleted"] == 1
@@ -67,8 +66,7 @@ class TestRunAvailabilityCheck:
                 return self._mock_response(410)
             return self._mock_response(200)
 
-        with patch("app.checker.requests.head", side_effect=fake_head), \
-             patch("app.checker.time.sleep"):
+        with patch("app.checker.requests.head", side_effect=fake_head):
             result = checker_module.run_availability_check()
 
         assert result["deleted"] == 1
@@ -79,8 +77,7 @@ class TestRunAvailabilityCheck:
                 return self._mock_response(404)
             return self._mock_response(200)
 
-        with patch("app.checker.requests.head", side_effect=fake_head), \
-             patch("app.checker.time.sleep"):
+        with patch("app.checker.requests.head", side_effect=fake_head):
             result = checker_module.run_availability_check()
 
         assert result["deleted"] == 1
@@ -88,16 +85,14 @@ class TestRunAvailabilityCheck:
         assert "gone-fav-1" not in ids
 
     def test_200_bleibt_erhalten(self, db_with_listings):
-        with patch("app.checker.requests.head", return_value=self._mock_response(200)), \
-             patch("app.checker.time.sleep"):
+        with patch("app.checker.requests.head", return_value=self._mock_response(200)):
             result = checker_module.run_availability_check()
 
         assert result["deleted"] == 0
         assert db_with_listings.get_listing_count() == 3
 
     def test_403_wird_nicht_geloescht(self, db_with_listings):
-        with patch("app.checker.requests.head", return_value=self._mock_response(403)), \
-             patch("app.checker.time.sleep"):
+        with patch("app.checker.requests.head", return_value=self._mock_response(403)):
             result = checker_module.run_availability_check()
 
         assert result["deleted"] == 0
@@ -105,8 +100,7 @@ class TestRunAvailabilityCheck:
     def test_netzwerkfehler_wird_ignoriert(self, db_with_listings):
         import requests as req_lib
         with patch("app.checker.requests.head",
-                   side_effect=req_lib.exceptions.ConnectionError("Timeout")), \
-             patch("app.checker.time.sleep"):
+                   side_effect=req_lib.exceptions.ConnectionError("Timeout")):
             result = checker_module.run_availability_check()
 
         assert result["deleted"] == 0
@@ -122,14 +116,36 @@ class TestRunAvailabilityCheck:
         assert result["status"] == "disabled"
 
     def test_gibt_statistiken_zurueck(self, db_with_listings):
-        with patch("app.checker.requests.head", return_value=self._mock_response(200)), \
-             patch("app.checker.time.sleep"):
+        with patch("app.checker.requests.head", return_value=self._mock_response(200)):
             result = checker_module.run_availability_check()
 
         assert "checked" in result
         assert "deleted" in result
         assert "errors" in result
         assert result["checked"] == 3
+
+    def test_availability_checked_at_wird_gesetzt(self, db_with_listings):
+        with patch("app.checker.requests.head", return_value=self._mock_response(200)):
+            checker_module.run_availability_check()
+
+        import sqlite3
+        conn = sqlite3.connect(str(db_with_listings.DB_PATH))
+        rows = conn.execute("SELECT availability_checked_at FROM listings").fetchall()
+        conn.close()
+        assert all(r[0] is not None for r in rows)
+
+    def test_recheck_ueberspringt_kuerzlich_geprueft(self, db_with_listings):
+        """Anzeigen die erst kürzlich geprüft wurden, werden beim nächsten Lauf übersprungen."""
+        with patch("app.checker.requests.head", return_value=self._mock_response(200)):
+            checker_module.run_availability_check()
+
+        # Zweiter Lauf: recheck_hours=48 → alle gerade eben geprüft → keine fällig
+        db_with_listings.set_setting("availability_recheck_hours", "48")
+        with patch("app.checker.requests.head") as mock_head:
+            result = checker_module.run_availability_check()
+
+        mock_head.assert_not_called()
+        assert result["checked"] == 0
 
 
 class TestRunningGuard:

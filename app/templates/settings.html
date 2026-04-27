@@ -266,6 +266,18 @@
             value="{{ s.availability_check_interval_hours or '3' }}"
             min="1" max="24" class="input-field">
         {% endcall %}
+        {% call field("Parallele Verbindungen") %}
+          <input type="number" name="availability_check_workers"
+            value="{{ s.availability_check_workers or '5' }}"
+            min="1" max="20" class="input-field">
+          <p class="text-xs text-slate-400 mt-1">Gleichzeitige URL-Prüfungen</p>
+        {% endcall %}
+        {% call field("Re-Check nach (Stunden)") %}
+          <input type="number" name="availability_recheck_hours"
+            value="{{ s.availability_recheck_hours or '48' }}"
+            min="0" max="720" class="input-field">
+          <p class="text-xs text-slate-400 mt-1">0 = bei jedem Lauf alle prüfen</p>
+        {% endcall %}
       </div>
       {% if s.availability_last_run %}
       <div class="px-5 pb-3 text-xs text-slate-500">

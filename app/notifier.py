@@ -3,6 +3,7 @@
 import logging
 import os
 import smtplib
+import socket
 from collections import defaultdict
 from dataclasses import asdict
 from email.mime.multipart import MIMEMultipart
@@ -102,7 +103,7 @@ def _send_dicts(subject: str, listings: list, settings: dict, is_digest: bool = 
     msg["From"] = sender
     msg["To"] = ", ".join(recipients)
     msg.attach(MIMEText(_text_from_dicts(listings, is_digest=is_digest), "plain", "utf-8"))
-    msg.attach(MIMEText(_html_email(listings, is_digest=is_digest), "html", "utf-8"))
+    msg.attach(MIMEText(_html_email(listings, is_digest=is_digest, settings=settings), "html", "utf-8"))
 
     if _smtp_send(msg, sender, password, recipients, settings):
         logger.info(f"E-Mail '{subject}' → {', '.join(recipients)}")
@@ -194,7 +195,22 @@ def _card_html(title, platform, search_term, price, location, url,
     </div>"""
 
 
-def _html_email(listings: list, is_digest: bool = False) -> str:
+def _get_server_url(settings: dict) -> str:
+    """Gibt die konfigurierte oder automatisch erkannte Server-URL zurück."""
+    url = settings.get("server_url", "").strip()
+    if url:
+        return url.rstrip("/")
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return f"http://{ip}:5000"
+    except Exception:
+        return ""
+
+
+def _html_email(listings: list, is_digest: bool = False, settings: dict | None = None) -> str:
     """Vereinheitlichter HTML-Builder: gruppiert nach Plattform → Suchbegriff."""
     groups: dict = defaultdict(lambda: defaultdict(list))
     for l in listings:
@@ -257,13 +273,23 @@ def _html_email(listings: list, is_digest: bool = False) -> str:
         heading = f"{count} neue Babysachen"
         footer = "automatische Benachrichtigung"
 
+    server_url = _get_server_url(settings or {})
+    dashboard_btn = (
+        f'<p style="margin-top:20px">'
+        f'<a href="{escape(server_url)}" '
+        f'style="background:#7c3aed;color:#fff;padding:10px 20px;border-radius:6px;'
+        f'text-decoration:none;font-size:14px;font-weight:bold">🔍 Zum Dashboard →</a></p>'
+    ) if server_url else ""
+
     return (
         '<html><body style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;padding:20px">'
         f'<h2 style="color:#333">🔍 {heading}</h2>'
         '<div style="background:#f9f9f9;border:1px solid #eee;border-radius:8px;'
         'padding:14px;margin-bottom:24px">'
         '<p style="margin:0 0 8px;font-weight:bold;color:#333">Inhalt</p>'
-        f'{toc}</div>'
+        f'{toc}'
+        f'{dashboard_btn}'
+        f'</div>'
         + "".join(sections)
         + f'<p style="color:#aaa;font-size:11px;margin-top:24px">Marktcrawler – {footer}</p>'
         '</body></html>'

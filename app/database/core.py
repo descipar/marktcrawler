@@ -73,6 +73,8 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "availability_check_interval_hours": "3",
     "availability_check_workers": "5",
     "availability_recheck_hours": "48",  # Anzeige frühestens nach N Stunden erneut prüfen
+    # Server-URL für E-Mail-Links (leer = automatische Erkennung)
+    "server_url": "",
     # KI-Assistent
     "ai_enabled": "0",
     "ai_api_key": "",

@@ -155,6 +155,7 @@ def save_settings():
         "availability_check_enabled", "availability_check_interval_hours",
         "availability_check_workers", "availability_recheck_hours",
         "ai_enabled", "ai_api_key", "ai_model", "ai_base_url", "ai_prompt_hints",
+        "server_url",
     }
     data = {}
     for key in allowed_keys:

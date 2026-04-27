@@ -330,12 +330,31 @@
         {% endcall %}
 
         {% call field("Modell") %}
-          <input type="text" name="ai_model" value="{{ s.get('ai_model','claude-haiku-4-5-20251001') }}"
-            class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
-            placeholder="claude-haiku-4-5-20251001">
-          <p class="text-xs text-slate-400 mt-1">
-            Anthropic: <code>claude-haiku-4-5-20251001</code> (günstig) · <code>claude-sonnet-4-6</code> (besser) ·
-            OpenAI: <code>gpt-4o-mini</code> · Ollama: <code>gemma2:2b</code>
+          <div class="flex gap-2">
+            <input type="text" name="ai_model" id="ai_model_input"
+              list="ai_model_datalist"
+              value="{{ s.get('ai_model','claude-haiku-4-5-20251001') }}"
+              class="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              placeholder="claude-haiku-4-5-20251001">
+            <datalist id="ai_model_datalist">
+              <option value="claude-haiku-4-5-20251001">
+              <option value="claude-sonnet-4-6">
+              <option value="claude-opus-4-7">
+              <option value="gpt-4o-mini">
+              <option value="gpt-4o">
+              <option value="gemma2:2b">
+              <option value="phi3:mini">
+              <option value="qwen2.5:0.5b">
+              <option value="llama3.2:3b">
+            </datalist>
+            <button type="button" id="ai-model-load-btn" onclick="loadAiModels()"
+              class="text-sm px-3 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors whitespace-nowrap"
+              title="Verfügbare Modelle vom Anbieter laden">
+              🔄 Laden
+            </button>
+          </div>
+          <p class="text-xs text-slate-400 mt-1" id="ai-model-status">
+            Frei eingeben oder „🔄 Laden" für aktuelle Modellliste vom Anbieter.
           </p>
         {% endcall %}
 
@@ -695,6 +714,32 @@ function deleteOldListings(btn) {
       })
       .catch(() => { _stopDeleteLog(); btn.disabled = false; btn.textContent = 'Fehler'; });
   }, 'Löschen');
+}
+
+async function loadAiModels() {
+  const btn = document.getElementById('ai-model-load-btn');
+  const status = document.getElementById('ai-model-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ Lädt…';
+  status.textContent = 'Verbinde mit Anbieter…';
+  try {
+    const resp = await fetch('/api/ai-models');
+    const data = await resp.json();
+    if (data.error) {
+      status.textContent = '⚠️ ' + data.error;
+    } else if (!data.models.length) {
+      status.textContent = 'Keine Modelle gefunden. API-Key gespeichert?';
+    } else {
+      const dl = document.getElementById('ai_model_datalist');
+      dl.innerHTML = data.models.map(m => `<option value="${m}">`).join('');
+      status.textContent = `✓ ${data.models.length} Modelle geladen (${data.provider})`;
+    }
+  } catch (e) {
+    status.textContent = '⚠️ Fehler beim Laden.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄 Laden';
+  }
 }
 </script>
 

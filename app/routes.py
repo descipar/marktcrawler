@@ -309,6 +309,53 @@ def api_contact_text(listing_id):
     return jsonify({"text": text})
 
 
+@bp.route("/api/ai-models")
+def api_ai_models():
+    """Holt verfügbare Modelle vom konfigurierten KI-Anbieter."""
+    import requests as _req
+    from .ai import _detect_provider
+
+    settings = db.get_settings()
+    api_key  = settings.get("ai_api_key",  "").strip()
+    base_url = settings.get("ai_base_url", "").strip()
+    model    = settings.get("ai_model",    "").strip()
+    provider = _detect_provider(model, base_url)
+
+    try:
+        if provider == "anthropic":
+            resp = _req.get(
+                "https://api.anthropic.com/v1/models",
+                headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
+                timeout=6,
+            )
+            resp.raise_for_status()
+            models = [m["id"] for m in resp.json().get("data", [])]
+
+        elif provider == "openai":
+            resp = _req.get(
+                "https://api.openai.com/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=6,
+            )
+            resp.raise_for_status()
+            all_ids = [m["id"] for m in resp.json().get("data", [])]
+            models = sorted(m for m in all_ids if any(m.startswith(p) for p in ("gpt-", "o1", "o3", "o4")))
+
+        elif provider == "ollama":
+            ollama_root = base_url.rstrip("/").removesuffix("/v1")
+            resp = _req.get(f"{ollama_root}/api/tags", timeout=6)
+            resp.raise_for_status()
+            models = [m["name"] for m in resp.json().get("models", [])]
+
+        else:
+            models = []
+
+        return jsonify({"provider": provider, "models": models})
+
+    except Exception as exc:
+        return jsonify({"provider": provider, "models": [], "error": str(exc)}), 200
+
+
 @bp.route("/api/availability-check", methods=["POST"])
 def api_availability_check():
     from .checker import run_availability_check

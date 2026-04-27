@@ -21,3 +21,4 @@ pytest-cache-files-*/
 *.swp
 .idea/
 .vscode/
+.claude/

@@ -157,12 +157,12 @@
         {% endcall %}
         {% call field("Dashboard-URL in E-Mail") %}
           <input type="text" name="server_url" value="{{ s.server_url }}"
-            placeholder="leer = automatisch (LAN-IP)" class="input-field col-span-2">
+            placeholder="z.B. http://192.168.1.10:5000" class="input-field col-span-2">
         {% endcall %}
       </div>
       <div class="px-5 pb-4 text-xs text-slate-500">
         💡 Gmail: App-Passwort unter <a href="https://myaccount.google.com/apppasswords" target="_blank" class="text-blue-500 hover:underline">myaccount.google.com/apppasswords</a> erstellen.
-        Leer lassen damit die Server-IP automatisch erkannt wird.
+        Bei Docker unbedingt die Dashboard-URL manuell setzen — sonst erscheint die interne Container-IP im E-Mail-Link.
       </div>
     </div>
 

@@ -202,11 +202,26 @@ def _card_html(title, platform, search_term, price, location, url,
     </div>"""
 
 
+def _normalize_server_url(raw: str) -> str:
+    """Ergänzt fehlendes Schema und Port, damit reine IPs/Hostnamen funktionieren."""
+    if not raw:
+        return ""
+    # Schema ergänzen
+    if not raw.startswith(("http://", "https://")):
+        raw = "http://" + raw
+    # Port ergänzen wenn keiner vorhanden (kein ":" nach dem Host-Teil)
+    from urllib.parse import urlparse
+    parsed = urlparse(raw)
+    if not parsed.port:
+        raw = raw.rstrip("/") + ":5000"
+    return raw.rstrip("/")
+
+
 def _get_server_url(settings: dict) -> str:
     """Gibt die konfigurierte oder automatisch erkannte Server-URL zurück."""
     url = settings.get("server_url", "").strip()
     if url:
-        return url.rstrip("/")
+        return _normalize_server_url(url)
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))

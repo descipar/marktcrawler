@@ -30,7 +30,19 @@ try:
     branch_log = git / "logs" / ref if head.startswith("ref:") else git / "logs" / "HEAD"
     log_lines = branch_log.read_text().strip().splitlines()
     meta, message, ts = _last_commit_from_log(log_lines)
-    date = datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%d")
+    if not ts:
+        # Fallback: nur pull/checkout-Einträge vorhanden → Timestamp des letzten Eintrags
+        for line in reversed(log_lines):
+            m, _, _ = line.partition("\t")
+            parts = m.split()
+            if len(parts) >= 2:
+                try:
+                    ts = int(parts[-2])
+                    if ts > 0:
+                        break
+                except ValueError:
+                    pass
+    date = datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%d") if ts else ""
 except Exception as e:
     print(f"bake_version: {e}", file=sys.stderr)
     commit = date = message = ""

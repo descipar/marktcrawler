@@ -216,7 +216,7 @@ def get_next_run() -> str:
         for platform in PLATFORMS
         if (job := _scheduler.get_job(f"crawl_{platform}")) and job.next_run_time
     ]
-    return min(next_times).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S") if next_times else "–"
+    return min(next_times).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if next_times else "–"
 
 
 def get_next_runs() -> dict:
@@ -228,7 +228,7 @@ def get_next_runs() -> dict:
     for platform in PLATFORMS:
         job = _scheduler.get_job(f"crawl_{platform}")
         if job and job.next_run_time:
-            result[platform] = job.next_run_time.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+            result[platform] = job.next_run_time.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     return result
 
 

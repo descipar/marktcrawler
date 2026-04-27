@@ -711,3 +711,29 @@ class TestProfileRoutes:
         listings = json.loads(resp.data)
         # last_seen_at war None beim ersten Besuch → is_new = False
         assert all(not l["is_new"] for l in listings)
+
+
+# ── Info-Seite ────────────────────────────────────────────────
+
+class TestInfoPage:
+
+    def test_info_liefert_200(self, client):
+        resp = client.get("/info")
+        assert resp.status_code == 200
+
+    def test_info_enthaelt_statistik_bereiche(self, client):
+        resp = client.get("/info")
+        body = resp.data
+        assert b"Speicher" in body
+        assert b"Anzeigen-Bestand" in body
+        assert b"Crawl-Verlauf" in body
+        assert b"Benachrichtigungen" in body
+        assert b"System" in body
+
+    def test_info_enthaelt_nav_link(self, client):
+        resp = client.get("/info")
+        assert b"/info" in resp.data
+
+    def test_info_zeigt_migrationen(self, client):
+        resp = client.get("/info")
+        assert b"v1_settings_rename" in resp.data

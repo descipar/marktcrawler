@@ -88,12 +88,14 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
         _running.add(platform)
         is_first = len(_running) == 1
 
+    _started_at = datetime.now().isoformat(timespec="seconds")
+    _term_count = 0
     stats = {"new": 0, "total": 0, "errors": 0, "skipped_blacklist": 0, "free": 0}
     try:
         if is_first:
             clear_log()
             db.set_setting("crawl_status", "running")
-        db.set_setting("last_crawl_start", datetime.now().isoformat(timespec="seconds"))
+        db.set_setting("last_crawl_start", _started_at)
 
         settings = db.get_settings()
 
@@ -111,6 +113,7 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
         if not search_terms:
             logger.warning("Keine aktiven Suchbegriffe.")
             return {"status": "no_terms", "new": 0}
+        _term_count = len(search_terms)
 
         delay = float(settings.get("crawler_delay", 2))
         max_results = int(settings.get("crawler_max_results", 20))
@@ -198,6 +201,11 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
         db.set_setting(f"{platform}_last_crawl_end", now_str)
         db.set_setting(f"{platform}_last_crawl_found", str(stats["new"]))
         db.set_setting("last_crawl_end", now_str)
+        duration_s = (
+            datetime.fromisoformat(now_str) - datetime.fromisoformat(_started_at)
+        ).total_seconds()
+        db.log_crawl_run(platform, _started_at, now_str, round(duration_s, 1),
+                         stats["new"], _term_count)
 
     return {"status": "ok", **stats}
 

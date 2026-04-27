@@ -492,3 +492,11 @@ def delete_profile_route(profile_id):
             session.pop(key, None)
     db.delete_profile(profile_id)
     return jsonify({"status": "ok"})
+
+
+# ── Info & Statistik ─────────────────────────────────────────
+
+@bp.route("/info")
+def info():
+    stats = db.get_system_stats()
+    return render_template("info.html", stats=stats)

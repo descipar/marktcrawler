@@ -29,6 +29,9 @@ def notify(listings: list, settings: dict, force: bool = False) -> bool:
     result = _send_dicts(subject, listing_dicts, settings)
     if result:
         db.mark_listings_notified([l.listing_id for l in listings])
+        raw_r = os.environ.get("EMAIL_RECIPIENT") or settings.get("email_recipient", "")
+        db.log_notification("alert", len(listing_dicts),
+                            len([r for r in raw_r.split(",") if r.strip()]))
     return result
 
 
@@ -50,6 +53,9 @@ def notify_pending(settings: dict) -> bool:
     if result:
         db.mark_listings_notified([l["listing_id"] for l in listings])
         logger.info(f"notify_pending: {len(listings)} Anzeigen benachrichtigt.")
+        raw_r = os.environ.get("EMAIL_RECIPIENT") or settings.get("email_recipient", "")
+        db.log_notification("alert", len(listings),
+                            len([r for r in raw_r.split(",") if r.strip()]))
     return result
 
 
@@ -70,7 +76,12 @@ def send_digest(settings: dict) -> bool:
     tpl = settings.get("email_subject_digest", "🔍 Marktcrawler Tages-Digest: {n} Anzeige(n) heute")
     subject = tpl.replace("{n}", str(len(listings)))
     logger.info(f"Sende Tages-Digest mit {len(listings)} Anzeigen.")
-    return _send_dicts(subject, listings, settings, is_digest=True)
+    result = _send_dicts(subject, listings, settings, is_digest=True)
+    if result:
+        raw_r = os.environ.get("EMAIL_RECIPIENT") or settings.get("email_recipient", "")
+        db.log_notification("digest", len(listings),
+                            len([r for r in raw_r.split(",") if r.strip()]))
+    return result
 
 
 # ── Interner Versand ─────────────────────────────────────────

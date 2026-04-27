@@ -276,7 +276,8 @@ class TestNotifyPending:
         ]
         with patch("app.notifier.db.get_unnotified_listings", return_value=listings), \
              patch("app.notifier._smtp_send", return_value=True), \
-             patch("app.notifier.db.mark_listings_notified") as mock_mark:
+             patch("app.notifier.db.mark_listings_notified") as mock_mark, \
+             patch("app.notifier.db.log_notification"):
             result = notify_pending(self._SETTINGS)
         assert result is True
         mock_mark.assert_called_once_with(["p1", "p2"])

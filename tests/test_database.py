@@ -962,3 +962,120 @@ class TestProfiles:
         assert temp_db.get_profile(pid)["last_seen_at"] is None
         temp_db.update_profile_last_seen(pid)
         assert temp_db.get_profile(pid)["last_seen_at"] is not None
+
+
+# ── Crawl-Log & Notification-Log ─────────────────────────────
+
+class TestCrawlLog:
+
+    def test_log_crawl_run_speichert_eintrag(self, temp_db):
+        temp_db.log_crawl_run("kleinanzeigen", "2026-01-01T10:00:00", "2026-01-01T10:01:30",
+                              90.0, 5, 3)
+        stats = temp_db.get_system_stats()
+        assert stats["total_crawl_runs"] == 1
+        cs = stats["crawl_stats"]
+        assert len(cs) == 1
+        assert cs[0]["platform"] == "kleinanzeigen"
+        assert cs[0]["runs"] == 1
+        assert cs[0]["total_found"] == 5
+        assert cs[0]["avg_duration_s"] == 90.0
+
+    def test_log_crawl_run_mehrere_plattformen(self, temp_db):
+        temp_db.log_crawl_run("kleinanzeigen", "2026-01-01T10:00:00", "2026-01-01T10:01:00", 60.0, 3, 2)
+        temp_db.log_crawl_run("shpock",        "2026-01-01T10:00:00", "2026-01-01T10:01:30", 90.0, 7, 2)
+        temp_db.log_crawl_run("kleinanzeigen", "2026-01-01T11:00:00", "2026-01-01T11:02:00", 120.0, 2, 2)
+        stats = temp_db.get_system_stats()
+        assert stats["total_crawl_runs"] == 3
+        plats = {c["platform"]: c for c in stats["crawl_stats"]}
+        assert plats["kleinanzeigen"]["runs"] == 2
+        assert plats["kleinanzeigen"]["total_found"] == 5
+        assert plats["shpock"]["runs"] == 1
+
+    def test_log_notification_alert(self, temp_db):
+        temp_db.log_notification("alert", 12, 2)
+        stats = temp_db.get_system_stats()
+        assert stats["total_notifications"] == 1
+        n = stats["notif_stats"][0]
+        assert n["type"] == "alert"
+        assert n["total"] == 1
+        assert n["avg_listings"] == 12.0
+
+    def test_log_notification_digest_und_alert(self, temp_db):
+        temp_db.log_notification("alert", 5, 1)
+        temp_db.log_notification("digest", 20, 1)
+        temp_db.log_notification("alert", 3, 1)
+        stats = temp_db.get_system_stats()
+        assert stats["total_notifications"] == 3
+        types = {n["type"]: n for n in stats["notif_stats"]}
+        assert types["alert"]["total"] == 2
+        assert round(types["alert"]["avg_listings"], 1) == 4.0
+        assert types["digest"]["total"] == 1
+
+
+# ── get_system_stats ─────────────────────────────────────────
+
+class TestSystemStats:
+
+    def test_alle_keys_vorhanden(self, temp_db):
+        stats = temp_db.get_system_stats()
+        required = [
+            "db_size_mb", "disk_free_gb", "disk_total_gb", "disk_used_pct",
+            "geocache_count", "listings_total", "listings_today", "listings_last_7d",
+            "listings_favorites", "listings_free", "listings_with_notes",
+            "listings_no_image", "listings_duplicates", "listings_dismissed",
+            "platforms", "top_terms", "daily_counts", "daily_max",
+            "price_avg", "price_min", "price_max", "price_unknown_count",
+            "crawl_stats", "total_crawl_runs", "notif_stats", "total_notifications",
+            "search_term_count", "active_term_count", "profile_count", "migrations",
+        ]
+        for key in required:
+            assert key in stats, f"Key fehlt: {key}"
+
+    def test_listings_zaehler(self, temp_db):
+        from app.scrapers.base import Listing
+        l = Listing(platform="Test", title="Item", price="10 €",
+                    location="München", url="https://x.com/1",
+                    listing_id="x1", search_term="test", is_free=False)
+        temp_db.save_listing(l)
+        stats = temp_db.get_system_stats()
+        assert stats["listings_total"] == 1
+        assert stats["listings_today"] == 1
+        assert stats["listings_last_7d"] == 1
+
+    def test_daily_counts_hat_7_eintraege(self, temp_db):
+        stats = temp_db.get_system_stats()
+        assert len(stats["daily_counts"]) == 7
+
+    def test_daily_max_mindestens_1(self, temp_db):
+        stats = temp_db.get_system_stats()
+        assert stats["daily_max"] >= 1
+
+    def test_migrations_liste_nicht_leer(self, temp_db):
+        stats = temp_db.get_system_stats()
+        assert len(stats["migrations"]) >= 7  # v1–v7 alle angewendet
+
+    def test_platform_breakdown(self, temp_db):
+        from app.scrapers.base import Listing
+        for i, plat in enumerate(["Shpock", "Shpock", "Vinted"]):
+            temp_db.save_listing(Listing(
+                platform=plat, title=f"Item {i}", price="5 €",
+                location="München", url=f"https://x.com/{i}",
+                listing_id=f"p{i}", search_term="test",
+            ))
+        stats = temp_db.get_system_stats()
+        plats = {p["platform"]: p["count"] for p in stats["platforms"]}
+        assert plats["Shpock"] == 2
+        assert plats["Vinted"] == 1
+
+    def test_preis_statistik(self, temp_db):
+        from app.scrapers.base import Listing
+        for i, price in enumerate(["10 €", "20 €", "30 €"]):
+            temp_db.save_listing(Listing(
+                platform="Test", title=f"Item {i}", price=price,
+                location="München", url=f"https://x.com/{i}",
+                listing_id=f"pr{i}", search_term="test",
+            ))
+        stats = temp_db.get_system_stats()
+        assert stats["price_min"] == 10.0
+        assert stats["price_max"] == 30.0
+        assert stats["price_avg"] == 20.0

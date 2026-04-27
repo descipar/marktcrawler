@@ -7,7 +7,7 @@ Selbst gehostet, Docker-ready, läuft unbeaufsichtigt auf einem Raspberry Pi.
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-388%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-401%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)
 
 ---
@@ -36,6 +36,8 @@ Selbst gehostet, Docker-ready, läuft unbeaufsichtigt auf einem Raspberry Pi.
 - **⭐ Favoriten & Notizen** — Anzeigen markieren und kommentieren; Favoriten werden nie automatisch gelöscht
 - **👤 Mehrbenutzer-Profile** — jedes Profil sieht „✨ Neu"-Badge für Anzeigen seit dem letzten Besuch
 - **Duplikat-Erkennung & Dismiss** — plattformübergreifend; dauerhaft ausgeblendete Anzeigen erscheinen nie wieder
+- **🔗 E-Mail-Deep-Link** — jede Anzeige in der Benachrichtigung hat einen „Im Dashboard →"-Button, der das Modal direkt öffnet
+- **📊 Version & Update-Check** — Info-Seite zeigt den aktuell laufenden Commit und listet neuere Commits aus GitHub auf
 
 📄 [Vollständige Feature-Dokumentation](docs/features.md)
 

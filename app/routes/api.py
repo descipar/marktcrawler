@@ -241,3 +241,13 @@ def api_test_scraper():
                         "message": f"✓ {len(results)} Ergebnis(se) für \"{test_term}\""})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)[:300]}), 500
+
+
+@bp.route("/api/check-updates")
+def check_updates():
+    from ..version import get_current_version, get_available_updates
+    version = get_current_version()
+    updates = get_available_updates(version["hash"])
+    if updates is None:
+        return jsonify({"status": "error", "message": "GitHub nicht erreichbar oder Repo unbekannt."})
+    return jsonify({"status": "ok", "updates": updates, "count": len(updates)})

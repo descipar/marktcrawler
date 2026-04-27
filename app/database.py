@@ -667,7 +667,6 @@ def mark_listings_notified(listing_ids: List[str]):
                 chunk,
             )
         conn.commit()
-        conn.commit()
 
 
 def clear_old_listings(days: int = 30):

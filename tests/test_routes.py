@@ -190,12 +190,11 @@ class TestSettingsRoutes:
         })
         assert resp.status_code == 302
 
-    def test_save_settings_ungueltig_interval_flash(self, client):
-        resp = client.post("/settings", data={
-            "crawler_interval": "9999",
-        }, follow_redirects=True)
-        assert resp.status_code == 200
-        assert b"interval" in resp.data.lower() or b"nterval" in resp.data.lower() or resp.status_code == 200
+    def test_save_settings_speichert_interval(self, client, app):
+        import app.database as db
+        client.post("/settings", data={"crawler_interval": "45"})
+        with app.app_context():
+            assert db.get_setting("crawler_interval") == "45"
 
     def test_save_settings_checkbox_enabled(self, client, app):
         import app.database as db

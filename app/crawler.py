@@ -151,7 +151,7 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
                         logger.debug(f"Blacklist: '{listing.title}'")
                         continue
 
-                    if term_max_price:
+                    if term_max_price is not None:
                         if not price_within_limit(listing.price or "", float(term_max_price)):
                             continue
 

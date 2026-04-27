@@ -3,21 +3,43 @@
 import logging
 import os
 import secrets
+from pathlib import Path
 from flask import Flask
 
 from .database import init_db
 
+_SECRET_KEY_FILE = Path(os.environ.get("DATA_DIR", "/data")) / "secret_key.txt"
+
+
+def _load_or_create_secret_key() -> str:
+    """Liest den persistierten SECRET_KEY oder erstellt ihn einmalig.
+
+    Q13-Fix: Ein zufällig generierter Key ohne Persistierung macht alle
+    Sessions bei jedem Neustart ungültig (Nutzer werden ausgeloggt).
+    """
+    env_key = os.environ.get("SECRET_KEY")
+    if env_key:
+        return env_key
+    try:
+        if _SECRET_KEY_FILE.exists():
+            key = _SECRET_KEY_FILE.read_text().strip()
+            if key:
+                return key
+        key = secrets.token_hex(32)
+        _SECRET_KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _SECRET_KEY_FILE.write_text(key)
+        return key
+    except OSError as e:
+        logging.getLogger(__name__).warning(
+            f"SECRET_KEY konnte nicht persistiert werden: {e}. "
+            "Sessions gehen bei Neustart verloren."
+        )
+        return secrets.token_hex(32)
+
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    secret_key = os.environ.get("SECRET_KEY")
-    if not secret_key:
-        secret_key = secrets.token_hex(32)
-        logging.getLogger(__name__).warning(
-            "SECRET_KEY nicht gesetzt – zufälliger Key wird verwendet. "
-            "Sessions gehen bei Neustart verloren. Setze SECRET_KEY in .env."
-        )
-    app.secret_key = secret_key
+    app.secret_key = _load_or_create_secret_key()
 
     logging.basicConfig(
         level=logging.INFO,

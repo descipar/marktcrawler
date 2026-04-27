@@ -39,11 +39,16 @@ def notify(listings: list, settings: dict, force: bool = False) -> bool:
 # ── Gebündelter Benachrichtigungs-Job (alle 15 Min.) ─────────
 
 def notify_pending(settings: dict) -> bool:
-    """Sammelt alle unbenachrichtigten Anzeigen und sendet eine gebündelte E-Mail."""
+    """Sammelt alle unbenachrichtigten Anzeigen und sendet eine gebündelte E-Mail.
+
+    B5-Fix: claim_unnotified_listings() holt und markiert atomar in einer
+    Transaktion, sodass bei gleichzeitigen Aufrufen keine doppelten E-Mails
+    entstehen können.
+    """
     if not int(settings.get("email_enabled") or 0):
         return False
 
-    listings = db.get_unnotified_listings()
+    listings = db.claim_unnotified_listings()
     if not listings:
         logger.debug("notify_pending: Keine unbenachrichtigten Anzeigen.")
         return False
@@ -52,7 +57,6 @@ def notify_pending(settings: dict) -> bool:
     subject = tpl.replace("{n}", str(len(listings)))
     result = _send_dicts(subject, listings, settings)
     if result:
-        db.mark_listings_notified([l["listing_id"] for l in listings])
         logger.info(f"notify_pending: {len(listings)} Anzeigen benachrichtigt.")
         raw_r = os.environ.get("EMAIL_RECIPIENT") or settings.get("email_recipient", "")
         db.log_notification("alert", len(listings),

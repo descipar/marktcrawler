@@ -264,39 +264,39 @@ class TestNotifyPending:
 
     def test_sendet_nicht_wenn_email_deaktiviert(self):
         settings = {**self._SETTINGS, "email_enabled": "0"}
-        with patch("app.notifier.db.get_unnotified_listings") as mock_get:
+        with patch("app.notifier.db.claim_unnotified_listings") as mock_claim:
             result = notify_pending(settings)
         assert result is False
-        mock_get.assert_not_called()
+        mock_claim.assert_not_called()
 
     def test_sendet_nicht_ohne_listings(self):
-        with patch("app.notifier.db.get_unnotified_listings", return_value=[]), \
+        with patch("app.notifier.db.claim_unnotified_listings", return_value=[]), \
              patch("app.notifier._smtp_send") as mock_smtp:
             result = notify_pending(self._SETTINGS)
         assert result is False
         mock_smtp.assert_not_called()
 
-    def test_markiert_listings_nach_versand(self):
+    def test_loggt_nach_versand(self):
+        """Nach erfolgreichem Versand wird log_notification aufgerufen (keine mark-Pflicht mehr)."""
         listings = [
             {**make_listing_dict(listing_id="p1"), "listing_id": "p1"},
             {**make_listing_dict(listing_id="p2"), "listing_id": "p2"},
         ]
-        with patch("app.notifier.db.get_unnotified_listings", return_value=listings), \
+        with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
              patch("app.notifier._smtp_send", return_value=True), \
-             patch("app.notifier.db.mark_listings_notified") as mock_mark, \
-             patch("app.notifier.db.log_notification"):
+             patch("app.notifier.db.log_notification") as mock_log:
             result = notify_pending(self._SETTINGS)
         assert result is True
-        mock_mark.assert_called_once_with(["p1", "p2"])
+        mock_log.assert_called_once()
 
-    def test_markiert_nicht_bei_smtp_fehler(self):
+    def test_kein_log_bei_smtp_fehler(self):
         listings = [{**make_listing_dict(), "listing_id": "q1"}]
-        with patch("app.notifier.db.get_unnotified_listings", return_value=listings), \
+        with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
              patch("app.notifier._smtp_send", return_value=False), \
-             patch("app.notifier.db.mark_listings_notified") as mock_mark:
+             patch("app.notifier.db.log_notification") as mock_log:
             result = notify_pending(self._SETTINGS)
         assert result is False
-        mock_mark.assert_not_called()
+        mock_log.assert_not_called()
 
 
 # ── _smtp_send ────────────────────────────────────────────────

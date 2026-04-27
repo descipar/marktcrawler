@@ -1159,3 +1159,78 @@ class TestPlatformMaxAges:
         results = temp_db.get_listings(platform_max_ages={"vinted": 0})
         ids = {r["listing_id"] for r in results}
         assert "v_old" in ids  # 0 = kein Filter
+
+
+class TestClaimUnnotifiedListings:
+    """B5-Fix: claim_unnotified_listings() holt und markiert atomar."""
+
+    def _listing(self, lid: str):
+        return Listing(
+            platform="Test", title="Kinderwagen", price="10 €",
+            location="München", url=f"https://example.com/{lid}",
+            listing_id=lid, search_term="test",
+        )
+
+    def test_gibt_leere_liste_wenn_keine_unbenachrichtigten(self, temp_db):
+        result = temp_db.claim_unnotified_listings()
+        assert result == []
+
+    def test_gibt_unbenachrichtigte_listings_zurueck(self, temp_db):
+        temp_db.save_listing(self._listing("a"))
+        temp_db.save_listing(self._listing("b"))
+        result = temp_db.claim_unnotified_listings()
+        assert len(result) == 2
+        assert {r["listing_id"] for r in result} == {"a", "b"}
+
+    def test_markiert_listings_als_notified(self, temp_db):
+        temp_db.save_listing(self._listing("x"))
+        temp_db.claim_unnotified_listings()
+        # Zweiter Aufruf findet nichts mehr
+        result = temp_db.claim_unnotified_listings()
+        assert result == []
+
+    def test_bereits_notified_listings_werden_nicht_zurueckgegeben(self, temp_db):
+        temp_db.save_listing(self._listing("old"))
+        temp_db.mark_listings_notified(["old"])
+        temp_db.save_listing(self._listing("new"))
+        result = temp_db.claim_unnotified_listings()
+        assert len(result) == 1
+        assert result[0]["listing_id"] == "new"
+
+
+class TestSaveListingSingleConnection:
+    """A2-Fix: save_listing() arbeitet in einer einzigen Verbindung."""
+
+    def test_dismissed_listing_wird_nicht_gespeichert(self, temp_db):
+        temp_db.dismiss_listing  # ensure function exists
+        listing = Listing(
+            platform="Test", title="Kinderwagen", price="10 €",
+            location="München", url="https://example.com/d1",
+            listing_id="dismissed-1", search_term="test",
+        )
+        # dismiss simulieren: erst speichern, dann ausblenden
+        temp_db.save_listing(listing)
+        listings = temp_db.get_listings()
+        db_id = next(r["id"] for r in listings if r["listing_id"] == "dismissed-1")
+        temp_db.dismiss_listing(db_id)
+
+        # Zweiter Speicherversuch muss False zurückgeben
+        result = temp_db.save_listing(listing)
+        assert result is False
+
+    def test_duplikat_erkennung_in_selber_transaktion(self, temp_db):
+        first = Listing(
+            platform="Shpock", title="Toller Kinderwagen", price="50 €",
+            location="München", url="https://shpock.com/1",
+            listing_id="dup-1", search_term="kinderwagen",
+        )
+        second = Listing(
+            platform="Kleinanzeigen", title="Toller Kinderwagen", price="50 €",
+            location="München", url="https://ka.de/2",
+            listing_id="dup-2", search_term="kinderwagen",
+        )
+        temp_db.save_listing(first)
+        temp_db.save_listing(second)
+        listings = temp_db.get_listings()
+        second_saved = next(r for r in listings if r["listing_id"] == "dup-2")
+        assert second_saved["potential_duplicate"] == "Shpock"

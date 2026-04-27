@@ -1,7 +1,7 @@
 """APScheduler-Integration: ein Job pro Plattform + Tages-Digest + Verfügbarkeits-Check."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -56,8 +56,9 @@ def _calc_start_date(last_end_str: str, minutes: int, stagger_seconds: int) -> d
     try:
         last_end = datetime.fromisoformat(last_end_str)
         next_due = last_end + timedelta(minutes=minutes)
-        if next_due <= datetime.now():
-            return datetime.now() + timedelta(seconds=stagger_seconds)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        if next_due <= now:
+            return now + timedelta(seconds=stagger_seconds)
         return next_due
     except ValueError:
         return None
@@ -173,7 +174,8 @@ def _schedule_availability_check():
         try:
             last_run = datetime.fromisoformat(last_run_str)
             next_due = last_run + timedelta(hours=hours)
-            start_date = datetime.now() + timedelta(minutes=1) if next_due <= datetime.now() else next_due
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            start_date = now + timedelta(minutes=1) if next_due <= now else next_due
         except ValueError:
             pass
 

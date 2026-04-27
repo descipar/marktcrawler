@@ -4,7 +4,7 @@ import logging
 import re
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 from . import database as db
@@ -79,7 +79,7 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
         _running.add(platform)
         is_first = len(_running) == 1
 
-    _started_at = datetime.now().isoformat(timespec="seconds")
+    _started_at = datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec="seconds")
     _term_count = 0
     stats = {"new": 0, "total": 0, "errors": 0, "skipped_blacklist": 0, "free": 0}
     try:
@@ -117,7 +117,7 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
         interval_min = int(settings.get(f"{platform}_interval", DEFAULT_INTERVALS.get(platform, 30)))
         if last_end and not manual:
             try:
-                elapsed_min = (datetime.now() - datetime.fromisoformat(last_end)).total_seconds() / 60
+                elapsed_min = (datetime.now(timezone.utc).replace(tzinfo=None) - datetime.fromisoformat(last_end)).total_seconds() / 60
                 if elapsed_min > interval_min * 1.5:
                     logger.warning(
                         f"⚠️ [{platform}] Crawl-Verzögerung: letzter Lauf vor {elapsed_min:.0f} Min. "
@@ -184,7 +184,7 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
         logger.error(f"[{platform}] Unerwarteter Crawl-Fehler: {e}", exc_info=True)
         stats["errors"] += 1
     finally:
-        now_str = datetime.now().isoformat(timespec="seconds")
+        now_str = datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec="seconds")
         with _lock:
             _running.discard(platform)
             is_last = not _running

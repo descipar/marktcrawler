@@ -175,6 +175,7 @@ def save_settings():
         "digest_enabled", "digest_time",
         "home_location",
         "availability_check_enabled", "availability_check_interval_hours",
+        "ai_enabled", "ai_api_key", "ai_model",
     }
     data = {}
     for key in allowed_keys:
@@ -292,6 +293,20 @@ def api_log():
 def api_clear_listings():
     db.clear_all_listings()
     return jsonify({"status": "ok", "message": "Alle Anzeigen gelöscht (Favoriten behalten)."})
+
+
+@bp.route("/api/listings/<int:listing_id>/contact-text", methods=["POST"])
+def api_contact_text(listing_id):
+    from .ai import generate_contact_text
+    settings = db.get_settings()
+    if not int(settings.get("ai_enabled", 0)):
+        return jsonify({"error": "KI-Assistent ist nicht aktiviert."}), 403
+    listing = db.get_listing_by_id(listing_id)
+    if not listing:
+        return jsonify({"error": "Anzeige nicht gefunden."}), 404
+    price_stats = db.get_price_stats()
+    text = generate_contact_text(listing, price_stats, settings)
+    return jsonify({"text": text})
 
 
 @bp.route("/api/availability-check", methods=["POST"])

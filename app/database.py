@@ -65,6 +65,10 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     # Verfügbarkeits-Check
     "availability_check_enabled": "1",
     "availability_check_interval_hours": "3",
+    # KI-Assistent
+    "ai_enabled": "0",
+    "ai_api_key": "",
+    "ai_model": "claude-haiku-4-5-20251001",
     # Status
     "last_crawl_start": "",
     "last_crawl_end": "",
@@ -558,6 +562,13 @@ def get_price_stats() -> List[Dict]:
             ORDER BY count DESC
         """).fetchall()
     return [dict(r) for r in rows]
+
+
+def get_listing_by_id(db_id: int) -> Optional[Dict]:
+    """Einzelne Anzeige per DB-Primary-Key."""
+    with _db() as conn:
+        row = conn.execute("SELECT * FROM listings WHERE id=?", (db_id,)).fetchone()
+    return dict(row) if row else None
 
 
 def get_unnotified_listings() -> List[Dict]:

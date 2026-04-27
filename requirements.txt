@@ -9,4 +9,8 @@ gunicorn>=22.0.0
 # Nur für Facebook Marketplace (optional):
 # playwright>=1.44.0
 
+# Für KI-Assistent (optional, je nach gewähltem Provider):
+# anthropic>=0.40.0
+# openai>=1.50.0
+
 pytest>=8.0.0

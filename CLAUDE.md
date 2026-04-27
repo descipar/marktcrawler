@@ -32,6 +32,7 @@ baby-crawler-v2/
     ├── crawler.py              # Crawl-Orchestrierung, threading.Lock, run_crawl_async()
     ├── scheduler.py            # APScheduler: pro-Plattform-Crawl + Notify-Job (15 Min) + CronTrigger (Digest)
     ├── notifier.py             # SMTP E-Mail: gebündelter Alert (notify_pending) + Sofort (manual) + Digest
+    ├── ai.py                   # KI-Assistent: Verkäufer-Anfragetext, VB-Preisvorschlag (Claude/OpenAI)
     ├── geo.py                  # Haversine-Formel + Nominatim-Geocoding mit DB-Cache
     ├── scrapers/
     │   ├── base.py             # Listing-Dataclass (gemeinsame Datenstruktur)
@@ -208,6 +209,9 @@ Klick auf eine Karte öffnet `#detail-modal` mit Vollbild-Details (Bild, Preis, 
 
 ### Dashboard: Plattform-Filter & Status-Bar
 `loadPlatformOptions()` befüllt das Plattform-Dropdown aus `GET /api/platforms` (nur tatsächlich vorhandene Plattformen). `updatePlatformCounts()` zeigt „KA 120 · Shp 45" unter dem Gesamt-Zähler.
+
+### KI-Assistent: Verkäufer-Anfragetext
+`ai.py.generate_contact_text(listing, price_stats, settings)` generiert einen höflichen Kontakttext. Provider wird automatisch aus dem Modellnamen erkannt: `claude-*` → Anthropic SDK, `gpt-*` → OpenAI SDK (beide optional installierbar). Bei VB-Anzeigen wird ein Preisvorschlag (85% des Durchschnittspreises aus `price_stats`, auf 5 € gerundet) in den Prompt eingebaut. Fehler geben eine lesbare Warnung zurück (kein raise). Settings: `ai_enabled`, `ai_api_key`, `ai_model`. Route: `POST /api/listings/<id>/contact-text`. Im Modal: „✨ Generieren"-Button → editierbare Textarea → „📋 Kopieren". Text wird nie automatisch gesendet.
 
 ### Dashboard: Per-Plattform-Statusübersicht
 Die ersten drei Status-Kacheln (Status / Letzter Lauf / Nächster Lauf) wurden durch eine kompakte Plattform-Tabelle (3 Spalten breit) ersetzt. Spalten: Plattform | Status (✓ Bereit / ⟳ Läuft… / deaktiviert) | Letzter Lauf (relativ mit Tooltip) | Nächster Lauf | Neue (Badge). Deaktivierte Plattformen werden gedimmt (opacity-40). `/api/status` liefert jetzt `platforms`-Array mit `{id, display, enabled, is_running, last_crawl_end, last_crawl_found, next_run}`. `_build_platform_stats(settings, next_runs)` in `routes.py` erzeugt dieses Array für Template und API. `updatePlatformTable(platforms)` in JS aktualisiert die Tabelle live beim Polling.

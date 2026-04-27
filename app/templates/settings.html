@@ -81,6 +81,7 @@
     <button type="button" class="tab-btn active-tab" data-tab="platforms" onclick="switchTab('platforms')">🏪 Plattformen</button>
     <button type="button" class="tab-btn" data-tab="notifications" onclick="switchTab('notifications')">📧 Benachrichtigungen</button>
     <button type="button" class="tab-btn" data-tab="crawler" onclick="switchTab('crawler')">🤖 Crawler &amp; Daten</button>
+    <button type="button" class="tab-btn" data-tab="ai" onclick="switchTab('ai')">🤖 KI-Assistent</button>
     <button type="button" class="tab-btn" data-tab="profiles" onclick="switchTab('profiles')">👤 Profile</button>
   </div>
 
@@ -300,6 +301,46 @@
     </div>
 
   </div><!-- /tab-crawler -->
+
+  <!-- ── Tab: KI-Assistent ──────────────────────────────── -->
+  <div id="tab-ai" class="tab-panel hidden space-y-4 pt-4">
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3 bg-purple-50 border-b border-slate-200">
+        <h2 class="font-semibold text-purple-800">🤖 KI-Assistent</h2>
+      </div>
+      <div class="p-5 space-y-4">
+        <p class="text-sm text-slate-500">
+          Generiert auf Knopfdruck einen Verkäufer-Anfragetext pro Anzeige — inkl. Preisvorschlag bei VB-Anzeigen.
+          Der Text erscheint im Anzeigen-Modal als editierbare Textarea und wird nie automatisch gesendet.
+        </p>
+
+        {% call field("KI-Assistent aktiv") %}
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="ai_enabled" value="1" {% if s.get('ai_enabled')=='1' %}checked{% endif %}
+              class="w-4 h-4 text-purple-600">
+            <span class="text-sm text-slate-700">Anfragetext-Generator aktivieren</span>
+          </label>
+        {% endcall %}
+
+        {% call field("API-Key") %}
+          <input type="password" name="ai_api_key" value="{{ s.get('ai_api_key','') }}"
+            class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+            placeholder="sk-ant-… oder sk-…" autocomplete="off">
+          <p class="text-xs text-slate-400 mt-1">Anthropic (Claude) oder OpenAI API-Key. Wird nur lokal gespeichert.</p>
+        {% endcall %}
+
+        {% call field("Modell") %}
+          <input type="text" name="ai_model" value="{{ s.get('ai_model','claude-haiku-4-5-20251001') }}"
+            class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+            placeholder="claude-haiku-4-5-20251001">
+          <p class="text-xs text-slate-400 mt-1">
+            Anthropic: <code>claude-haiku-4-5-20251001</code> (günstig) oder <code>claude-sonnet-4-6</code> (besser) ·
+            OpenAI: <code>gpt-4o-mini</code>
+          </p>
+        {% endcall %}
+      </div>
+    </div>
+  </div><!-- /tab-ai -->
 
   <!-- ── Tab: Profile ───────────────────────────────────── -->
   <div id="tab-profiles" class="tab-panel hidden space-y-4 pt-4">

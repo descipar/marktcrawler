@@ -20,11 +20,13 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Accessibility") ode
 
 Alle KI-Features nutzen einen gemeinsamen API-Key (Claude / OpenAI / andere), konfigurierbar in Einstellungen (Modell + Key). Implementierung erfolgt schrittweise – jede Option ist unabhängig aktivierbar.
 
-**Option A – Verkäufer-Anfragetext (ursprüngliche Idee)**
-- [ ] Pro Anzeige: Knopfdruck generiert Kontakttext an den Verkäufer (höfliche Anfrage, Interesse bekunden)
-- [ ] Bei VB-Anzeigen: sinnvollen Preisvorschlag einbauen basierend auf `price_stats` der eigenen gesammelten Daten
-- [ ] Text erscheint in editierbarer Textarea im Listing-Modal (nie direktes Absenden, immer manuell kopieren)
-- [ ] API-Key + Modell in Settings hinterlegbar
+**Option A – Verkäufer-Anfragetext (ursprüngliche Idee)** ✅ implementiert
+- [x] Pro Anzeige: Knopfdruck generiert Kontakttext an den Verkäufer (höfliche Anfrage, Interesse bekunden)
+- [x] Bei VB-Anzeigen: sinnvollen Preisvorschlag einbauen basierend auf `price_stats` der eigenen gesammelten Daten
+- [x] Text erscheint in editierbarer Textarea im Listing-Modal (nie direktes Absenden, immer manuell kopieren)
+- [x] API-Key + Modell in Settings hinterlegbar (eigener Tab „KI-Assistent")
+- [x] Unterstützt Anthropic Claude und OpenAI (Provider-Erkennung via Modellname)
+- [x] 16 Tests in `test_ai.py`
 
 **Option B – Listing-Bewertung (Score 1–10)**
 - [ ] Beim Crawl: Claude bewertet jedes neue Listing anhand von Titel + Beschreibung (Relevanz, Preis-Leistung, Zustand)
@@ -216,4 +218,13 @@ Alle KI-Features nutzen einen gemeinsamen API-Key (Claude / OpenAI / andere), ko
 
 ---
 
-*Letzte Aktualisierung: 2026-04-27 (Phase 21 abgeschlossen)*
+### Phase 22 – KI-Assistent: Verkäufer-Anfragetext (Option A)
+- [x] `app/ai.py`: `generate_contact_text()`, `_call_anthropic()`, `_call_openai()`, VB-Erkennung, Preisvorschlag aus `price_stats`
+- [x] `db.get_listing_by_id()` für Route
+- [x] `POST /api/listings/<id>/contact-text` — gibt `{"text": "..."}` zurück, prüft `ai_enabled`
+- [x] Settings: neuer Tab „KI-Assistent" (Toggle, API-Key, Modell), `ai_enabled/ai_api_key/ai_model` in DB
+- [x] Modal: „✨ Generieren"-Button, editierbare Textarea, „📋 Kopieren"-Button
+- [x] `requirements.txt`: anthropic/openai als optionale Kommentar-Dependencies
+- [x] 16 neue Tests in `test_ai.py` (340 gesamt)
+
+*Letzte Aktualisierung: 2026-04-27 (Phase 22 abgeschlossen)*

@@ -176,6 +176,10 @@ def save_settings():
 
 @bp.route("/info")
 def info():
+    from app.version import get_current_version, get_available_updates
     stats = db.get_system_stats()
     price_stats = db.get_price_stats()
-    return render_template("info.html", stats=stats, price_stats=price_stats)
+    version = get_current_version()
+    updates = get_available_updates(version["hash"])
+    return render_template("info.html", stats=stats, price_stats=price_stats,
+                           version=version, available_updates=updates)

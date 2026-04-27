@@ -2,7 +2,12 @@ version: "3.9"
 
 services:
   marktcrawler:
-    build: .
+    build:
+      context: .
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-}
+        GIT_DATE: ${GIT_DATE:-}
+        GIT_MESSAGE: ${GIT_MESSAGE:-}
     container_name: marktcrawler
     restart: unless-stopped
     ports:

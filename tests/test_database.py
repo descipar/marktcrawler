@@ -1052,7 +1052,7 @@ class TestSystemStats:
 
     def test_migrations_liste_nicht_leer(self, temp_db):
         stats = temp_db.get_system_stats()
-        assert len(stats["migrations"]) >= 7  # v1–v7 alle angewendet
+        assert len(stats["migrations"]) >= 8  # v1–v8 alle angewendet
 
     def test_platform_breakdown(self, temp_db):
         from app.scrapers.base import Listing

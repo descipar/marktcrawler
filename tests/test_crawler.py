@@ -134,10 +134,10 @@ class TestIsBlacklisted:
     def test_blacklist_grossschreibung_wird_ignoriert(self):
         assert _is_blacklisted(make_listing(title="defekter Kinderwagen"), ["DEFEKT"]) is True
 
-    def test_kein_teilwort_match(self):
-        """'ersatz' soll NICHT 'ersatzteile' matchen, wenn 'ersatz' nicht auf der Liste steht."""
+    def test_substring_match(self):
+        """Blacklist prüft Teilstring: 'ersatz' trifft auch 'Ersatzteil'."""
         assert _is_blacklisted(make_listing(title="Ersatzteil"), ["ersatz"]) is True
-        # Aber: das Gegenteil – 'ersatzteile' trifft kein 'ersatz'-freies Listing
+        # Umgekehrt: 'ersatzteile' trifft kein Listing ohne dieses Wort
         assert _is_blacklisted(make_listing(title="guter Kinderwagen"), ["ersatzteile"]) is False
 
     def test_mehrere_blacklist_worter(self):

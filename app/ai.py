@@ -130,7 +130,3 @@ def _call_openai_compat(api_key: str, model: str, prompt: str, base_url: str = "
     )
     return resp.choices[0].message.content.strip()
 
-
-# Alias für Rückwärtskompatibilität mit Tests
-def _call_openai(api_key: str, model: str, prompt: str) -> str:
-    return _call_openai_compat(api_key, model, prompt)

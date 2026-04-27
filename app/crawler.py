@@ -24,15 +24,6 @@ PLATFORM_SCRAPER_MAP = {
     "ebay": EbayScraper,
 }
 
-# Separate name-map so tests can patch the class names in module globals
-_PLATFORM_CLASS_NAMES = {
-    "kleinanzeigen": "KleinanzeigenScraper",
-    "shpock": "ShpockScraper",
-    "facebook": "FacebookScraper",
-    "vinted": "VintedScraper",
-    "ebay": "EbayScraper",
-}
-
 # Standardintervalle (Minuten) – Fallback wenn kein DB-Wert vorhanden
 DEFAULT_INTERVALS = {
     "kleinanzeigen": 15,
@@ -103,8 +94,9 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
             logger.warning(f"[{platform}] Plattform nicht aktiviert – übersprungen.")
             return {"status": "no_platforms", "new": 0}
 
-        cls_name = _PLATFORM_CLASS_NAMES.get(platform)
-        scraper_cls = globals().get(cls_name) if cls_name else None
+        _base_cls = PLATFORM_SCRAPER_MAP.get(platform)
+        # globals()-Lookup erlaubt Test-Patching der Klassennamen
+        scraper_cls = globals().get(_base_cls.__name__) if _base_cls else None
         if not scraper_cls:
             logger.error(f"[{platform}] Unbekannte Plattform.")
             return {"status": "unknown_platform", "new": 0}

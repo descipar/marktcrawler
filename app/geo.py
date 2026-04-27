@@ -41,31 +41,35 @@ def geocode(location_text: str) -> Optional[tuple]:
     if cached:
         return cached
 
-    # Nominatim – Rate-Limit 1 req/s einhalten (thread-safe)
+    # Nominatim – Rate-Limit 1 req/s einhalten (thread-safe).
+    # Lock nur für die Timestamp-Koordination halten, nicht während sleep/HTTP.
     global _last_nominatim_call
     with _nominatim_lock:
         wait = 1.1 - (time.time() - _last_nominatim_call)
-        if wait > 0:
-            time.sleep(wait)
+        # Zeitstempel sofort reservieren, damit parallel wartende Threads
+        # nicht denselben Slot beanspruchen.
+        _last_nominatim_call = time.time() + max(0.0, wait)
 
-        try:
-            r = requests.get(
-                NOMINATIM_URL,
-                params={"q": location_text, "format": "json", "limit": 1, "countrycodes": "de,at,ch"},
-                headers=NOMINATIM_HEADERS,
-                timeout=10,
-            )
-            _last_nominatim_call = time.time()
-            r.raise_for_status()
-            results = r.json()
-            if results:
-                lat = float(results[0]["lat"])
-                lon = float(results[0]["lon"])
-                db.save_geocache(location_text, lat, lon)
-                logger.info(f"Geocoded '{location_text}' → ({lat:.4f}, {lon:.4f})")
-                return (lat, lon)
-        except Exception as e:
-            logger.debug(f"Geocoding fehlgeschlagen für '{location_text}': {e}")
+    if wait > 0:
+        time.sleep(wait)
+
+    try:
+        r = requests.get(
+            NOMINATIM_URL,
+            params={"q": location_text, "format": "json", "limit": 1, "countrycodes": "de,at,ch"},
+            headers=NOMINATIM_HEADERS,
+            timeout=10,
+        )
+        r.raise_for_status()
+        results = r.json()
+        if results:
+            lat = float(results[0]["lat"])
+            lon = float(results[0]["lon"])
+            db.save_geocache(location_text, lat, lon)
+            logger.info(f"Geocoded '{location_text}' → ({lat:.4f}, {lon:.4f})")
+            return (lat, lon)
+    except Exception as e:
+        logger.debug(f"Geocoding fehlgeschlagen für '{location_text}': {e}")
 
     return None
 

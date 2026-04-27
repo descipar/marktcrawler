@@ -134,29 +134,36 @@ def toggle_term(term_id):
 @bp.route("/terms/<int:term_id>/max-price", methods=["POST"])
 def update_term_price(term_id):
     val = (request.json or {}).get("max_price")
-    price = int(val) if val is not None and val != "" else None
+    price = None
+    if val is not None and val != "":
+        try:
+            price = int(val)
+            if not 0 <= price <= 100_000:
+                return jsonify({"error": "Preis muss zwischen 0 und 100.000 liegen."}), 400
+        except (TypeError, ValueError):
+            return jsonify({"error": "Ungültiger Preiswert."}), 400
     db.update_term_max_price(term_id, price)
     return jsonify({"status": "ok"})
 
 
 # ── Favoriten ────────────────────────────────────────────────
 
-@bp.route("/listings/<int:listing_id>/favorite", methods=["POST"])
-def toggle_favorite(listing_id):
-    db.toggle_favorite(listing_id)
+@bp.route("/listings/<int:db_id>/favorite", methods=["POST"])
+def toggle_favorite(db_id):
+    db.toggle_favorite(db_id)
     return jsonify({"status": "ok"})
 
 
-@bp.route("/listings/<int:listing_id>/dismiss", methods=["POST"])
-def dismiss_listing(listing_id):
-    db.dismiss_listing(listing_id)
+@bp.route("/listings/<int:db_id>/dismiss", methods=["POST"])
+def dismiss_listing(db_id):
+    db.dismiss_listing(db_id)
     return jsonify({"status": "ok"})
 
 
-@bp.route("/listings/<int:listing_id>/note", methods=["POST"])
-def update_note(listing_id):
+@bp.route("/listings/<int:db_id>/note", methods=["POST"])
+def update_note(db_id):
     note = (request.json or {}).get("note", "")
-    db.update_listing_note(listing_id, note)
+    db.update_listing_note(db_id, note)
     return jsonify({"status": "ok"})
 
 
@@ -313,13 +320,13 @@ def api_clear_listings():
     return jsonify({"status": "ok", "message": "Alle Anzeigen gelöscht (Favoriten behalten)."})
 
 
-@bp.route("/api/listings/<int:listing_id>/contact-text", methods=["POST"])
-def api_contact_text(listing_id):
+@bp.route("/api/listings/<int:db_id>/contact-text", methods=["POST"])
+def api_contact_text(db_id):
     from .ai import generate_contact_text
     settings = db.get_settings()
     if not int(settings.get("ai_enabled", 0)):
         return jsonify({"error": "KI-Assistent ist nicht aktiviert."}), 403
-    listing = db.get_listing_by_id(listing_id)
+    listing = db.get_listing_by_id(db_id)
     if not listing:
         return jsonify({"error": "Anzeige nicht gefunden."}), 404
     price_stats = db.get_price_stats()

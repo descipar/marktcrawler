@@ -83,7 +83,6 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "last_crawl_start": "",
     "last_crawl_end": "",
     "crawl_status": "idle",
-    "last_crawl_found": "0",
 }
 
 DEFAULT_SEARCH_TERMS = [
@@ -359,14 +358,12 @@ def _run_pending_migrations(conn: sqlite3.Connection):
 # ── Search Terms ────────────────────────────────────────────
 
 def get_search_terms(enabled_only: bool = False) -> List[Dict]:
-    conn = get_db()
     query = "SELECT * FROM search_terms"
     if enabled_only:
         query += " WHERE enabled = 1"
     query += " ORDER BY term ASC"
-    rows = [dict(r) for r in conn.execute(query).fetchall()]
-    conn.close()
-    return rows
+    with _db() as conn:
+        return [dict(r) for r in conn.execute(query).fetchall()]
 
 
 def add_search_term(term: str) -> bool:
@@ -553,7 +550,9 @@ def get_platform_counts() -> Dict[str, int]:
 # ohne Ziffer (k.A., Kostenlos, …) → NULL damit NULLS LAST greift
 _PRICE_EXPR = (
     "CASE WHEN price GLOB '*[0-9]*' "
-    "THEN CAST(REPLACE(REPLACE(price,' €',''),',','.') AS REAL) "
+    # Strip ` €`, then thousands-separator `.`, then convert decimal `,` → `.`
+    # e.g. "1.250,50 €" → "125050" ... wait, strip `.` first → "1250,50" → "1250.50" ✓
+    "THEN CAST(REPLACE(REPLACE(REPLACE(price,' €',''),'.',''),',','.') AS REAL) "
     "ELSE NULL END"
 )
 
@@ -767,16 +766,18 @@ def get_all_listing_urls(min_age_minutes: int = 0,
 
 
 def mark_listings_availability_checked(listing_ids: List[str]):
-    """Setzt availability_checked_at = NOW() für die gegebenen listing_ids."""
+    """Setzt availability_checked_at = NOW() für die gegebenen listing_ids (Chunks à 500)."""
     if not listing_ids:
         return
     now = datetime.now().isoformat(timespec="seconds")
-    placeholders = ",".join("?" * len(listing_ids))
     with _db() as conn:
-        conn.execute(
-            f"UPDATE listings SET availability_checked_at = ? WHERE listing_id IN ({placeholders})",
-            [now, *listing_ids],
-        )
+        for i in range(0, len(listing_ids), 500):
+            chunk = listing_ids[i:i + 500]
+            placeholders = ",".join("?" * len(chunk))
+            conn.execute(
+                f"UPDATE listings SET availability_checked_at = ? WHERE listing_id IN ({placeholders})",
+                [now, *chunk],
+            )
         conn.commit()
 
 

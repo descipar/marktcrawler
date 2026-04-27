@@ -71,7 +71,7 @@ def run_availability_check() -> dict:
 
         if not listings:
             logger.info("Verfügbarkeits-Check: keine fälligen Anzeigen.")
-            db.set_setting("availability_last_run", datetime.now().strftime("%Y-%m-%d %H:%M"))
+            db.set_setting("availability_last_run", datetime.now().isoformat(timespec="seconds"))
             db.set_setting("availability_last_checked", "0")
             db.set_setting("availability_last_deleted", "0")
             return {"status": "ok", **stats}
@@ -105,7 +105,7 @@ def run_availability_check() -> dict:
             f"Verfügbarkeits-Check beendet: {stats['checked']} geprüft, "
             f"{stats['deleted']} gelöscht, {stats['errors']} Fehler"
         )
-        db.set_setting("availability_last_run", datetime.now().strftime("%Y-%m-%d %H:%M"))
+        db.set_setting("availability_last_run", datetime.now().isoformat(timespec="seconds"))
         db.set_setting("availability_last_checked", str(stats["checked"] + stats["deleted"]))
         db.set_setting("availability_last_deleted", str(stats["deleted"]))
         return {"status": "ok", **stats}

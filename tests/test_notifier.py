@@ -102,6 +102,13 @@ class TestCardHtml:
                            found_at="2024-06-01T14:00:00", is_digest=False)
         assert "2024-06-01" not in html
 
+    def test_html_sonderzeichen_werden_escaped(self):
+        """Listing-Daten mit HTML/JS dürfen nicht ungefiltert ins Email-HTML."""
+        xss = '<script>alert("xss")</script>'
+        html = _card_html(xss, "P", xss, xss, xss, "https://x.com")
+        assert "<script>" not in html
+        assert "&lt;script&gt;" in html
+
 
 # ── _html_from_dicts (Listing-Objekte) ───────────────────────
 

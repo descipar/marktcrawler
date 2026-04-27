@@ -88,8 +88,8 @@ class FacebookScraper(BaseScraper):
             spans = item.query_selector_all("span")
             price = "k.A."
             for s in spans:
-                t = s.inner_text()
-                if "€" in t or re.search(r"\d+", t):
+                t = s.inner_text().strip()
+                if "€" in t:
                     price = t
                     break
             link_el = item.query_selector("a")

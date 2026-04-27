@@ -7,6 +7,7 @@ from collections import defaultdict
 from dataclasses import asdict
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from html import escape
 from typing import List
 
 from . import database as db
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def notify(listings: list, settings: dict, force: bool = False) -> bool:
     """Sendet sofortige E-Mail für manuell gestartete Crawls und markiert Listings als benachrichtigt."""
-    if not int(settings.get("email_enabled", 0)):
+    if not int(settings.get("email_enabled") or 0):
         return False
     if not listings:
         return False
@@ -39,7 +40,7 @@ def notify(listings: list, settings: dict, force: bool = False) -> bool:
 
 def notify_pending(settings: dict) -> bool:
     """Sammelt alle unbenachrichtigten Anzeigen und sendet eine gebündelte E-Mail."""
-    if not int(settings.get("email_enabled", 0)):
+    if not int(settings.get("email_enabled") or 0):
         return False
 
     listings = db.get_unnotified_listings()
@@ -63,9 +64,9 @@ def notify_pending(settings: dict) -> bool:
 
 def send_digest(settings: dict) -> bool:
     """Sendet die tägliche Zusammenfassung aller heute gefundenen Anzeigen."""
-    if not int(settings.get("digest_enabled", 0)):
+    if not int(settings.get("digest_enabled") or 0):
         return False
-    if not int(settings.get("email_enabled", 0)):
+    if not int(settings.get("email_enabled") or 0):
         return False
 
     listings = db.get_listings_today()
@@ -157,7 +158,7 @@ def _card_html(title, platform, search_term, price, location, url,
                image_url="", is_free=False, distance_km=None,
                found_at="", is_digest=False) -> str:
     bg = "#dcedc8" if is_free else _PLATFORM_COLORS.get(platform, "#f5f5f5")
-    img = (f'<img src="{image_url}" style="max-width:180px;border-radius:6px;'
+    img = (f'<img src="{escape(image_url)}" style="max-width:180px;border-radius:6px;'
            f'margin-bottom:8px"><br>') if image_url else ""
     free_badge = ('<span style="background:#1b5e20;color:#fff;font-size:11px;'
                   'padding:2px 8px;border-radius:12px;font-weight:bold;'
@@ -165,26 +166,26 @@ def _card_html(title, platform, search_term, price, location, url,
     dist_str = (f'<span style="color:#888;font-size:12px;margin-left:6px">'
                 f'📍 {distance_km:.0f} km entfernt</span>') if distance_km is not None else ""
     date_str = (f'<div style="color:#aaa;font-size:11px;margin-top:4px">'
-                f'{found_at.replace("T"," ")}</div>') if is_digest else ""
+                f'{escape(found_at).replace("T"," ")}</div>') if is_digest else ""
 
     return f"""
     <div style="background:{bg};border:1px solid #ddd;border-radius:8px;
                 padding:14px;margin-bottom:12px">
       <div style="font-size:11px;color:#888;margin-bottom:4px">
-        {platform} · {search_term}
+        {escape(platform)} · {escape(search_term)}
       </div>
       <div style="font-weight:bold;font-size:15px;color:#333;margin-bottom:6px">
-        {title}
+        {escape(title)}
       </div>
       {img}
       <div style="margin-bottom:6px">
-        <span style="font-size:18px;font-weight:bold;color:#2e7d32">{price}</span>
+        <span style="font-size:18px;font-weight:bold;color:#2e7d32">{escape(price)}</span>
         {free_badge}
         {dist_str}
       </div>
-      <div style="color:#555;font-size:13px;margin-bottom:8px">📍 {location}</div>
+      <div style="color:#555;font-size:13px;margin-bottom:8px">📍 {escape(location)}</div>
       {date_str}
-      <a href="{url}" style="padding:6px 14px;background:#1976d2;color:white;
+      <a href="{escape(url)}" style="padding:6px 14px;background:#1976d2;color:white;
          text-decoration:none;border-radius:4px;font-size:13px">Ansehen →</a>
     </div>"""
 

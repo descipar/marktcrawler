@@ -575,25 +575,26 @@ function cardHtml(l) {
   const relTs = relativeTime(l.found_at);
   const absTs = (l.found_at||'').replace('T',' ');
   const notesBadge = l.notes ? `<span class="text-xs text-slate-400">💬 Notiz</span>` : '';
-  return `<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative" data-id="${l.id}" onclick="handleCardClick(event,${l.id})">
+  return `<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative cursor-pointer" data-id="${l.id}" onclick="handleCardClick(event,${l.id})">
     <button onclick="dismissListing(${l.id},this)" aria-label="Anzeige ausblenden" class="absolute top-2 left-2 z-10 text-base leading-none text-slate-200 hover:text-red-400 transition-colors" title="Ausblenden">✕</button>
     <button onclick="toggleFav(${l.id},this)" aria-label="${l.is_favorite?'Favorit entfernen':'Als Favorit markieren'}" class="absolute top-2 right-2 z-10 text-xl leading-none ${favCls}">★</button>
-    <a href="${escHtml(l.url)}" target="_blank" rel="noopener" class="block">
-      ${img}
-      <div class="p-3">
-        <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
-          <span class="text-xs px-1.5 py-0.5 rounded font-medium ${pc}">${escHtml(l.platform)}</span>
-          <span class="text-xs text-slate-400 truncate">${escHtml(l.search_term)}</span>
-        </div>
-        <div class="font-semibold text-slate-800 text-sm leading-tight mb-1 pr-5">${escHtml(l.title)}</div>
-        <div class="flex items-center flex-wrap gap-1 mb-1">
-          <span class="text-green-700 font-bold">${escHtml(l.price)}</span>${newBadge}${freeBadge}${distBadge}${dupBadge}
-        </div>
-        <div class="text-xs text-slate-500 truncate">📍 ${escHtml(l.location)}</div>
-        <div class="found-at-ts text-xs text-slate-400 mt-1" data-found-at="${l.found_at}" title="${absTs}">${relTs}</div>
-        ${notesBadge}
+    ${img}
+    <div class="p-3">
+      <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
+        <span class="text-xs px-1.5 py-0.5 rounded font-medium ${pc}">${escHtml(l.platform)}</span>
+        <span class="text-xs text-slate-400 truncate">${escHtml(l.search_term)}</span>
       </div>
-    </a>
+      <div class="font-semibold text-slate-800 text-sm leading-tight mb-1 pr-5">${escHtml(l.title)}</div>
+      <div class="flex items-center flex-wrap gap-1 mb-1">
+        <span class="text-green-700 font-bold">${escHtml(l.price)}</span>${newBadge}${freeBadge}${distBadge}${dupBadge}
+      </div>
+      <div class="text-xs text-slate-500 truncate">📍 ${escHtml(l.location)}</div>
+      <div class="found-at-ts text-xs text-slate-400 mt-1" data-found-at="${l.found_at}" title="${absTs}">${relTs}</div>
+      <div class="flex items-center justify-between mt-1">
+        ${notesBadge}
+        <a href="${escHtml(l.url)}" target="_blank" rel="noopener" class="text-xs text-brand-600 hover:underline ml-auto" title="Direkt zur Anzeige">↗ öffnen</a>
+      </div>
+    </div>
   </div>`;
 }
 

@@ -161,7 +161,7 @@ _PLATFORM_HEADER_COLORS = {
 
 def _card_html(title, platform, search_term, price, location, url,
                image_url="", is_free=False, distance_km=None,
-               found_at="", is_digest=False) -> str:
+               found_at="", is_digest=False, db_id=None, server_url="") -> str:
     bg = "#dcedc8" if is_free else _PLATFORM_COLORS.get(platform, "#f5f5f5")
     img = (f'<img src="{escape(image_url)}" style="max-width:180px;border-radius:6px;'
            f'margin-bottom:8px"><br>') if image_url else ""
@@ -172,6 +172,12 @@ def _card_html(title, platform, search_term, price, location, url,
                 f'📍 {distance_km:.0f} km entfernt</span>') if distance_km is not None else ""
     date_str = (f'<div style="color:#aaa;font-size:11px;margin-top:4px">'
                 f'{escape(found_at).replace("T"," ")}</div>') if is_digest else ""
+    dashboard_btn = (
+        f'<a href="{escape(server_url)}/?modal={db_id}" '
+        f'style="padding:6px 14px;background:#388e3c;color:white;'
+        f'text-decoration:none;border-radius:4px;font-size:13px;margin-left:6px">'
+        f'Im Dashboard →</a>'
+    ) if (server_url and db_id) else ""
 
     return f"""
     <div style="background:{bg};border:1px solid #ddd;border-radius:8px;
@@ -192,6 +198,7 @@ def _card_html(title, platform, search_term, price, location, url,
       {date_str}
       <a href="{escape(url)}" style="padding:6px 14px;background:#1976d2;color:white;
          text-decoration:none;border-radius:4px;font-size:13px">Ansehen →</a>
+      {dashboard_btn}
     </div>"""
 
 
@@ -212,6 +219,7 @@ def _get_server_url(settings: dict) -> str:
 
 def _html_email(listings: list, is_digest: bool = False, settings: dict | None = None) -> str:
     """Vereinheitlichter HTML-Builder: gruppiert nach Plattform → Suchbegriff."""
+    srv = _get_server_url(settings or {})
     groups: dict = defaultdict(lambda: defaultdict(list))
     for l in listings:
         groups[l.get("platform", "Unbekannt")][l.get("search_term", "")].append(l)
@@ -254,6 +262,7 @@ def _html_email(listings: list, is_digest: bool = False, settings: dict | None =
                     url=l.get("url", ""), image_url=l.get("image_url", ""),
                     is_free=bool(l.get("is_free")), distance_km=l.get("distance_km"),
                     found_at=l.get("found_at", ""), is_digest=is_digest,
+                    db_id=l.get("id"), server_url=srv,
                 )
                 for l in items
             )
@@ -273,13 +282,12 @@ def _html_email(listings: list, is_digest: bool = False, settings: dict | None =
         heading = f"{count} neue Babysachen"
         footer = "automatische Benachrichtigung"
 
-    server_url = _get_server_url(settings or {})
     dashboard_btn = (
         f'<p style="margin-top:20px">'
-        f'<a href="{escape(server_url)}" '
+        f'<a href="{escape(srv)}" '
         f'style="background:#7c3aed;color:#fff;padding:10px 20px;border-radius:6px;'
         f'text-decoration:none;font-size:14px;font-weight:bold">🔍 Zum Dashboard →</a></p>'
-    ) if server_url else ""
+    ) if srv else ""
 
     return (
         '<html><body style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;padding:20px">'

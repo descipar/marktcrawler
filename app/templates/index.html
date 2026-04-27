@@ -809,6 +809,12 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
+// Deep-link: /?modal=<id> öffnet das Modal direkt
+(function () {
+  const id = new URLSearchParams(window.location.search).get('modal');
+  if (id && listingsCache.has(Number(id))) openModal(Number(id));
+})();
+
 // ── Task 25: Preis-Schwelle Inline-Edit ──────────────────
 let _priceEditTermId = null;
 let _priceEditWrap = null;

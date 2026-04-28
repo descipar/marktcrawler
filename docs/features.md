@@ -23,8 +23,14 @@ Suchbegriffe werden in der Sidebar verwaltet: hinzufügen, aktivieren/deaktivier
 ### Plattformen
 Gleichzeitig durchsuchbar: **Kleinanzeigen.de**, **Shpock**, **Vinted**, **eBay**, **Facebook Marketplace** (optional). Jede Plattform hat ein eigenes konfigurierbares Crawl-Intervall (Standard: Kleinanzeigen 15 Min., Shpock/Vinted 30 Min., eBay/Facebook 60 Min.).
 
+### Mehrwort-Suchbegriffe (AND-Logik mit Wortgrenzen)
+Bei Mehrwort-Suchbegriffen (z.B. „baby werder") müssen **alle** Wörter in Titel oder Beschreibung vorkommen. Das Matching verwendet `\b`-Wortgrenzen (Regex), sodass „werder" nicht auf „Schwerder" trifft. Anzeigen, die nicht alle Wörter enthalten, werden still übersprungen.
+
 ### Blacklist
 Stichworte wie „defekt" oder „bastler" können zeilenweise in die Blacklist eingetragen werden. Groß-/Kleinschreibung wird ignoriert. Blacklistete Anzeigen werden still übersprungen — kein Speichern, keine Benachrichtigung.
+
+### Sprachfilter
+Optionaler Filter, der Anzeigen in unerwünschten Sprachen herausfiltert (Settings → Crawler & Daten). Aktiviert: `crawler_lang_filter_enabled = 1`, erlaubte Sprachen kommagetrennt in `crawler_lang_filter_langs` (Default: `de`). Texte kürzer als 20 Zeichen sowie nicht erkennbare Sprachen werden durchgelassen. Spracherkennung via `langdetect`-Bibliothek (lazy import — kein Fehler wenn nicht installiert).
 
 ### Radius-Filter
 Radius pro Plattform konfigurierbar in km. Geocoding über OpenStreetMap/Nominatim, Distanzberechnung via Haversine-Formel. Ergebnisse werden gecacht (kein doppelter API-Aufruf). **Radius 0 = kein Filter** (kein Geocoding-Aufruf).
@@ -78,7 +84,10 @@ Timestamps werden als „vor 2h" / „vor 30 Min." angezeigt (Tooltip mit absolu
 30 Anzeigen pro Seite, „Mehr laden"-Button lädt weitere per AJAX.
 
 ### Verfügbarkeits-Check
-Prüft periodisch per HEAD-Request ob Anzeigen noch online sind. HTTP 404/410 → automatisch löschen (inkl. Favoriten). Konfigurierbar: Aktiviert/Deaktiviert, Intervall in Stunden. Manuell auslösbar per Button in den Einstellungen. Anzeigen jünger als 60 Minuten werden übersprungen.
+Prüft periodisch per HEAD-Request ob Anzeigen noch online sind. HTTP 404/410 → automatisch löschen (inkl. Favoriten). Konfigurierbar: Aktiviert/Deaktiviert, Intervall in Stunden. Manuell auslösbar per Button in den Einstellungen. Anzeigen jünger als 60 Minuten werden übersprungen. Zeitpunkt der letzten Prüfung wird als Klartext direkt auf der Anzeigenkarte angezeigt („Verfügbarkeit geprüft: vor 2h" oder „Verfügbarkeit noch nicht geprüft").
+
+### Auto-Cleanup nicht passender Anzeigen
+`db.cleanup_mismatched_listings()` durchsucht alle gespeicherten Anzeigen und entfernt solche, deren Titel + Beschreibung nicht alle Wörter des zugehörigen Suchbegriffs enthalten (gleiche `\b`-Regex wie der Crawler). Entfernte Anzeigen werden als dismissed eingetragen und tauchen beim nächsten Crawl nicht erneut auf. Läuft einmalig automatisch als DB-Migration v9 beim ersten Start nach Update. Manuell auslösbar über `POST /api/cleanup-mismatched` + Button im Daten-Tab der Einstellungen.
 
 ---
 
@@ -149,8 +158,8 @@ Die Einstellungsseite ist in fünf Tabs gegliedert. Deaktivierte Plattformen wer
 | Facebook Marketplace | Plattformen | Aktiviert, Max. Preis, Standort, Crawl-Intervall |
 | E-Mail | Benachrichtigungen | SMTP-Server/-Port, Absender, Empfänger (kommagetrennt), App-Passwort, Alert-Betreff |
 | Tages-Digest | Benachrichtigungen | Aktiviert, Uhrzeit (`HH:MM`), Digest-Betreff |
-| Crawler | Crawler & Daten | Max. Ergebnisse pro Suche, Pause zwischen Anfragen (s), Blacklist |
-| Anzeigen-Verwaltung | Crawler & Daten | Altersfilter (Anzeige), Anzeigen löschen älter als X Stunden |
+| Crawler | Crawler & Daten | Max. Ergebnisse pro Suche, Pause zwischen Anfragen (s), Blacklist, Sprachfilter |
+| Anzeigen-Verwaltung | Crawler & Daten | Altersfilter (Anzeige), Anzeigen löschen älter als X Stunden, Nicht-passende Anzeigen bereinigen |
 | Verfügbarkeits-Check | Crawler & Daten | Aktiviert, Intervall (Stunden), „Jetzt prüfen"-Button |
 | Heimstandort | Crawler & Daten | Stadtname für Entfernungsberechnung |
 | KI-Assistent | KI-Assistent | Aktiviert, API-Key, Modell (Selector + Live-Fetch), Persönliche Hinweise, Base-URL |
@@ -181,6 +190,7 @@ Die Einstellungsseite ist in fünf Tabs gegliedert. Deaktivierte Plattformen wer
 | POST | `/api/test-scraper` | Scraper-Verbindung testen (`{"platform": "kleinanzeigen"}`) |
 | POST | `/api/listings/<id>/contact-text` | KI-Anfragetext generieren |
 | POST | `/api/availability-check` | Verfügbarkeits-Check manuell starten |
+| POST | `/api/cleanup-mismatched` | Nicht passende Anzeigen bereinigen + dismissenm (JSON: `{"deleted": N}`) |
 | POST | `/api/clear-listings-by-age` | Anzeigen löschen + dismissen älter als X Stunden (`{"hours": N}`) |
 | GET | `/profiles/select` | Profil-Auswahl (nur wenn Profile existieren) |
 | POST | `/profiles/select/<id>` | Profil aktivieren |
@@ -201,7 +211,7 @@ marktcrawler/
 ├── data/                   # Persistentes Volume (SQLite-DB, FB-Session)
 ├── docs/
 │   └── screenshots/        # UI-Vorschaubilder
-├── tests/                  # 388 Unit-Tests (alle ohne externe Abhängigkeiten)
+├── tests/                  # 462 Unit-Tests (alle ohne externe Abhängigkeiten)
 │   ├── conftest.py
 │   ├── test_crawler.py
 │   ├── test_crawl_run.py

@@ -7,7 +7,7 @@ Selbst gehostet, Docker-ready, läuft unbeaufsichtigt auf einem Raspberry Pi.
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-442%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-462%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)
 
 ---
@@ -23,6 +23,8 @@ Selbst gehostet, Docker-ready, läuft unbeaufsichtigt auf einem Raspberry Pi.
 ### Suche & Crawler
 - **5 Plattformen gleichzeitig**: Kleinanzeigen.de, Shpock, Vinted, eBay, Facebook Marketplace
 - **Suchbegriffe** mit optionalem Preislimit pro Begriff; Blacklist für Ausschluss-Keywords (z.B. „defekt", „bastler")
+- **Wortgrenzen-Matching** — Mehrwort-Suchbegriffe nutzen `\b`-Regex; „werder" trifft nicht mehr auf „Schwerder"
+- **Sprachfilter** — filtert Anzeigen in unerwünschten Sprachen per `langdetect` (konfigurierbar, Default: Deutsch)
 - **Pro-Plattform-Scheduler** — jede Plattform hat ihr eigenes Crawl-Intervall, kein Cronjob nötig
 - **Radius-Filter** mit Standort-Geocoding via OpenStreetMap; Radius 0 = kein Filter
 
@@ -36,6 +38,7 @@ Selbst gehostet, Docker-ready, läuft unbeaufsichtigt auf einem Raspberry Pi.
 - **⭐ Favoriten & Notizen** — Anzeigen markieren und kommentieren; Favoriten werden nie automatisch gelöscht
 - **👤 Mehrbenutzer-Profile** — jedes Profil sieht „✨ Neu"-Badge für Anzeigen seit dem letzten Besuch
 - **Duplikat-Erkennung & Dismiss** — plattformübergreifend; dauerhaft ausgeblendete Anzeigen erscheinen nie wieder
+- **Verfügbarkeits-Check** — prüft periodisch ob Anzeigen noch online sind; Zeitpunkt der letzten Prüfung direkt auf der Karte sichtbar
 - **🔗 E-Mail-Deep-Link** — jede Anzeige in der Benachrichtigung hat einen „Im Dashboard →"-Button, der das Modal direkt öffnet
 - **📊 Version & Update-Check** — Info-Seite zeigt den aktuell laufenden Commit und listet neuere Commits aus GitHub auf
 

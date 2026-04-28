@@ -326,7 +326,7 @@ function nextRunTime(isoStr) {
 function initRelativeTimes() {
   document.querySelectorAll('.found-at-ts').forEach(el => {
     const ts = el.dataset.foundAt;
-    if (ts) el.textContent = relativeTime(ts);
+    if (ts) el.textContent = `Gefunden: ${relativeTime(ts)}`;
   });
   document.querySelectorAll('.avail-checked-ts').forEach(el => {
     const ts = el.dataset.checkedAt;
@@ -584,7 +584,7 @@ function cardHtml(l) {
         <span class="text-green-700 font-bold">${escHtml(l.price)}</span>${newBadge}${freeBadge}${distBadge}${dupBadge}
       </div>
       <div class="text-xs text-slate-500 truncate">📍 ${escHtml(l.location)}</div>
-      <div class="found-at-ts text-xs text-slate-400 mt-1" data-found-at="${l.found_at}" title="${absTs}">${relTs}</div>
+      <div class="found-at-ts text-xs text-slate-400 mt-1" data-found-at="${l.found_at}" title="${absTs}">Gefunden: ${relTs}</div>
       <div class="avail-checked-ts text-xs text-slate-400" data-checked-at="${checkedAt}">${checkedText}</div>
       <div class="flex items-center justify-between mt-1">
         ${notesBadge}

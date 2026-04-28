@@ -29,7 +29,7 @@
       {% if l.potential_duplicate %}<span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">📋 auch auf {{ l.potential_duplicate }}</span>{% endif %}
     </div>
     <div class="text-xs text-slate-500 truncate">📍 {{ l.location }}</div>
-    <div class="found-at-ts text-xs text-slate-400 mt-1" data-found-at="{{ l.found_at }}" title="{{ l.found_at | replace('T', ' ') }}">{{ l.found_at | replace('T', ' ') }}</div>
+    <div class="found-at-ts text-xs text-slate-400 mt-1" data-found-at="{{ l.found_at }}" title="{{ l.found_at | replace('T', ' ') }}">Gefunden: {{ l.found_at | replace('T', ' ') }}</div>
     <div class="avail-checked-ts text-xs text-slate-400" data-checked-at="{{ l.availability_checked_at or '' }}">{% if l.availability_checked_at %}Verfügbarkeit geprüft: {{ l.availability_checked_at | replace('T', ' ') }}{% else %}Verfügbarkeit noch nicht geprüft{% endif %}</div>
     <div class="flex items-center justify-between mt-1">
       {% if l.notes %}<div class="text-xs text-slate-500">💬 Notiz</div>{% endif %}

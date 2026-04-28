@@ -328,6 +328,10 @@ function initRelativeTimes() {
     const ts = el.dataset.foundAt;
     if (ts) el.textContent = relativeTime(ts);
   });
+  document.querySelectorAll('.avail-checked-ts').forEach(el => {
+    const ts = el.dataset.checkedAt;
+    el.textContent = ts ? `Verfügbarkeit geprüft: ${relativeTime(ts)}` : 'Verfügbarkeit noch nicht geprüft';
+  });
   document.querySelectorAll('.last-crawl-rel').forEach(el => {
     const ts = el.dataset.ts;
     if (ts) el.textContent = relativeTime(ts);
@@ -563,6 +567,8 @@ function cardHtml(l) {
   const favCls=l.is_favorite?'text-yellow-400':'text-slate-200 hover:text-yellow-300';
   const relTs = relativeTime(l.found_at);
   const absTs = (l.found_at||'').replace('T',' ');
+  const checkedAt = l.availability_checked_at || '';
+  const checkedText = checkedAt ? `Verfügbarkeit geprüft: ${relativeTime(checkedAt)}` : 'Verfügbarkeit noch nicht geprüft';
   const notesBadge = l.notes ? `<span class="text-xs text-slate-400">💬 Notiz</span>` : '';
   return `<div class="listing-card rounded-xl border border-slate-200 overflow-hidden bg-white relative cursor-pointer" data-id="${l.id}" onclick="handleCardClick(event,${l.id})">
     <button onclick="dismissListing(${l.id},this)" aria-label="Anzeige ausblenden" class="absolute top-2 left-2 z-10 text-base leading-none text-slate-200 hover:text-red-400 transition-colors" title="Ausblenden">✕</button>
@@ -579,6 +585,7 @@ function cardHtml(l) {
       </div>
       <div class="text-xs text-slate-500 truncate">📍 ${escHtml(l.location)}</div>
       <div class="found-at-ts text-xs text-slate-400 mt-1" data-found-at="${l.found_at}" title="${absTs}">${relTs}</div>
+      <div class="avail-checked-ts text-xs text-slate-400" data-checked-at="${checkedAt}">${checkedText}</div>
       <div class="flex items-center justify-between mt-1">
         ${notesBadge}
         <a href="${escHtml(l.url)}" target="_blank" rel="noopener" class="text-xs text-brand-600 hover:underline ml-auto" title="Direkt zur Anzeige">↗ öffnen</a>

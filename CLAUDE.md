@@ -159,6 +159,9 @@ profiles     (id INTEGER PRIMARY KEY, name TEXT NOT NULL, emoji TEXT DEFAULT '�
 ### Blacklist
 `crawler.py._is_blacklisted()` prüft Titel + Beschreibung gegen alle Zeilen aus `crawler_blacklist`. Groß-/Kleinschreibung wird ignoriert. Blacklistete Anzeigen werden still übersprungen (kein Speichern, keine Benachrichtigung).
 
+### Mehrwort-Suchbegriff-Filter (AND-Logik)
+`crawler.py._matches_all_words(listing, term)` stellt sicher, dass bei Mehrwort-Begriffen (z.B. „baby werder") **alle** Wörter in Titel oder Beschreibung vorkommen. Notwendig, weil Plattformen wie Kleinanzeigen intern OR-Logik verwenden. Bei Einwort-Begriffen greift der Filter nicht. Wird vor dem Blacklist-Check ausgeführt; nicht passende Anzeigen werden verworfen (kein Speichern).
+
 ### Gratis-Erkennung
 `crawler.py._is_free()` erkennt Gratisanzeigen anhand von Preis-Regex (`0\s*€`, `Kostenlos`, `Gratis`) und Keywords im Titel (`zu verschenken`, `gratis`, etc.). Ein echter Preis > 0 hat immer Vorrang – Text-Keywords in der Beschreibung (z.B. „gratis Zubehör dabei") führen dann nicht zu einem False-Positive. Setzt `Listing.is_free = True`. Im Dashboard mit 🎁-Badge gekennzeichnet.
 

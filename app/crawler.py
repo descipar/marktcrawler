@@ -71,6 +71,18 @@ def _is_blacklisted(listing: Listing, blacklist: List[str]) -> bool:
     return any(term.lower() in text for term in blacklist)
 
 
+def _matches_all_words(listing: Listing, term: str) -> bool:
+    """Prüft, ob alle Wörter des Suchbegriffs in Titel oder Beschreibung vorkommen.
+
+    Nötig weil Plattformen wie Kleinanzeigen bei Mehrwort-Suchen OR-Logik verwenden.
+    """
+    words = term.lower().split()
+    if len(words) <= 1:
+        return True
+    text = f"{listing.title or ''} {listing.description or ''}".lower()
+    return all(word in text for word in words)
+
+
 def run_crawl(platform: str, manual: bool = False) -> dict:
     with _lock:
         if platform in _running:
@@ -138,6 +150,10 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
                 stats["total"] += len(listings)
 
                 for listing in listings:
+                    if not _matches_all_words(listing, term):
+                        logger.debug(f"Suchbegriff-Mismatch (nicht alle Wörter): '{listing.title}'")
+                        continue
+
                     if _is_blacklisted(listing, blacklist):
                         stats["skipped_blacklist"] += 1
                         logger.debug(f"Blacklist: '{listing.title}'")

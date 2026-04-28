@@ -1,7 +1,7 @@
-"""Tests für app/crawler.py: _is_free() und _is_blacklisted()."""
+"""Tests für app/crawler.py: _is_free(), _is_blacklisted(), _matches_all_words()."""
 
 import pytest
-from app.crawler import _is_free, _is_blacklisted
+from app.crawler import _is_free, _is_blacklisted, _matches_all_words
 from app.scrapers.base import Listing
 
 
@@ -158,3 +158,57 @@ class TestIsBlacklisted:
             make_listing(title="Kinderwagen zu reparieren"),
             ["zu reparieren"],
         ) is True
+
+
+# ── _matches_all_words ─────────────────────────────────────────
+
+class TestMatchesAllWords:
+
+    def test_einwort_suche_immer_true(self):
+        assert _matches_all_words(make_listing(title="Kinderwagen"), "kinderwagen") is True
+
+    def test_einwort_suche_kein_match_trotzdem_true(self):
+        # Einwort-Begriffe werden vom Scraper gefiltert; hier kein Nachfiltern nötig
+        assert _matches_all_words(make_listing(title="Buggy"), "kinderwagen") is True
+
+    def test_alle_woerter_im_titel(self):
+        assert _matches_all_words(make_listing(title="Baby Werder Kinderwagen"), "baby werder") is True
+
+    def test_alle_woerter_in_beschreibung(self):
+        assert _matches_all_words(
+            make_listing(title="Kinderwagen", description="Für Baby aus Werder"),
+            "baby werder",
+        ) is True
+
+    def test_woerter_verteilt_auf_titel_und_beschreibung(self):
+        assert _matches_all_words(
+            make_listing(title="Baby Kinderwagen", description="Angebot aus Werder"),
+            "baby werder",
+        ) is True
+
+    def test_nur_ein_wort_vorhanden_ergibt_false(self):
+        assert _matches_all_words(make_listing(title="Baby Kinderwagen"), "baby werder") is False
+
+    def test_kein_wort_vorhanden_ergibt_false(self):
+        assert _matches_all_words(make_listing(title="Buggy Bremen"), "baby werder") is False
+
+    def test_grossschreibung_wird_ignoriert(self):
+        assert _matches_all_words(make_listing(title="BABY WERDER"), "baby werder") is True
+
+    def test_suchbegriff_grossschreibung_ignoriert(self):
+        assert _matches_all_words(make_listing(title="baby werder"), "BABY WERDER") is True
+
+    def test_drei_woerter_alle_vorhanden(self):
+        assert _matches_all_words(
+            make_listing(title="Maxi Cosi Baby Schale"),
+            "maxi cosi baby",
+        ) is True
+
+    def test_drei_woerter_eines_fehlt(self):
+        assert _matches_all_words(
+            make_listing(title="Maxi Cosi Schale"),
+            "maxi cosi baby",
+        ) is False
+
+    def test_leerer_suchbegriff_immer_true(self):
+        assert _matches_all_words(make_listing(title="irgendwas"), "") is True

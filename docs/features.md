@@ -80,6 +80,9 @@ Aufklappbare Tabelle im Dashboard zeigt Durchschnitt, Min, Max und Gratis-Zähle
 ### Relative Zeitangaben
 Timestamps werden als „vor 2h" / „vor 30 Min." angezeigt (Tooltip mit absolutem Datum).
 
+### Mehrbenutzer-Profile
+Mehrere Personen können die App gemeinsam nutzen, ohne sich gegenseitig die „Neu"-Badges wegzunehmen. Beim Öffnen der App wird ein Profil gewählt (Netflix-Stil). Jedes Profil merkt sich den eigenen `last_seen_at`-Zeitstempel — Anzeigen, die nach dem letzten Besuch gefunden wurden, tragen das **✨ Neu**-Badge. Suchbegriffe und Einstellungen sind global geteilt. Profile werden in **Einstellungen → Profile** verwaltet (anlegen, umbenennen, Emoji setzen, löschen). Der aktive Nutzer ist in der Navbar sichtbar; Wechseln per Klick.
+
 ### Pagination
 30 Anzeigen pro Seite, „Mehr laden"-Button lädt weitere per AJAX.
 

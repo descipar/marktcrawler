@@ -265,6 +265,11 @@ Klick auf eine Karte öffnet `#detail-modal` mit Vollbild-Details (Bild, Preis, 
 ### Dashboard: Per-Plattform-Statusübersicht
 Die ersten drei Status-Kacheln (Status / Letzter Lauf / Nächster Lauf) wurden durch eine kompakte Plattform-Tabelle (3 Spalten breit) ersetzt. Spalten: Plattform | Status (✓ Bereit / ⟳ Läuft… / deaktiviert) | Letzter Lauf (relativ mit Tooltip) | Nächster Lauf | Neue (Badge). Deaktivierte Plattformen werden gedimmt (opacity-40). `/api/status` liefert jetzt `platforms`-Array mit `{id, display, enabled, is_running, last_crawl_end, last_crawl_found, next_run}`. `_build_platform_stats(settings, next_runs)` in `routes.py` erzeugt dieses Array für Template und API. `updatePlatformTable(platforms)` in JS aktualisiert die Tabelle live beim Polling.
 
+## Arbeitsweise & Dokumentationsregeln
+
+- **Nach jeder Implementierung committen**: Kein offenes Work-in-Progress lassen. Am Ende jeder Feature/Fix-Session prüfen ob `README.md`, `docs/features.md`, `TASKS.md` und `CLAUDE.md` veraltet sind — dann anpassen und committen.
+- **README vs. features.md**: `README.md` enthält nur eine knappe Auswahl der stärksten Features (~8–10 Bullets). `docs/features.md` enthält **alle** Features vollständig und ausführlich. Jedes Feature das in der README erwähnt wird, muss auch einen eigenen Abschnitt in der `features.md` haben — eine reine Tabellenzeile reicht nicht.
+
 ## Wichtige Konventionen
 
 - **Scraper-Interface**: Alle Scraper erben von `BaseScraper(ABC)` aus `scrapers/base.py`. `search()` ist `@abstractmethod` – falsche Implementierungen werfen `TypeError` statt stille Fehler. Jeder Scraper hat `__init__(self, settings: dict)` mit `super().__init__(settings)` und `search(self, term: str, max_results: int) -> List[Listing]`. `settings` ist das komplette Dict aus `db.get_settings()`.

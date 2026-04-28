@@ -168,7 +168,7 @@ docker exec -it marktcrawler python -c \
 ## 🔧 Entwicklung & Tests
 
 ```bash
-python -m pytest tests/ -v         # alle 430 Tests
+python -m pytest tests/ -v         # alle 442 Tests
 python -m pytest tests/test_database.py -v  # einzelne Datei
 ```
 
@@ -185,6 +185,24 @@ cp ./data/baby_crawler.db ./backup_$(date +%Y%m%d).db
 ```
 
 Anzeigen älter als 30 Tage werden automatisch bereinigt. **Favoriten werden dabei nie gelöscht.**
+
+---
+
+## 🧹 Datenpflege
+
+### Anzeigen gegen Suchbegriffe bereinigen
+
+Bei Mehrwort-Suchbegriffen (z.B. „baby werder") prüft der Crawler seit v1.1 ob **alle** Wörter in Titel oder Beschreibung vorkommen. Anzeigen, die vor diesem Update gespeichert wurden, können mit folgendem Script nachträglich bereinigt werden:
+
+```bash
+# Bericht: zeigt nicht passende Anzeigen gruppiert nach Suchbegriff
+DATA_DIR=./data python scripts/cleanup_mismatched_listings.py
+
+# Löschen: entfernt nicht passende Anzeigen und trägt sie als dismissed ein
+DATA_DIR=./data python scripts/cleanup_mismatched_listings.py --delete
+```
+
+Gelöschte Anzeigen werden in `dismissed_listings` eingetragen und tauchen beim nächsten Crawl nicht erneut auf.
 
 ---
 

@@ -21,28 +21,21 @@ Selbst gehostet, Docker-ready, läuft unbeaufsichtigt auf einem Raspberry Pi.
 ## ✨ Features
 
 ### Suche & Crawler
-- **5 Plattformen gleichzeitig**: Kleinanzeigen.de, Shpock, Vinted, eBay, Facebook Marketplace
+- **5 Plattformen gleichzeitig** — Kleinanzeigen.de, Shpock, Vinted, eBay, Facebook Marketplace; jede mit eigenem Crawl-Intervall
 - **Suchbegriffe** mit optionalem Preislimit pro Begriff; Blacklist für Ausschluss-Keywords (z.B. „defekt", „bastler")
-- **Wortgrenzen-Matching** — Mehrwort-Suchbegriffe nutzen `\b`-Regex; „werder" trifft nicht mehr auf „Schwerder"
-- **Sprachfilter** — filtert Anzeigen in unerwünschten Sprachen per `langdetect` (konfigurierbar, Default: Deutsch)
-- **Pro-Plattform-Scheduler** — jede Plattform hat ihr eigenes Crawl-Intervall, kein Cronjob nötig
 - **Radius-Filter** mit Standort-Geocoding via OpenStreetMap; Radius 0 = kein Filter
 
 ### Benachrichtigungen
 - **E-Mail-Alert (gebündelt)** — alle neuen Anzeigen alle 15 Min. kompakt per E-Mail, strukturiert nach Plattform und Suchbegriff
 - **Tages-Digest** — tägliche Zusammenfassung zur konfigurierten Uhrzeit
-- **Manueller Crawl** — per Knopfdruck mit Live-Log-Terminal und sofortiger Benachrichtigung
 
 ### Anzeigen & KI
 - **✨ KI-Anfragetext** — generiert per Klick einen Kontakttext an den Verkäufer; bei VB-Anzeigen mit automatischem Preisvorschlag
 - **⭐ Favoriten & Notizen** — Anzeigen markieren und kommentieren; Favoriten werden nie automatisch gelöscht
 - **👤 Mehrbenutzer-Profile** — jedes Profil sieht „✨ Neu"-Badge für Anzeigen seit dem letzten Besuch
-- **Duplikat-Erkennung & Dismiss** — plattformübergreifend; dauerhaft ausgeblendete Anzeigen erscheinen nie wieder
-- **Verfügbarkeits-Check** — prüft periodisch ob Anzeigen noch online sind; Zeitpunkt der letzten Prüfung direkt auf der Karte sichtbar
-- **🔗 E-Mail-Deep-Link** — jede Anzeige in der Benachrichtigung hat einen „Im Dashboard →"-Button, der das Modal direkt öffnet
-- **📊 Version & Update-Check** — Info-Seite zeigt den aktuell laufenden Commit und listet neuere Commits aus GitHub auf
+- **Duplikat-Erkennung & Verfügbarkeits-Check** — plattformübergreifende Duplikaterkennung; veraltete Anzeigen automatisch entfernen
 
-📄 [Vollständige Feature-Dokumentation](docs/features.md)
+📄 [Alle Features](docs/features.md)
 
 ---
 
@@ -171,7 +164,7 @@ docker exec -it marktcrawler python -c \
 ## 🔧 Entwicklung & Tests
 
 ```bash
-python -m pytest tests/ -v         # alle 442 Tests
+python -m pytest tests/ -v         # alle 462 Tests
 python -m pytest tests/test_database.py -v  # einzelne Datei
 ```
 

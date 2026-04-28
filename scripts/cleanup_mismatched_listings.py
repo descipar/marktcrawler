@@ -12,6 +12,7 @@ Aufruf:
 
 import argparse
 import os
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -35,7 +36,7 @@ def _matches_all_words(title: str, description: str, term: str) -> bool:
     if len(words) <= 1:
         return True
     text = f"{title or ''} {description or ''}".lower()
-    return all(word in text for word in words)
+    return all(bool(re.search(r"\b" + re.escape(w) + r"\b", text)) for w in words)
 
 
 def main():

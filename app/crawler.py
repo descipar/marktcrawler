@@ -72,15 +72,33 @@ def _is_blacklisted(listing: Listing, blacklist: List[str]) -> bool:
 
 
 def _matches_all_words(listing: Listing, term: str) -> bool:
-    """Prüft, ob alle Wörter des Suchbegriffs in Titel oder Beschreibung vorkommen.
+    """Prüft via Wortgrenzen, ob alle Wörter des Suchbegriffs in Titel oder Beschreibung stehen.
 
+    Wortgrenzen (\b) verhindern False-Positives wie "werder" → "Schwerder".
     Nötig weil Plattformen wie Kleinanzeigen bei Mehrwort-Suchen OR-Logik verwenden.
     """
     words = term.lower().split()
     if len(words) <= 1:
         return True
     text = f"{listing.title or ''} {listing.description or ''}".lower()
-    return all(word in text for word in words)
+    return all(bool(re.search(r"\b" + re.escape(w) + r"\b", text)) for w in words)
+
+
+_LANG_FILTER_MIN_CHARS = 20
+
+
+def _is_lang_allowed(listing: Listing, allowed_langs: List[str]) -> bool:
+    """Gibt True zurück wenn die erkannte Sprache erlaubt ist oder nicht eindeutig erkannt werden kann."""
+    if not allowed_langs:
+        return True
+    text = f"{listing.title or ''} {listing.description or ''}".strip()
+    if len(text) < _LANG_FILTER_MIN_CHARS:
+        return True
+    try:
+        from langdetect import detect
+        return detect(text) in allowed_langs
+    except Exception:
+        return True
 
 
 def run_crawl(platform: str, manual: bool = False) -> dict:
@@ -123,6 +141,8 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
         max_results = int(settings.get("crawler_max_results", 20))
         raw_blacklist = settings.get("crawler_blacklist", "")
         blacklist = [w.strip() for w in re.split(r"[\n,]", raw_blacklist) if w.strip()]
+        lang_filter = settings.get("crawler_lang_filter_enabled") == "1"
+        allowed_langs = [l.strip() for l in settings.get("crawler_lang_filter_langs", "de").split(",") if l.strip()]
 
         # Verspätungs-Warnung
         last_end = settings.get(f"{platform}_last_crawl_end")
@@ -157,6 +177,11 @@ def run_crawl(platform: str, manual: bool = False) -> dict:
                     if _is_blacklisted(listing, blacklist):
                         stats["skipped_blacklist"] += 1
                         logger.debug(f"Blacklist: '{listing.title}'")
+                        continue
+
+                    if lang_filter and not _is_lang_allowed(listing, allowed_langs):
+                        stats["skipped_lang"] = stats.get("skipped_lang", 0) + 1
+                        logger.debug(f"Sprachfilter: '{listing.title}'")
                         continue
 
                     if term_max_price is not None:

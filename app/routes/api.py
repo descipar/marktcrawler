@@ -116,6 +116,13 @@ def api_clear_listings():
     return jsonify({"status": "ok", "message": "Alle Anzeigen gelöscht (Favoriten behalten)."})
 
 
+@bp.route("/api/cleanup-mismatched", methods=["POST"])
+def api_cleanup_mismatched():
+    deleted = db.cleanup_mismatched_listings()
+    return jsonify({"status": "ok", "deleted": deleted,
+                    "message": f"{deleted} nicht passende Anzeige(n) bereinigt."})
+
+
 @bp.route("/api/listings/<int:db_id>/contact-text", methods=["POST"])
 def api_contact_text(db_id):
     from ..ai import generate_contact_text

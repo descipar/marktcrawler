@@ -47,6 +47,7 @@ from .listings import (
     get_all_listing_urls,
     mark_listings_availability_checked,
     delete_listing_by_listing_id,
+    cleanup_mismatched_listings,
 )
 
 from .geocache import (
@@ -86,7 +87,7 @@ __all__ = [
     "claim_unnotified_listings", "mark_listings_notified",
     "clear_old_listings", "clear_listings_older_than", "clear_all_listings",
     "get_all_listing_urls", "mark_listings_availability_checked",
-    "delete_listing_by_listing_id",
+    "delete_listing_by_listing_id", "cleanup_mismatched_listings",
     # geocache
     "get_geocache", "save_geocache",
     # profiles

@@ -159,8 +159,14 @@ profiles     (id INTEGER PRIMARY KEY, name TEXT NOT NULL, emoji TEXT DEFAULT '�
 ### Blacklist
 `crawler.py._is_blacklisted()` prüft Titel + Beschreibung gegen alle Zeilen aus `crawler_blacklist`. Groß-/Kleinschreibung wird ignoriert. Blacklistete Anzeigen werden still übersprungen (kein Speichern, keine Benachrichtigung).
 
-### Mehrwort-Suchbegriff-Filter (AND-Logik)
-`crawler.py._matches_all_words(listing, term)` stellt sicher, dass bei Mehrwort-Begriffen (z.B. „baby werder") **alle** Wörter in Titel oder Beschreibung vorkommen. Notwendig, weil Plattformen wie Kleinanzeigen intern OR-Logik verwenden. Bei Einwort-Begriffen greift der Filter nicht. Wird vor dem Blacklist-Check ausgeführt; nicht passende Anzeigen werden verworfen (kein Speichern).
+### Mehrwort-Suchbegriff-Filter (AND-Logik mit Wortgrenzen)
+`crawler.py._matches_all_words(listing, term)` stellt sicher, dass bei Mehrwort-Begriffen (z.B. „baby werder") **alle** Wörter in Titel oder Beschreibung vorkommen. Nutzt `\b`-Regex (Wortgrenzen) statt Substring-Suche — verhindert False-Positives wie „werder" → „Schwerder". Einwort-Begriffe werden nicht geprüft. Wird vor dem Blacklist-Check ausgeführt; nicht passende Anzeigen werden verworfen.
+
+### Sprachfilter
+`crawler.py._is_lang_allowed(listing, allowed_langs)` erkennt die Sprache einer Anzeige via `langdetect` und filtert nicht erlaubte Sprachen heraus. Settings: `crawler_lang_filter_enabled` (0/1), `crawler_lang_filter_langs` (kommagetrennt, Default `de`). Texte kürzer als 20 Zeichen und Erkennungsfehler (LangDetectException, ImportError) werden durchgelassen. Besonders nützlich bei Vinted (viele FR/NL-Anzeigen).
+
+### Auto-Cleanup nicht passender Anzeigen
+`db.cleanup_mismatched_listings()` in `database/listings.py` löscht alle Anzeigen, deren Titel+Beschreibung nicht alle Wörter ihres Suchbegriffs (AND-Logik mit Wortgrenzen) enthalten, und trägt sie in `dismissed_listings` ein. Läuft einmalig als v9-Migration. Manuell: `POST /api/cleanup-mismatched` (Button im Daten-Tab der Einstellungen).
 
 ### Gratis-Erkennung
 `crawler.py._is_free()` erkennt Gratisanzeigen anhand von Preis-Regex (`0\s*€`, `Kostenlos`, `Gratis`) und Keywords im Titel (`zu verschenken`, `gratis`, etc.). Ein echter Preis > 0 hat immer Vorrang – Text-Keywords in der Beschreibung (z.B. „gratis Zubehör dabei") führen dann nicht zu einem False-Positive. Setzt `Listing.is_free = True`. Im Dashboard mit 🎁-Badge gekennzeichnet.
@@ -320,6 +326,7 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 | POST | `/profiles` | Neues Profil anlegen (form: `name`, `emoji`) |
 | POST | `/profiles/<id>/update` | Profil umbenennen/Emoji ändern (JSON: `{"name": "...", "emoji": "..."}`) |
 | POST | `/profiles/<id>/delete` | Profil löschen (JSON response) |
+| POST | `/api/cleanup-mismatched` | Nicht passende Anzeigen bereinigen (JSON: `{"deleted": N}`) |
 
 ## Bekannte Einschränkungen
 

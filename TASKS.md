@@ -20,6 +20,15 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 
 ---
 
+### Phase 26 – Crawl-Qualität
+
+- [x] **Wortgrenzen-Matching**: `_matches_all_words()` nutzt jetzt `\b`-Regex statt Substring-Suche — verhindert False-Positives wie „werder" → „Schwerder" oder „body" → „somebody". Cleanup-Script ebenfalls aktualisiert.
+- [x] **Sprachfilter**: Neues Setting `crawler_lang_filter_enabled` + `crawler_lang_filter_langs` (Default `de`). Anzeigen in nicht erlaubten Sprachen werden via `langdetect` herausgefiltert. Texte < 20 Zeichen und Erkennungsfehler werden durchgelassen. Settings-Tab Crawler.
+- [x] **Auto-Cleanup nicht passender Anzeigen**: `db.cleanup_mismatched_listings()` entfernt alle Anzeigen, deren Titel+Beschreibung nicht alle Wörter des Suchbegriffs enthalten, und trägt sie als dismissed ein. Läuft einmalig als v9-Migration beim ersten Start nach Update. Manuell auslösbar über `POST /api/cleanup-mismatched` + Button im Daten-Tab.
+- [x] 32 neue Tests (462 gesamt)
+
+---
+
 ## 🔜 Offene Aufgaben
 
 Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Tastaturkürzel") oder einzelne Tasks per Nummer (z.B. „mach 11 und 21").

@@ -1,7 +1,9 @@
-"""Tests für app/crawler.py: _is_free(), _is_blacklisted(), _matches_all_words()."""
+"""Tests für app/crawler.py: _is_free(), _is_blacklisted(), _matches_all_words(), _is_lang_allowed()."""
 
+import sys
 import pytest
-from app.crawler import _is_free, _is_blacklisted, _matches_all_words
+from unittest.mock import MagicMock, patch
+from app.crawler import _is_free, _is_blacklisted, _matches_all_words, _is_lang_allowed
 from app.scrapers.base import Listing
 
 
@@ -212,3 +214,71 @@ class TestMatchesAllWords:
 
     def test_leerer_suchbegriff_immer_true(self):
         assert _matches_all_words(make_listing(title="irgendwas"), "") is True
+
+    # --- Wortgrenzen ---
+
+    def test_wortgrenze_kein_teilstring_werder(self):
+        """'werder' darf NICHT 'Schwerder' matchen."""
+        assert _matches_all_words(make_listing(title="Schwerder Jacke Baby"), "baby werder") is False
+
+    def test_wortgrenze_kein_teilstring_body(self):
+        """'body' darf NICHT 'somebody' matchen."""
+        assert _matches_all_words(make_listing(title="somebody loves babies"), "body werder") is False
+
+    def test_wortgrenze_bindestrich_gilt_als_trenner(self):
+        """'werder' trifft in 'Werder-Fan' (Bindestrich = Wortgrenze)."""
+        assert _matches_all_words(make_listing(title="Baby Werder-Fan"), "baby werder") is True
+
+    def test_wortgrenze_anfang_ende_string(self):
+        """Wort am Anfang/Ende des Strings wird korrekt erkannt."""
+        assert _matches_all_words(make_listing(title="werder baby"), "baby werder") is True
+
+
+# ── _is_lang_allowed ────────────────────────────────────────────
+
+class TestIsLangAllowed:
+
+    def test_leere_allowed_langs_immer_true(self):
+        assert _is_lang_allowed(make_listing(title="Bonjour le monde"), []) is True
+
+    def test_zu_kurzer_text_immer_true(self):
+        assert _is_lang_allowed(make_listing(title="Bébé"), ["de"]) is True
+
+    def _mock_langdetect(self, return_value=None, side_effect=None):
+        """Erstellt ein Mock-Modul für langdetect (funktioniert auch ohne Installation)."""
+        mock_mod = MagicMock()
+        if side_effect:
+            mock_mod.detect.side_effect = side_effect
+        else:
+            mock_mod.detect.return_value = return_value
+        return patch.dict(sys.modules, {"langdetect": mock_mod})
+
+    def test_erkannte_sprache_erlaubt(self):
+        with self._mock_langdetect("de"):
+            assert _is_lang_allowed(
+                make_listing(title="Sehr gut erhaltener Kinderwagen"), ["de"]
+            ) is True
+
+    def test_erkannte_sprache_nicht_erlaubt(self):
+        with self._mock_langdetect("fr"):
+            assert _is_lang_allowed(
+                make_listing(title="T-shirt Star Wars bébé trois mois vêtement"), ["de"]
+            ) is False
+
+    def test_mehrere_erlaubte_sprachen(self):
+        with self._mock_langdetect("en"):
+            assert _is_lang_allowed(
+                make_listing(title="Nice baby stroller in very good condition"), ["de", "en"]
+            ) is True
+
+    def test_detection_exception_gibt_true(self):
+        with self._mock_langdetect(side_effect=Exception("DetectorError")):
+            assert _is_lang_allowed(
+                make_listing(title="Kurzer Text Kinderwagen Vinted Anzeige"), ["de"]
+            ) is True
+
+    def test_langdetect_nicht_installiert_gibt_true(self):
+        with patch.dict(sys.modules, {"langdetect": None}):
+            assert _is_lang_allowed(
+                make_listing(title="Irgendein Anzeigentext für den Test hier"), ["de"]
+            ) is True

@@ -1,5 +1,6 @@
 """Listing-Operationen (CRUD, Filtern, Sortieren, Notify)."""
 
+import re
 import sqlite3
 from typing import Any, Dict, List, Optional
 
@@ -368,3 +369,39 @@ def delete_listing_by_listing_id(listing_id: str):
     with _db() as conn:
         conn.execute("DELETE FROM listings WHERE listing_id = ?", (listing_id,))
         conn.commit()
+
+
+def cleanup_mismatched_listings() -> int:
+    """Löscht Anzeigen, deren Titel+Beschreibung nicht alle Wörter des Suchbegriffs enthalten.
+
+    Gibt die Anzahl gelöschter Anzeigen zurück. Gelöschte Einträge werden in
+    dismissed_listings eingetragen, damit sie beim nächsten Crawl nicht erneut
+    gespeichert werden.
+    """
+    def _matches(title: str, desc: str, term: str) -> bool:
+        words = (term or "").lower().split()
+        if len(words) <= 1:
+            return True
+        text = f"{title or ''} {desc or ''}".lower()
+        return all(re.search(r"\b" + re.escape(w) + r"\b", text) for w in words)
+
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT id, listing_id, title, description, search_term FROM listings"
+        ).fetchall()
+        mismatches = [
+            r for r in rows
+            if r["search_term"] and not _matches(r["title"] or "", r["description"] or "", r["search_term"])
+        ]
+        if not mismatches:
+            return 0
+        listing_ids = [r["listing_id"] for r in mismatches]
+        db_ids = [r["id"] for r in mismatches]
+        conn.executemany(
+            "INSERT OR IGNORE INTO dismissed_listings(listing_id, dismissed_at) VALUES(?, datetime('now'))",
+            [(lid,) for lid in listing_ids],
+        )
+        placeholders = ",".join("?" * len(db_ids))
+        conn.execute(f"DELETE FROM listings WHERE id IN ({placeholders})", db_ids)
+        conn.commit()
+    return len(mismatches)

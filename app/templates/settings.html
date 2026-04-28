@@ -239,6 +239,29 @@
       </div>
     </div>
 
+    <!-- Sprachfilter -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden" data-platform-section>
+      <div class="px-5 py-3 bg-blue-50 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="font-semibold text-blue-800">🌍 Sprachfilter</h2>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <span class="text-sm text-slate-600">Aktiviert</span>
+          <input type="checkbox" name="crawler_lang_filter_enabled" value="1"
+            {% if s.crawler_lang_filter_enabled == '1' %}checked{% endif %}
+            class="w-4 h-4 accent-blue-600">
+        </label>
+      </div>
+      <div class="p-5" data-platform-fields>
+        {% call field("Erlaubte Sprachen (kommagetrennt)") %}
+          <input type="text" name="crawler_lang_filter_langs"
+            value="{{ s.crawler_lang_filter_langs or 'de' }}"
+            placeholder="de,en,at" class="input-field">
+        {% endcall %}
+      </div>
+      <div class="px-5 pb-4 text-xs text-slate-500">
+        💡 Filtert Anzeigen heraus, die nicht auf einer der angegebenen Sprachen sind (z.B. <code>de</code> für Deutsch). Besonders nützlich bei Vinted, wo häufig französische und niederländische Anzeigen erscheinen. Texte kürzer als 20 Zeichen werden nicht gefiltert.
+      </div>
+    </div>
+
     <!-- Heimstandort -->
     <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
       <div class="px-5 py-3 bg-teal-50 border-b border-slate-200">
@@ -492,6 +515,16 @@
         </div>
         <div class="border-t border-slate-100 pt-4 flex items-center justify-between gap-4">
           <div>
+            <p class="text-sm text-slate-700 font-medium">Nicht passende Anzeigen bereinigen</p>
+            <p class="text-xs text-slate-400 mt-0.5">Entfernt Anzeigen, deren Titel und Beschreibung nicht alle Wörter des Suchbegriffs enthalten (AND-Filter). Sinnvoll nach dem Upgrade oder wenn viele Fehlzuordnungen vorhanden sind.</p>
+          </div>
+          <button type="button" id="cleanupMismatchedBtn" onclick="cleanupMismatched()"
+            class="shrink-0 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
+            Bereinigen
+          </button>
+        </div>
+        <div class="border-t border-slate-100 pt-4 flex items-center justify-between gap-4">
+          <div>
             <p class="text-sm text-slate-700 font-medium">Alle Suchergebnisse löschen</p>
             <p class="text-xs text-slate-400 mt-0.5">Löscht alle gespeicherten Anzeigen und den Geocache. Einstellungen und Suchbegriffe bleiben erhalten. Favoriten werden nicht gelöscht.</p>
           </div>
@@ -639,6 +672,19 @@ document.querySelectorAll('.test-btn').forEach(btn => {
 });
 
 // ── Datenverwaltung ──────────────────────────────────────
+async function cleanupMismatched() {
+  const btn = document.getElementById('cleanupMismatchedBtn');
+  btn.disabled = true; btn.textContent = 'Läuft…';
+  try {
+    const r = await fetch('/api/cleanup-mismatched', {method: 'POST'});
+    const d = await r.json();
+    btn.textContent = `✓ ${d.deleted} gelöscht`;
+    setTimeout(() => { btn.disabled = false; btn.textContent = 'Bereinigen'; }, 5000);
+  } catch(e) {
+    btn.textContent = '✗ Fehler'; btn.disabled = false;
+  }
+}
+
 function clearAllListings() {
   showConfirm('Wirklich alle Anzeigen löschen? (Favoriten bleiben erhalten)', () => {
     const btn = document.getElementById('clearListingsBtn');

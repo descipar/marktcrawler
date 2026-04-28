@@ -75,6 +75,9 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "availability_recheck_hours": "48",  # Anzeige frühestens nach N Stunden erneut prüfen
     # Server-URL für E-Mail-Links (leer = automatische Erkennung)
     "server_url": "",
+    # Sprachfilter
+    "crawler_lang_filter_enabled": "0",
+    "crawler_lang_filter_langs": "de",
     # KI-Assistent
     "ai_enabled": "0",
     "ai_api_key": "",
@@ -310,6 +313,42 @@ def _mig_availability_checked_at(conn: sqlite3.Connection):
         conn.execute("ALTER TABLE listings ADD COLUMN availability_checked_at TEXT")
 
 
+def _mig_cleanup_mismatched(conn: sqlite3.Connection):
+    """Bereinigt Altanzeigen die nicht allen Wörtern ihres Suchbegriffs entsprechen.
+
+    Einmalig nach Einführung des AND-Filters notwendig, damit historische
+    OR-Treffer (z.B. 600 Vinted-Treffer für "body werder") entfernt werden.
+    """
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(listings)")}
+    if "search_term" not in cols or "description" not in cols:
+        return
+
+    import re as _re
+
+    def _ok(title: str, desc: str, term: str) -> bool:
+        words = (term or "").lower().split()
+        if len(words) <= 1:
+            return True
+        text = f"{title or ''} {desc or ''}".lower()
+        return all(_re.search(r"\b" + _re.escape(w) + r"\b", text) for w in words)
+
+    rows = conn.execute(
+        "SELECT id, listing_id, title, description, search_term FROM listings"
+    ).fetchall()
+    mismatches = [r for r in rows if r["search_term"] and not _ok(r["title"], r["description"], r["search_term"])]
+    if not mismatches:
+        return
+    listing_ids = [r["listing_id"] for r in mismatches]
+    db_ids = [r["id"] for r in mismatches]
+    conn.executemany(
+        "INSERT OR IGNORE INTO dismissed_listings(listing_id, dismissed_at) VALUES(?, datetime('now'))",
+        [(lid,) for lid in listing_ids],
+    )
+    placeholders = ",".join("?" * len(db_ids))
+    conn.execute(f"DELETE FROM listings WHERE id IN ({placeholders})", db_ids)
+    logger.info(f"Migration v9: {len(mismatches)} nicht passende Anzeigen bereinigt.")
+
+
 _MIGRATIONS = [
     ("v1_settings_rename",          _mig_settings_rename),
     ("v2_listings_columns",         _mig_listings_columns),
@@ -319,6 +358,7 @@ _MIGRATIONS = [
     ("v6_image_url_large",          _mig_image_url_large),
     ("v7_create_log_tables",        _mig_create_log_tables),
     ("v8_availability_checked_at",  _mig_availability_checked_at),
+    ("v9_cleanup_mismatched",       _mig_cleanup_mismatched),
 ]
 
 

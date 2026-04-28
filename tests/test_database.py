@@ -1283,3 +1283,64 @@ class TestGetPriceStats:
         paid_row = next((r for r in stats if r["search_term"] == "kinderwagen"), None)
         assert paid_row is not None
         assert paid_row["free_count"] == 0  # is_free=False bei der 50-€-Anzeige
+
+
+# ── CleanupMismatchedListings ────────────────────────────────
+
+def _mismatch_listing(listing_id: str, term: str, title: str, desc: str = "") -> Listing:
+    return Listing(
+        platform="Test", title=title, price="10 €", location="München",
+        url=f"https://x.com/{listing_id}", listing_id=listing_id,
+        search_term=term, description=desc,
+    )
+
+
+class TestCleanupMismatchedListings:
+
+    def test_leere_db_gibt_null(self, temp_db):
+        assert temp_db.cleanup_mismatched_listings() == 0
+
+    def test_passende_anzeige_bleibt_erhalten(self, temp_db):
+        temp_db.save_listing(_mismatch_listing("ok1", "baby werder", "Baby Werder Trikot"))
+        assert temp_db.cleanup_mismatched_listings() == 0
+        assert len(temp_db.get_listings()) == 1
+
+    def test_nicht_passende_anzeige_wird_geloescht(self, temp_db):
+        temp_db.save_listing(_mismatch_listing("bad1", "baby werder", "Kinderwagen günstig"))
+        assert temp_db.cleanup_mismatched_listings() == 1
+        assert len(temp_db.get_listings()) == 0
+
+    def test_nur_mismatches_werden_geloescht(self, temp_db):
+        temp_db.save_listing(_mismatch_listing("ok1", "baby werder", "Baby Werder Trikot"))
+        temp_db.save_listing(_mismatch_listing("bad1", "baby werder", "Zufälliger Kinderwagen"))
+        assert temp_db.cleanup_mismatched_listings() == 1
+        titles = [l["title"] for l in temp_db.get_listings()]
+        assert "Baby Werder Trikot" in titles
+        assert "Zufälliger Kinderwagen" not in titles
+
+    def test_geloeschte_werden_dismissed(self, temp_db):
+        temp_db.save_listing(_mismatch_listing("bad2", "baby werder", "Nur Kinderwagen hier"))
+        temp_db.cleanup_mismatched_listings()
+        assert temp_db.is_dismissed("bad2") is True
+
+    def test_einwort_suchbegriff_nicht_betroffen(self, temp_db):
+        temp_db.save_listing(_mismatch_listing("ok2", "kinderwagen", "Buggy Pram Jogging"))
+        assert temp_db.cleanup_mismatched_listings() == 0
+
+    def test_wortgrenze_schwerder_ist_mismatch(self, temp_db):
+        # "werder" als Teilwort in "Schwerder" darf nicht matchen
+        temp_db.save_listing(_mismatch_listing("bad3", "body werder", "Schwerder Fan Jacke"))
+        assert temp_db.cleanup_mismatched_listings() == 1
+
+    def test_mehrere_mismatches_werden_alle_geloescht(self, temp_db):
+        for i in range(3):
+            temp_db.save_listing(_mismatch_listing(f"bad{i+10}", "baby werder", f"Kinderwagen {i}"))
+        assert temp_db.cleanup_mismatched_listings() == 3
+        assert len(temp_db.get_listings()) == 0
+
+    def test_dismissed_verhindert_wiederanlage(self, temp_db):
+        temp_db.save_listing(_mismatch_listing("bad4", "baby werder", "Kein Match Anzeige"))
+        temp_db.cleanup_mismatched_listings()
+        # Nach Cleanup: erneut speichern muss fehlschlagen (dismissed)
+        ok = temp_db.save_listing(_mismatch_listing("bad4", "baby werder", "Kein Match Anzeige"))
+        assert ok is False

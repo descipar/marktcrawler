@@ -2,7 +2,7 @@
 
 Siehst du eine Anzeige für einen günstigen Kinderwagen — aber immer zu spät? **Marktcrawler** durchsucht Kleinanzeigen.de, Shpock, Vinted, eBay, Willhaben.at, markt.de und Facebook Marketplace automatisch nach deinen Suchbegriffen und schickt dir eine E-Mail, sobald neue Treffer auftauchen.
 
-Selbst gehostet, Docker-ready, läuft unbeaufsichtigt auf einem Raspberry Pi.
+Selbst gehostet und Docker-ready — läuft im Hintergrund auf einem Server, NAS oder Raspberry Pi.
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)

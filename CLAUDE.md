@@ -311,10 +311,26 @@ Die ersten drei Status-Kacheln (Status / Letzter Lauf / Nächster Lauf) wurden d
 python -m venv venv
 source venv/bin/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+playwright install chromium       # einmalig nach Installation (für Tests + Facebook)
 
 # .env bereits vorhanden mit DATA_DIR=./data
 python run.py                     # startet auf http://localhost:5000
 ```
+
+## Tests
+
+```bash
+pytest tests/                     # alle Tests (579 Unit/Integration + 19 Playwright UI)
+pytest tests/test_ui.py           # nur UI-Tests (Playwright, ~30s)
+pytest tests/test_ui.py --headed  # UI-Tests mit sichtbarem Browser
+pytest tests/ --ignore=tests/test_ui.py  # nur Unit/Integration-Tests
+```
+
+**Teststruktur:**
+- `tests/test_ui.py` — Playwright End-to-End-Tests für kritische Frontend-Features (Prio 1–3): Dashboard, Pagination/„Mehr laden"-Button, Crawl-Feedback, Dismiss, Suchbegriffe, Filter, API-Schema, Favoriten, Settings-Tabs, Profil-Flow
+- `tests/test_routes.py` — Flask-Routen und REST-API (pytest)
+- `tests/test_database.py` — DB-Operationen (pytest)
+- `tests/conftest.py` — Shared Fixtures: `temp_db` (leere Test-DB), `live_server` (Flask-Server mit 35 Test-Listings für Playwright)
 
 ## Docker
 

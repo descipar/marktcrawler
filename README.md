@@ -40,20 +40,6 @@ Selbst gehostet und Docker-ready — läuft im Hintergrund auf einem Server, NAS
 
 ---
 
-## Schnellstart (Docker)
-
-```bash
-git clone https://github.com/descipar/marktcrawler.git
-cd marktcrawler
-docker compose up -d --build
-```
-
-Admin-UI aufrufen: **`http://localhost:5000`**
-
-Bestehende Datenbanken werden automatisch migriert — keine Daten gehen verloren.
-
----
-
 ## 🤖 KI-Assistent einrichten
 
 Der KI-Assistent generiert im Anzeigen-Modal per Klick auf „✨ Generieren" einen fertigen Anfragetext an den Verkäufer. Bei VB-Anzeigen schlägt er automatisch einen Preis vor — basierend auf dem Durchschnitt der eigenen gesammelten Daten. Der Text erscheint immer in einer **editierbaren Textarea** und wird nie automatisch gesendet.

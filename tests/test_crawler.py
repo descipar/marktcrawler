@@ -166,12 +166,18 @@ class TestIsBlacklisted:
 
 class TestMatchesAllWords:
 
-    def test_einwort_suche_immer_true(self):
+    def test_einwort_suche_match(self):
         assert _matches_all_words(make_listing(title="Kinderwagen"), "kinderwagen") is True
 
-    def test_einwort_suche_kein_match_trotzdem_true(self):
-        # Einwort-Begriffe werden vom Scraper gefiltert; hier kein Nachfiltern nötig
-        assert _matches_all_words(make_listing(title="Buggy"), "kinderwagen") is True
+    def test_einwort_suche_kein_match_ergibt_false(self):
+        assert _matches_all_words(make_listing(title="Buggy"), "kinderwagen") is False
+
+    def test_einwort_zahl_kein_substring_match(self):
+        # "56" darf nicht in "1956" oder "56m²" matchen
+        assert _matches_all_words(make_listing(title="Wohnung von 1956", description="ca.56m² Wohnzimmer"), "56") is False
+
+    def test_einwort_zahl_standalone_match(self):
+        assert _matches_all_words(make_listing(title="Kinderwagen Baujahr 56"), "56") is True
 
     def test_alle_woerter_im_titel(self):
         assert _matches_all_words(make_listing(title="Baby Werder Kinderwagen"), "baby werder") is True

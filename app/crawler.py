@@ -78,11 +78,12 @@ def _is_blacklisted(listing: Listing, blacklist: List[str]) -> bool:
 def _matches_all_words(listing: Listing, term: str) -> bool:
     """Prüft via Wortgrenzen, ob alle Wörter des Suchbegriffs in Titel oder Beschreibung stehen.
 
-    Wortgrenzen (\b) verhindern False-Positives wie "werder" → "Schwerder".
-    Nötig weil Plattformen wie Kleinanzeigen bei Mehrwort-Suchen OR-Logik verwenden.
+    Wortgrenzen (\b) verhindern False-Positives wie "werder" → "Schwerder" oder
+    "56" → "1956" / "56m²". Gilt auch für Einwort-Begriffe, weil Plattformen wie
+    markt.de Substring-Suche verwenden.
     """
     words = term.lower().split()
-    if len(words) <= 1:
+    if not words:
         return True
     text = f"{listing.title or ''} {listing.description or ''}".lower()
     return all(bool(re.search(r"\b" + re.escape(w) + r"\b", text)) for w in words)

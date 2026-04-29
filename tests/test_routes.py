@@ -904,7 +904,7 @@ class TestProfileRoutesEdgeCases:
             pid = db.create_profile("Notify-Test", "👤")
         resp = client.post(
             f"/profiles/{pid}/notify",
-            json={"email": "test@example.com", "notify_mode": "both", "digest_time": "08:00"},
+            json={"email": "test@example.com", "notify_mode": "both", "digest_time": "08:00", "alert_interval_minutes": 60},
             content_type="application/json",
         )
         assert resp.status_code == 200
@@ -914,6 +914,7 @@ class TestProfileRoutesEdgeCases:
         assert p["email"] == "test@example.com"
         assert p["notify_mode"] == "both"
         assert p["digest_time"] == "08:00"
+        assert p["alert_interval_minutes"] == 60
 
     def test_notify_leere_email_wird_null(self, client, app):
         import app.database as db

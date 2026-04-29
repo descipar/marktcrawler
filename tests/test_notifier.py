@@ -303,11 +303,12 @@ class TestNotifyPending:
     def test_per_profil_sendet_an_profil_emails(self):
         listings = [{**make_listing_dict(), "listing_id": "pp-1"}]
         profiles = [
-            {"email": "alice@example.com", "notify_mode": "immediate"},
-            {"email": "bob@example.com", "notify_mode": "both"},
+            {"id": 1, "email": "alice@example.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None},
+            {"id": 2, "email": "bob@example.com", "notify_mode": "both", "alert_interval_minutes": 15, "last_alert_sent_at": None},
         ]
         with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
              patch("app.notifier.db.get_profiles", return_value=profiles), \
+             patch("app.notifier.db.update_last_alert_sent"), \
              patch("app.notifier._send_dicts") as mock_send, \
              patch("app.notifier.db.log_notification"):
             result = notify_pending(self._SETTINGS)
@@ -317,13 +318,36 @@ class TestNotifyPending:
         assert ["alice@example.com"] in recipients
         assert ["bob@example.com"] in recipients
 
+    def test_per_profil_aktualisiert_last_alert_sent(self):
+        """Nach Versand wird last_alert_sent_at pro Profil aktualisiert."""
+        listings = [{**make_listing_dict(), "listing_id": "pp-ts"}]
+        profiles = [{"id": 10, "email": "x@x.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None}]
+        with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
+             patch("app.notifier.db.get_profiles", return_value=profiles), \
+             patch("app.notifier.db.update_last_alert_sent") as mock_upd, \
+             patch("app.notifier._send_dicts"), \
+             patch("app.notifier.db.log_notification"):
+            notify_pending(self._SETTINGS)
+        mock_upd.assert_called_once_with(10)
+
+    def test_per_profil_intervall_nicht_abgelaufen_kein_versand(self):
+        """Profil mit noch nicht abgelaufenem Intervall → kein claim, kein Versand."""
+        from datetime import datetime, timezone, timedelta
+        recent = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+        profiles = [{"id": 20, "email": "y@y.com", "notify_mode": "immediate", "alert_interval_minutes": 60, "last_alert_sent_at": recent}]
+        with patch("app.notifier.db.claim_unnotified_listings") as mock_claim, \
+             patch("app.notifier.db.get_profiles", return_value=profiles):
+            result = notify_pending(self._SETTINGS)
+        assert result is False
+        mock_claim.assert_not_called()
+
     def test_per_profil_ignoriert_stumme_profile(self):
         """Profile mit notify_mode=digest_only/off bekommen keinen Alert."""
         listings = [{**make_listing_dict(), "listing_id": "pp-2"}]
         profiles = [
-            {"email": "carol@example.com", "notify_mode": "digest_only"},
-            {"email": "dave@example.com", "notify_mode": "off"},
-            {"email": None, "notify_mode": "immediate"},
+            {"id": 3, "email": "carol@example.com", "notify_mode": "digest_only", "alert_interval_minutes": 15, "last_alert_sent_at": None},
+            {"id": 4, "email": "dave@example.com", "notify_mode": "off", "alert_interval_minutes": 15, "last_alert_sent_at": None},
+            {"id": 5, "email": None, "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None},
         ]
         with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
              patch("app.notifier.db.get_profiles", return_value=profiles), \

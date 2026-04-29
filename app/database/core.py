@@ -340,6 +340,14 @@ def _mig_profile_notify_fields(conn: sqlite3.Connection):
         conn.execute("UPDATE profiles SET digest_time = '19:00' WHERE digest_time IS NULL")
 
 
+def _mig_profile_alert_interval(conn: sqlite3.Connection):
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(profiles)")}
+    if "alert_interval_minutes" not in cols:
+        conn.execute("ALTER TABLE profiles ADD COLUMN alert_interval_minutes INTEGER DEFAULT 15")
+    if "last_alert_sent_at" not in cols:
+        conn.execute("ALTER TABLE profiles ADD COLUMN last_alert_sent_at TEXT")
+
+
 def _mig_cleanup_mismatched(conn: sqlite3.Connection):
     """Bereinigt Altanzeigen die nicht allen Wörtern ihres Suchbegriffs entsprechen.
 
@@ -387,6 +395,7 @@ _MIGRATIONS = [
     ("v8_availability_checked_at",  _mig_availability_checked_at),
     ("v9_cleanup_mismatched",       _mig_cleanup_mismatched),
     ("v10_profile_notify_fields",   _mig_profile_notify_fields),
+    ("v11_profile_alert_interval",  _mig_profile_alert_interval),
 ]
 
 

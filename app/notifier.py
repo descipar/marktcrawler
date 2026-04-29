@@ -6,6 +6,7 @@ import smtplib
 import socket
 from collections import defaultdict
 from dataclasses import asdict
+from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from html import escape
@@ -39,18 +40,44 @@ def notify(listings: list, settings: dict, force: bool = False) -> bool:
 
 # ── Gebündelter Benachrichtigungs-Job (alle 15 Min.) ─────────
 
+def _alert_interval_elapsed(profile: dict, now: datetime) -> bool:
+    """Gibt True zurück wenn das konfigurierte Alert-Intervall des Profils abgelaufen ist."""
+    interval = int(profile.get("alert_interval_minutes") or 15)
+    last_sent = profile.get("last_alert_sent_at")
+    if not last_sent:
+        return True
+    try:
+        last_dt = datetime.fromisoformat(last_sent)
+        if last_dt.tzinfo is None:
+            last_dt = last_dt.replace(tzinfo=timezone.utc)
+        return (now - last_dt).total_seconds() / 60 >= interval
+    except (ValueError, TypeError):
+        return True
+
+
 def notify_pending(settings: dict) -> bool:
     """Sammelt alle unbenachrichtigten Anzeigen und sendet eine gebündelte E-Mail.
 
-    Per-Profil-Modus: Wenn Profile mit E-Mail und notify_mode='immediate'/'both'
-    vorhanden sind, sendet jedes Profil seine eigene E-Mail.
-    Fallback: globale email_recipient-Einstellung.
-
-    B5-Fix: claim_unnotified_listings() holt und markiert atomar in einer
-    Transaktion, sodass bei gleichzeitigen Aufrufen keine doppelten E-Mails
-    entstehen können.
+    Per-Profil-Modus: Profile mit E-Mail und notify_mode='immediate'/'both' werden
+    einzeln benachrichtigt, aber nur wenn ihr alert_interval_minutes seit der letzten
+    Benachrichtigung abgelaufen ist. Sind Profile konfiguriert aber keines fällig →
+    kein Versand (Listings bleiben unnotified für den nächsten Lauf).
+    Fallback: globale email_recipient-Einstellung wenn kein Profil eine E-Mail hat.
     """
     if not int(settings.get("email_enabled") or 0):
+        return False
+
+    now = datetime.now(timezone.utc)
+    all_profiles = db.get_profiles()
+    configured = [
+        p for p in all_profiles
+        if p.get("email") and p.get("notify_mode") in ("immediate", "both")
+    ]
+    eligible = [p for p in configured if _alert_interval_elapsed(p, now)]
+
+    # Profile konfiguriert aber kein Profil ist fällig → warten
+    if configured and not eligible:
+        logger.debug("notify_pending: Alle Profile innerhalb ihres Intervalls – kein Versand.")
         return False
 
     listings = db.claim_unnotified_listings()
@@ -61,16 +88,12 @@ def notify_pending(settings: dict) -> bool:
     tpl = settings.get("email_subject_alert", "🔍 Marktcrawler: {n} neue Anzeige(n) gefunden!")
     subject = tpl.replace("{n}", str(len(listings)))
 
-    profile_emails = [
-        p["email"] for p in db.get_profiles()
-        if p.get("email") and p.get("notify_mode") in ("immediate", "both")
-    ]
-
-    if profile_emails:
-        for email in profile_emails:
-            _send_dicts(subject, listings, settings, recipients=[email])
-        logger.info(f"notify_pending: {len(listings)} Anzeigen an {len(profile_emails)} Profile gesendet.")
-        db.log_notification("alert", len(listings), len(profile_emails))
+    if eligible:
+        for profile in eligible:
+            _send_dicts(subject, listings, settings, recipients=[profile["email"]])
+            db.update_last_alert_sent(profile["id"])
+        logger.info(f"notify_pending: {len(listings)} Anzeigen an {len(eligible)} Profile gesendet.")
+        db.log_notification("alert", len(listings), len(eligible))
     else:
         result = _send_dicts(subject, listings, settings)
         if not result:

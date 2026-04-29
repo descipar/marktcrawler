@@ -36,14 +36,27 @@ def update_profile(profile_id: int, name: str, emoji: str):
         conn.commit()
 
 
-def update_profile_notify(profile_id: int, email: str, notify_mode: str, digest_time: str):
+def update_profile_notify(
+    profile_id: int, email: str, notify_mode: str, digest_time: str,
+    alert_interval_minutes: int = 15,
+):
     _VALID_MODES = {"immediate", "digest_only", "both", "off"}
     if notify_mode not in _VALID_MODES:
         notify_mode = "immediate"
+    interval = max(15, int(alert_interval_minutes or 15))
     with _db() as conn:
         conn.execute(
-            "UPDATE profiles SET email=?, notify_mode=?, digest_time=? WHERE id=?",
-            (email.strip() or None, notify_mode, digest_time or "19:00", profile_id),
+            "UPDATE profiles SET email=?, notify_mode=?, digest_time=?, alert_interval_minutes=? WHERE id=?",
+            (email.strip() or None, notify_mode, digest_time or "19:00", interval, profile_id),
+        )
+        conn.commit()
+
+
+def update_last_alert_sent(profile_id: int):
+    with _db() as conn:
+        conn.execute(
+            "UPDATE profiles SET last_alert_sent_at=datetime('now') WHERE id=?",
+            (profile_id,),
         )
         conn.commit()
 

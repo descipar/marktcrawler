@@ -22,13 +22,17 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 
 ### Phase 28 – Per-Profil-E-Mail-Benachrichtigungen
 
-- [x] DB-Migration v10: `profiles` bekommt Spalten `email`, `notify_mode` (immediate/digest_only/both/none), `digest_time`
+- [x] DB-Migration v10: `profiles` bekommt Spalten `email`, `notify_mode` (immediate/digest_only/both/off), `digest_time`
+- [x] DB-Migration v11: `profiles` bekommt `alert_interval_minutes` (Default 15, Minimum 15) und `last_alert_sent_at`
 - [x] `database/profiles.py`: `update_profile_notify()` als neue Funktion; `get_profiles()` liefert neue Felder
 - [x] `notifier.py`: `notify_pending()` sendet pro Profil mit `mode=immediate/both` an die profil-eigene E-Mail; Fallback auf globale Settings wenn kein Profil eine E-Mail hat
 - [x] `scheduler.py`: `_schedule_profile_digests()` legt pro aktivem Profil einen eigenen CronJob an; `update_profile_digest_schedules()` wird vom Route-Handler aufgerufen wenn Profil-Settings sich ändern
 - [x] `routes/profiles.py`: neuer `POST /profiles/<id>/notify`-Endpunkt (JSON: `email`, `notify_mode`, `digest_time`)
 - [x] `settings.html`: Profile-Tab zeigt inline E-Mail/Modus/Digest-Zeit pro Profil (AJAX-Save)
-- [x] `tests/test_notifier.py`: `db.get_profiles()` in zwei Tests gemockt — 579 Tests gesamt
+- [x] Per-Profil Alert-Intervall: `alert_interval_minutes` (15/30/60/120/240/480 Min, Minimum 15); `last_alert_sent_at` pro Profil; `notify_pending()` sendet nur wenn Intervall abgelaufen, kein Claim wenn alle Profile noch im Intervall
+- [x] E-Mail-Anzeige im Profil-Tab: Kompakte Status-Zeile zeigt hinterlegte E-Mail + aktiven Modus + Intervall; JS aktualisiert Zeile sofort nach Save ohne Reload
+- [x] 24h-Format-Fix für alle `type="time"`-Inputs: CSS `::-webkit-datetime-edit-ampm-field { display: none }` erzwingt 24h in WebKit unabhängig von OS-Locale
+- [x] `tests/test_notifier.py`: Intervall-Tests (Versand an Profile, last_alert_sent aktualisiert, Intervall nicht abgelaufen → kein Claim) — 598 Tests gesamt
 
 ---
 

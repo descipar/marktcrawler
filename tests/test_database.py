@@ -1034,6 +1034,22 @@ class TestProfiles:
         temp_db.update_profile_notify(pid, "e@example.com", "both", "")
         assert temp_db.get_profile(pid)["digest_time"] == "19:00"
 
+    def test_update_profile_notify_interval_wird_gespeichert(self, temp_db):
+        pid = temp_db.create_profile("Frank", "👤")
+        temp_db.update_profile_notify(pid, "f@example.com", "immediate", "19:00", alert_interval_minutes=60)
+        assert temp_db.get_profile(pid)["alert_interval_minutes"] == 60
+
+    def test_update_profile_notify_interval_minimum_15(self, temp_db):
+        pid = temp_db.create_profile("Grace", "👤")
+        temp_db.update_profile_notify(pid, "g@example.com", "immediate", "19:00", alert_interval_minutes=5)
+        assert temp_db.get_profile(pid)["alert_interval_minutes"] == 15
+
+    def test_update_last_alert_sent(self, temp_db):
+        pid = temp_db.create_profile("Hans", "👤")
+        assert temp_db.get_profile(pid)["last_alert_sent_at"] is None
+        temp_db.update_last_alert_sent(pid)
+        assert temp_db.get_profile(pid)["last_alert_sent_at"] is not None
+
 
 # ── Crawl-Log & Notification-Log ─────────────────────────────
 

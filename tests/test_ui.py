@@ -255,7 +255,8 @@ class TestProfilUI:
 
         li = page.locator("li[data-profile-id]").first
         li.locator("[data-field='email']").fill("persist@example.com")
-        li.locator("[data-field='notify_mode']").select_option("digest_only")
+        li.locator("[data-field='notify_mode']").select_option("both")
+        li.locator("[data-field='alert_interval_minutes']").select_option("60")
         li.locator("[data-field='digest_time']").fill("07:30")
         li.locator("button", has_text="Speichern").click()
         expect(page.locator("[role='alert']")).to_contain_text("gespeichert")
@@ -264,7 +265,8 @@ class TestProfilUI:
         page.locator("button[data-tab='profiles']").click()
         li = page.locator("li[data-profile-id]").first
         expect(li.locator("[data-field='email']")).to_have_value("persist@example.com")
-        expect(li.locator("[data-field='notify_mode']")).to_have_value("digest_only")
+        expect(li.locator("[data-field='notify_mode']")).to_have_value("both")
+        expect(li.locator("[data-field='alert_interval_minutes']")).to_have_value("60")
         expect(li.locator("[data-field='digest_time']")).to_have_value("07:30")
 
     def test_profil_notify_digest_time_feld_sichtbarkeit(self, page: Page, live_server: str):

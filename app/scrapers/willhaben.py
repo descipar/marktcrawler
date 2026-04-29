@@ -158,13 +158,19 @@ class WillhabenScraper(BaseScraper):
                 if attr.get("name") == "MMO":
                     vals = attr.get("values", [])
                     if vals:
-                        image_url = vals[0]
+                        raw_img = vals[0]
+                        if raw_img.startswith("http"):
+                            image_url = raw_img
+                        else:
+                            image_url = f"https://cache.willhaben.at/mmo/{raw_img}"
                     break
 
-            if seo_url.startswith("/"):
-                url = f"{BASE_URL}{seo_url}"
-            elif seo_url.startswith("http"):
+            if seo_url.startswith("http"):
                 url = seo_url
+            elif seo_url.startswith("/"):
+                url = f"{BASE_URL}{seo_url}"
+            elif seo_url:
+                url = f"{BASE_URL}/iad/{seo_url}"
             else:
                 url = f"{BASE_URL}/iad/kaufen-und-verkaufen/d/{advert_id}"
 

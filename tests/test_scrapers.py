@@ -859,8 +859,8 @@ class TestKleinanzeigenScraper:
 # ── Willhaben ─────────────────────────────────────────────────────────────────
 
 def _willhaben_advert(advert_id="12345", title="Kinderwagen ABC", price="€ 50",
-                       location="Wien", seo_url="/iad/kaufen/d/abc/12345/",
-                       description="Super Zustand", image="https://img.willhaben.at/1.jpg",
+                       location="Wien", seo_url="kaufen-und-verkaufen/d/kinderwagen-abc/12345/",
+                       description="Super Zustand", image="3/abc/1.jpg",
                        coords="48.2083,16.3731") -> dict:
     attrs = [
         {"name": "HEADING", "values": [title]},
@@ -912,9 +912,9 @@ class TestWillhabenScraper:
         assert listing.price == "€ 50"
         assert listing.location == "Wien"
         assert listing.listing_id == "wh_12345"
-        assert listing.url == "https://www.willhaben.at/iad/kaufen/d/abc/12345/"
+        assert listing.url == "https://www.willhaben.at/iad/kaufen-und-verkaufen/d/kinderwagen-abc/12345/"
         assert listing.description == "Super Zustand"
-        assert listing.image_url == "https://img.willhaben.at/1.jpg"
+        assert listing.image_url == "https://cache.willhaben.at/mmo/3/abc/1.jpg"
         assert listing.search_term == "kinderwagen"
 
     def test_parse_seo_url_absolut(self):
@@ -922,6 +922,18 @@ class TestWillhabenScraper:
         advert = _willhaben_advert(seo_url="https://www.willhaben.at/iad/x/99/")
         listing = scraper._parse(advert, "test")
         assert listing.url == "https://www.willhaben.at/iad/x/99/"
+
+    def test_parse_seo_url_mit_fuehrendem_slash(self):
+        scraper = self._scraper()
+        advert = _willhaben_advert(seo_url="/iad/kaufen-und-verkaufen/d/abc/99/")
+        listing = scraper._parse(advert, "test")
+        assert listing.url == "https://www.willhaben.at/iad/kaufen-und-verkaufen/d/abc/99/"
+
+    def test_parse_image_absolut_bleibt_unveraendert(self):
+        scraper = self._scraper()
+        advert = _willhaben_advert(image="https://cdn.example.com/img.jpg")
+        listing = scraper._parse(advert, "test")
+        assert listing.image_url == "https://cdn.example.com/img.jpg"
 
     def test_parse_ohne_seo_url_fallback(self):
         scraper = self._scraper()

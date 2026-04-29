@@ -31,6 +31,9 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 - [x] Fix: `crawler_lang_filter_enabled` und `willhaben_paylivery_only` als Checkboxen korrekt behandelt
 - [x] 26 neue Tests (519 gesamt)
 - [x] **100% Testabdeckung** aller 6 Scraper (ebay, kleinanzeigen, markt, shpock, vinted, willhaben): 49 neue Coverage-Tests, Fix `except Exception` in `kleinanzeigen.py` — 568 Tests gesamt
+- [x] Fix: Willhaben URLs (`SEO_URL` ohne führendes `/` → `BASE_URL/iad/` vorangestellt) und Bilder (`MMO` relativ → `https://cache.willhaben.at/mmo/` ergänzt)
+- [x] Fix: Wortgrenzen-Matching (`\b`) jetzt auch für Einwort-Suchbegriffe — verhindert False-Positives wie „56" → „1956" oder „56m²"
+- [x] Feature: Anzeigen einer Plattform im Daten-Tab löschen (Dropdown + `POST /api/clear-listings-by-platform`); Favoriten bleiben erhalten — 579 Tests gesamt
 
 ---
 

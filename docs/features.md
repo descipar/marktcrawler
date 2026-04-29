@@ -27,8 +27,8 @@ Gleichzeitig durchsuchbar: **Kleinanzeigen.de**, **Shpock**, **Vinted**, **eBay*
 
 **markt.de** — Deutsches Kleinanzeigen-Portal mit Fokus auf regionale Schnäppchen. Der Scraper parst HTML via BeautifulSoup. Die Suchanfrage wird als `markt.de/{city-slug}/suche/{term}/` aufgebaut; Umlaute im Städtenamen werden automatisch normalisiert (München → muenchen). Der Radius wird als URL-Parameter übergeben.
 
-### Mehrwort-Suchbegriffe (AND-Logik mit Wortgrenzen)
-Bei Mehrwort-Suchbegriffen (z.B. „baby werder") müssen **alle** Wörter in Titel oder Beschreibung vorkommen. Das Matching verwendet `\b`-Wortgrenzen (Regex), sodass „werder" nicht auf „Schwerder" trifft. Anzeigen, die nicht alle Wörter enthalten, werden still übersprungen.
+### Suchbegriff-Matching (Wortgrenzen, AND-Logik)
+Alle Suchbegriffe — auch einwörtige — werden mit `\b`-Wortgrenzen (Regex) gegen Titel und Beschreibung geprüft. Das verhindert False-Positives wie „56" → „1956" oder „56m²", oder „werder" → „Schwerder". Bei Mehrwort-Begriffen (z.B. „baby werder") müssen **alle** Wörter vorkommen (AND-Logik). Anzeigen, die den Filter nicht bestehen, werden still übersprungen.
 
 ### Blacklist
 Stichworte wie „defekt" oder „bastler" können zeilenweise in die Blacklist eingetragen werden. Groß-/Kleinschreibung wird ignoriert. Blacklistete Anzeigen werden still übersprungen — kein Speichern, keine Benachrichtigung.
@@ -95,6 +95,9 @@ Prüft periodisch per HEAD-Request ob Anzeigen noch online sind. HTTP 404/410 �
 
 ### Auto-Cleanup nicht passender Anzeigen
 `db.cleanup_mismatched_listings()` durchsucht alle gespeicherten Anzeigen und entfernt solche, deren Titel + Beschreibung nicht alle Wörter des zugehörigen Suchbegriffs enthalten (gleiche `\b`-Regex wie der Crawler). Entfernte Anzeigen werden als dismissed eingetragen und tauchen beim nächsten Crawl nicht erneut auf. Läuft einmalig automatisch als DB-Migration v9 beim ersten Start nach Update. Manuell auslösbar über `POST /api/cleanup-mismatched` + Button im Daten-Tab der Einstellungen.
+
+### Anzeigen einer Plattform löschen
+Im Daten-Tab der Einstellungen: Plattform aus Dropdown wählen → Löschen. `db.clear_listings_by_platform(platform)` löscht alle Nicht-Favoriten der gewählten Plattform und trägt sie in `dismissed_listings` ein — beim nächsten Crawl werden sie frisch eingelesen. Favoriten bleiben erhalten. Endpoint: `POST /api/clear-listings-by-platform` (`{"platform": "Willhaben"}`).
 
 ---
 
@@ -198,6 +201,7 @@ Die Einstellungsseite ist in fünf Tabs gegliedert. Deaktivierte Plattformen wer
 | POST | `/api/listings/<id>/contact-text` | KI-Anfragetext generieren |
 | POST | `/api/availability-check` | Verfügbarkeits-Check manuell starten |
 | POST | `/api/cleanup-mismatched` | Nicht passende Anzeigen bereinigen + dismissenm (JSON: `{"deleted": N}`) |
+| POST | `/api/clear-listings-by-platform` | Anzeigen einer Plattform löschen + dismissen (`{"platform": "Willhaben"}`) |
 | POST | `/api/clear-listings-by-age` | Anzeigen löschen + dismissen älter als X Stunden (`{"hours": N}`) |
 | GET | `/profiles/select` | Profil-Auswahl (nur wenn Profile existieren) |
 | POST | `/profiles/select/<id>` | Profil aktivieren |

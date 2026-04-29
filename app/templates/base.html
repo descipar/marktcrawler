@@ -139,9 +139,12 @@ document.addEventListener('keydown', function(e) {
   const m = document.getElementById('confirm-modal');
   if (e.key === 'Escape' && !m.classList.contains('hidden')) _closeConfirmModal();
 });
-function showToast(msg) {
+function showToast(msg, type) {
   const el = document.createElement('div');
-  el.className = 'fixed bottom-4 right-4 z-50 px-4 py-2 rounded-lg border text-sm font-medium shadow-lg bg-red-50 text-red-800 border-red-200';
+  const styles = type === 'success'
+    ? 'bg-green-50 text-green-800 border-green-200'
+    : 'bg-red-50 text-red-800 border-red-200';
+  el.className = `fixed bottom-4 right-4 z-50 px-4 py-2 rounded-lg border text-sm font-medium shadow-lg ${styles}`;
   el.setAttribute('role', 'alert');
   el.textContent = msg;
   document.body.appendChild(el);

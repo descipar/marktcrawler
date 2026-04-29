@@ -655,6 +655,36 @@ class TestApiClearListings:
                            content_type="application/json")
         assert resp.status_code == 400
 
+    def test_clear_listings_by_platform_loescht(self, client, app):
+        from app.scrapers.base import Listing
+        import app.database as db
+        with app.app_context():
+            db.save_listing(Listing(
+                platform="Willhaben", title="Kinderwagen", price="50 €",
+                location="Wien", url="https://willhaben.at/1", listing_id="wh-route-1",
+            ))
+            db.save_listing(Listing(
+                platform="Kleinanzeigen", title="Kinderwagen", price="40 €",
+                location="München", url="https://kleinanzeigen.de/1", listing_id="ka-route-1",
+            ))
+
+        resp = client.post("/api/clear-listings-by-platform", json={"platform": "Willhaben"},
+                           content_type="application/json")
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data["status"] == "ok"
+        assert data["deleted"] == 1
+
+        with app.app_context():
+            listings = db.get_listings()
+            assert len(listings) == 1
+            assert listings[0]["listing_id"] == "ka-route-1"
+
+    def test_clear_listings_by_platform_kein_name(self, client):
+        resp = client.post("/api/clear-listings-by-platform", json={"platform": ""},
+                           content_type="application/json")
+        assert resp.status_code == 400
+
     def test_clear_listings(self, client, app):
         from app.scrapers.base import Listing
         import app.database as db

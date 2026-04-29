@@ -548,7 +548,7 @@
               {% endfor %}
             </select>
           </div>
-          <button type="button" onclick="clearListingsByPlatform()"
+          <button type="button" id="clearPlatformBtn" onclick="clearListingsByPlatform()"
             class="shrink-0 mt-6 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
             Löschen
           </button>
@@ -717,9 +717,9 @@ async function cleanupMismatched() {
 
 async function clearListingsByPlatform() {
   const sel = document.getElementById('clearPlatformSelect');
+  const btn = document.getElementById('clearPlatformBtn');
   const platform = sel.value;
   showConfirm(`Wirklich alle Anzeigen von ${platform} löschen? (Favoriten bleiben erhalten)`, async () => {
-    const btn = sel.nextElementSibling;
     btn.disabled = true; btn.textContent = 'Lädt...';
     try {
       const r = await fetch('/api/clear-listings-by-platform', {
@@ -727,7 +727,7 @@ async function clearListingsByPlatform() {
         body: JSON.stringify({platform}),
       });
       const data = await r.json();
-      showToast(data.message || `${platform} gelöscht.`);
+      showToast(data.message || `${platform} gelöscht.`, 'success');
       btn.textContent = '✓ Gelöscht';
       btn.classList.replace('bg-red-600', 'bg-green-600');
       setTimeout(() => { btn.disabled = false; btn.textContent = 'Löschen'; btn.classList.replace('bg-green-600', 'bg-red-600'); }, 3000);

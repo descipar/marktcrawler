@@ -7,7 +7,7 @@ Selbst gehostet und Docker-ready — läuft im Hintergrund auf einem Server, NAS
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-579%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-640%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)
 
 ---
@@ -27,8 +27,8 @@ Selbst gehostet und Docker-ready — läuft im Hintergrund auf einem Server, NAS
 
 ### Benachrichtigungen
 - **E-Mail-Alert (gebündelt)** — alle neuen Anzeigen alle 15 Min. kompakt per E-Mail, strukturiert nach Plattform und Suchbegriff
-- **Tages-Digest** — tägliche Zusammenfassung zur konfigurierten Uhrzeit
-- **Per-Profil-Benachrichtigungen** — jedes Profil hat eigene E-Mail-Adresse und Modus (Sofort-Alert / nur Digest / beides / stumm)
+- **Tages-Digest** — tägliche Zusammenfassung zur konfigurierten Uhrzeit pro Profil
+- **Per-Profil-Benachrichtigungen** — jedes Profil hat eigene E-Mail, Modus (Sofort / Digest / beides / stumm) und Alert-Intervall (min. 15 Min.); kein globales Empfänger-Feld
 
 ### Anzeigen & KI
 - **✨ KI-Anfragetext** — generiert per Klick einen Kontakttext an den Verkäufer; bei VB-Anzeigen mit automatischem Preisvorschlag
@@ -105,7 +105,7 @@ Dann in **Einstellungen → KI-Assistent**: Modell `gemma2:2b`, Base-URL `http:/
    - SMTP-Server: `smtp.gmail.com` · Port: `587`
    - Absender: `deine-adresse@gmail.com`
    - App-Passwort: *(das erzeugte App-Passwort)*
-   - Empfänger: `du@example.com, partner@example.com` (kommagetrennt)
+3. E-Mail-Empfänger werden **pro Profil** vergeben: **Einstellungen → Profile** → E-Mail-Adresse und Benachrichtigungsmodus pro Person einstellen
 
 ### Weitere Anbieter
 
@@ -169,8 +169,9 @@ docker exec -it marktcrawler python -c \
 ## 🔧 Entwicklung & Tests
 
 ```bash
-python -m pytest tests/ -v         # alle 568 Tests
-python -m pytest tests/test_database.py -v  # einzelne Datei
+python -m pytest tests/ -v                       # alle 640 Tests (inkl. Playwright UI-Tests)
+python -m pytest tests/ --ignore=tests/test_ui.py  # nur Unit/Integration-Tests
+python -m pytest tests/test_database.py -v          # einzelne Datei
 ```
 
 Alle Tests laufen ohne externe Abhängigkeiten (HTTP und DB werden gemockt).

@@ -79,7 +79,7 @@ Gleiche `listing_id` wird nie doppelt gespeichert. Plattformübergreifend: gleic
 Luftlinie vom eigenen Heimstandort zu jeder Anzeige, berechnet via Nominatim + Haversine. Heimstandort in **Einstellungen → Crawler & Daten** als Stadtname eingeben.
 
 ### Preisstatistik
-Aufklappbare Tabelle im Dashboard zeigt Durchschnitt, Min, Max und Gratis-Zähler pro Suchbegriff (`GET /api/stats`).
+Tabelle auf der Info-Seite (`/info`) zeigt Durchschnitt, Min, Max und Gratis-Zähler pro Suchbegriff (`GET /api/stats`).
 
 ### Relative Zeitangaben
 Timestamps werden als „vor 2h" / „vor 30 Min." angezeigt (Tooltip mit absolutem Datum).
@@ -88,12 +88,12 @@ Timestamps werden als „vor 2h" / „vor 30 Min." angezeigt (Tooltip mit absolu
 Mehrere Personen können die App gemeinsam nutzen, ohne sich gegenseitig die „Neu"-Badges wegzunehmen. Beim Öffnen der App wird ein Profil gewählt (Netflix-Stil). Jedes Profil merkt sich den eigenen `last_seen_at`-Zeitstempel — Anzeigen, die nach dem letzten Besuch gefunden wurden, tragen das **✨ Neu**-Badge. Suchbegriffe und Einstellungen sind global geteilt. Profile werden in **Einstellungen → Profile** verwaltet (anlegen, umbenennen, Emoji setzen, löschen). Der aktive Nutzer ist in der Navbar sichtbar; Wechseln per Klick.
 
 Jedes Profil kann zusätzlich eine **eigene E-Mail-Adresse** und einen **Benachrichtigungsmodus** haben (konfigurierbar direkt im Profile-Tab der Einstellungen):
-- **⚡ Sofort-Alert** — bei jedem notify_job-Lauf (alle 15 Min.) alle neuen Anzeigen
-- **📋 Nur Tages-Digest** — täglich zur konfigurierten Uhrzeit
+- **⚡ Sofort-Alert** — gebündelt, maximal alle `alert_interval_minutes` Minuten (Minimum 15, Spamschutz)
+- **📋 Nur Tages-Digest** — täglich zur profil-eigenen Digest-Uhrzeit
 - **Beides** — Alert + Digest
 - **Keine E-Mails** — stumm (nur Neu-Badge im Dashboard)
 
-Fallback: Wenn kein Profil eine E-Mail hat, gelten die globalen `email_recipient`- und `digest_enabled`-Settings — bestehende Single-User-Setups bleiben unverändert. Endpoint: `POST /profiles/<id>/notify` (JSON: `{"email": "...", "notify_mode": "immediate|digest_only|both|none", "digest_time": "HH:MM"}`).
+Es gibt kein globales Empfänger-Feld mehr. Wenn kein Profil eine E-Mail hat, werden keine Mails verschickt. Endpoint: `POST /profiles/<id>/notify` (JSON: `{"email": "...", "notify_mode": "immediate|digest_only|both|off", "digest_time": "HH:MM", "alert_interval_minutes": 15}`).
 
 ### Pagination
 30 Anzeigen pro Seite, „Mehr laden"-Button lädt weitere per AJAX.
@@ -173,15 +173,15 @@ Die Einstellungsseite ist in fünf Tabs gegliedert. Deaktivierte Plattformen wer
 | Shpock | Plattformen | Aktiviert, Max. Preis, Standort, Radius (0 = kein Filter), Crawl-Intervall, Test-Button |
 | Vinted | Plattformen | Aktiviert, Max. Preis, Standort, Radius (0 = kein Filter), Crawl-Intervall, Test-Button |
 | eBay | Plattformen | Aktiviert, Max. Preis, Standort (PLZ oder Stadt), Radius, Crawl-Intervall, Test-Button |
+| Willhaben.at | Plattformen | Aktiviert, Max. Preis, Standort, Radius, PayLivery-Only, Crawl-Intervall, Test-Button |
+| markt.de | Plattformen | Aktiviert, Max. Preis, Standort, Radius, Crawl-Intervall, Test-Button |
 | Facebook Marketplace | Plattformen | Aktiviert, Max. Preis, Standort, Crawl-Intervall |
-| E-Mail | Benachrichtigungen | SMTP-Server/-Port, Absender, Empfänger (kommagetrennt), App-Passwort, Alert-Betreff |
-| Tages-Digest | Benachrichtigungen | Aktiviert, Uhrzeit (`HH:MM`), Digest-Betreff |
-| Crawler | Crawler & Daten | Max. Ergebnisse pro Suche, Pause zwischen Anfragen (s), Blacklist, Sprachfilter |
-| Anzeigen-Verwaltung | Crawler & Daten | Altersfilter (Anzeige), Anzeigen löschen älter als X Stunden, Nicht-passende Anzeigen bereinigen |
-| Verfügbarkeits-Check | Crawler & Daten | Aktiviert, Intervall (Stunden), „Jetzt prüfen"-Button |
-| Heimstandort | Crawler & Daten | Stadtname für Entfernungsberechnung |
+| E-Mail | Benachrichtigungen | SMTP-Server/-Port, Absender, App-Passwort, Alert-Betreff, Digest-Betreff |
+| Tages-Digest | Benachrichtigungen | Aktiviert (global), Digest-Betreff |
+| Crawler | Crawler | Max. Ergebnisse pro Suche, Pause zwischen Anfragen (s), Blacklist, Sprachfilter, Heimstandort, Verfügbarkeits-Check |
+| Datenverwaltung | 🗑️ Daten | Verfügbarkeits-Check starten, Bereinigen, Plattform löschen, Alle löschen, Alte Anzeigen löschen (Stunden), Geocache löschen, Aktivitäts-Log-Terminal |
 | KI-Assistent | KI-Assistent | Aktiviert, API-Key, Modell (Selector + Live-Fetch), Persönliche Hinweise, Base-URL |
-| Profile | Profile | Anlegen (Name + Emoji), umbenennen, löschen |
+| Profile | Profile | Anlegen (Name + Emoji), umbenennen, löschen; pro Profil: E-Mail-Adresse, Modus, Alert-Intervall, Digest-Uhrzeit |
 
 ---
 
@@ -208,15 +208,19 @@ Die Einstellungsseite ist in fünf Tabs gegliedert. Deaktivierte Plattformen wer
 | POST | `/api/test-scraper` | Scraper-Verbindung testen (`{"platform": "kleinanzeigen"}`) |
 | POST | `/api/listings/<id>/contact-text` | KI-Anfragetext generieren |
 | POST | `/api/availability-check` | Verfügbarkeits-Check manuell starten |
-| POST | `/api/cleanup-mismatched` | Nicht passende Anzeigen bereinigen + dismissenm (JSON: `{"deleted": N}`) |
+| POST | `/api/cleanup-mismatched` | Nicht passende Anzeigen bereinigen + dismissen (JSON: `{"deleted": N}`) |
 | POST | `/api/clear-listings-by-platform` | Anzeigen einer Plattform löschen + dismissen (`{"platform": "Willhaben"}`) |
 | POST | `/api/clear-listings-by-age` | Anzeigen löschen + dismissen älter als X Stunden (`{"hours": N}`) |
+| POST | `/api/clear-geocache` | Geocache leeren (`{"status": "ok", "deleted": N}`) |
+| GET | `/api/check-updates` | GitHub-Update-Check; liefert `{status, updates, count, repo_url}` |
+| GET | `/api/log` | Log-Puffer als JSON-Array (letzte 200 Zeilen) |
 | GET | `/profiles/select` | Profil-Auswahl (nur wenn Profile existieren) |
 | POST | `/profiles/select/<id>` | Profil aktivieren |
 | POST | `/profiles/logout` | Session leeren |
 | POST | `/profiles` | Neues Profil anlegen |
 | POST | `/profiles/<id>/update` | Profil umbenennen / Emoji ändern |
 | POST | `/profiles/<id>/delete` | Profil löschen |
+| POST | `/profiles/<id>/notify` | Benachrichtigungseinstellungen setzen (JSON: `email`, `notify_mode`, `digest_time`, `alert_interval_minutes`) |
 
 ---
 
@@ -230,7 +234,7 @@ marktcrawler/
 ├── data/                   # Persistentes Volume (SQLite-DB, FB-Session)
 ├── docs/
 │   └── screenshots/        # UI-Vorschaubilder
-├── tests/                  # 462 Unit-Tests (alle ohne externe Abhängigkeiten)
+├── tests/                  # 618 Unit-Tests + 22 Playwright UI-Tests
 │   ├── conftest.py
 │   ├── test_crawler.py
 │   ├── test_crawl_run.py
@@ -240,7 +244,8 @@ marktcrawler/
 │   ├── test_routes.py
 │   ├── test_scrapers.py
 │   ├── test_checker.py
-│   └── test_ai.py
+│   ├── test_ai.py
+│   └── test_ui.py          # Playwright End-to-End
 └── app/
     ├── __init__.py         # Flask App Factory, DB + Scheduler initialisieren; SECRET_KEY-Persistenz
     ├── database/           # SQLite-Schicht (kein ORM), versioniertes Migrations-Framework
@@ -267,6 +272,8 @@ marktcrawler/
     │   ├── shpock.py         # GraphQL-API
     │   ├── vinted.py         # REST-API mit Session-Cookie; Altersfilter via created_at_ts
     │   ├── ebay.py           # requests + BeautifulSoup; URL-Encoding mit quote_plus
+    │   ├── willhaben.py      # __NEXT_DATA__ JSON-Parsing; PayLivery-Filter; Haversine-Radius
+    │   ├── markt.py          # requests + BeautifulSoup; Umlaut-Slug für Stadt-URL
     │   └── facebook.py       # Playwright headless
     └── templates/
         ├── base.html              # Navbar, Flash-Messages, Tailwind

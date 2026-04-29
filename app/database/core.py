@@ -328,6 +328,18 @@ def _mig_availability_checked_at(conn: sqlite3.Connection):
         conn.execute("ALTER TABLE listings ADD COLUMN availability_checked_at TEXT")
 
 
+def _mig_profile_notify_fields(conn: sqlite3.Connection):
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(profiles)")}
+    if "email" not in cols:
+        conn.execute("ALTER TABLE profiles ADD COLUMN email TEXT")
+    if "notify_mode" not in cols:
+        conn.execute("ALTER TABLE profiles ADD COLUMN notify_mode TEXT DEFAULT 'immediate'")
+        conn.execute("UPDATE profiles SET notify_mode = 'immediate' WHERE notify_mode IS NULL")
+    if "digest_time" not in cols:
+        conn.execute("ALTER TABLE profiles ADD COLUMN digest_time TEXT DEFAULT '19:00'")
+        conn.execute("UPDATE profiles SET digest_time = '19:00' WHERE digest_time IS NULL")
+
+
 def _mig_cleanup_mismatched(conn: sqlite3.Connection):
     """Bereinigt Altanzeigen die nicht allen Wörtern ihres Suchbegriffs entsprechen.
 
@@ -374,6 +386,7 @@ _MIGRATIONS = [
     ("v7_create_log_tables",        _mig_create_log_tables),
     ("v8_availability_checked_at",  _mig_availability_checked_at),
     ("v9_cleanup_mismatched",       _mig_cleanup_mismatched),
+    ("v10_profile_notify_fields",   _mig_profile_notify_fields),
 ]
 
 

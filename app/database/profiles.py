@@ -36,6 +36,18 @@ def update_profile(profile_id: int, name: str, emoji: str):
         conn.commit()
 
 
+def update_profile_notify(profile_id: int, email: str, notify_mode: str, digest_time: str):
+    _VALID_MODES = {"immediate", "digest_only", "both", "off"}
+    if notify_mode not in _VALID_MODES:
+        notify_mode = "immediate"
+    with _db() as conn:
+        conn.execute(
+            "UPDATE profiles SET email=?, notify_mode=?, digest_time=? WHERE id=?",
+            (email.strip() or None, notify_mode, digest_time or "19:00", profile_id),
+        )
+        conn.commit()
+
+
 def delete_profile(profile_id: int):
     with _db() as conn:
         conn.execute("DELETE FROM profiles WHERE id=?", (profile_id,))

@@ -24,6 +24,13 @@ def _run_digest():
     send_digest(settings)
 
 
+def _run_digest_for_profile(profile_id: int):
+    settings = db.get_settings()
+    profile = db.get_profile(profile_id)
+    if profile and profile.get("email"):
+        send_digest(settings, recipient=profile["email"])
+
+
 def _run_notify_pending():
     settings = db.get_settings()
     notify_pending(settings)
@@ -36,6 +43,7 @@ def init_scheduler(app):
     _schedule_platform_jobs()
     _schedule_notify_job()
     _schedule_digest()
+    _schedule_profile_digests()
     _schedule_availability_check()
 
     _scheduler.start()
@@ -198,8 +206,40 @@ def update_platform_schedules():
     _schedule_platform_jobs()
 
 
+def _schedule_profile_digests():
+    global _scheduler
+    if _scheduler is None:
+        return
+
+    for job in _scheduler.get_jobs():
+        if job.id.startswith("digest_profile_"):
+            _scheduler.remove_job(job.id)
+
+    for profile in db.get_profiles():
+        if not profile.get("email") or profile.get("notify_mode") not in ("digest_only", "both"):
+            continue
+        digest_time = profile.get("digest_time") or "19:00"
+        try:
+            hour, minute = (int(x) for x in digest_time.split(":"))
+            _scheduler.add_job(
+                _run_digest_for_profile,
+                trigger=CronTrigger(hour=hour, minute=minute),
+                args=[profile["id"]],
+                id=f"digest_profile_{profile['id']}",
+                name=f"Digest [{profile['name']}]",
+                replace_existing=True,
+            )
+            logger.info(f"Digest-Job für Profil '{profile['name']}' um {digest_time} Uhr.")
+        except Exception as e:
+            logger.error(f"Digest-Job Profil {profile['id']}: {e}")
+
+
 def update_digest_schedule():
     _schedule_digest()
+
+
+def update_profile_digest_schedules():
+    _schedule_profile_digests()
 
 
 def update_availability_schedule():

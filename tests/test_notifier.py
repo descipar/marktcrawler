@@ -283,6 +283,7 @@ class TestNotifyPending:
             {**make_listing_dict(listing_id="p2"), "listing_id": "p2"},
         ]
         with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
+             patch("app.notifier.db.get_profiles", return_value=[]), \
              patch("app.notifier._smtp_send", return_value=True), \
              patch("app.notifier.db.log_notification") as mock_log:
             result = notify_pending(self._SETTINGS)
@@ -292,6 +293,7 @@ class TestNotifyPending:
     def test_kein_log_bei_smtp_fehler(self):
         listings = [{**make_listing_dict(), "listing_id": "q1"}]
         with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
+             patch("app.notifier.db.get_profiles", return_value=[]), \
              patch("app.notifier._smtp_send", return_value=False), \
              patch("app.notifier.db.log_notification") as mock_log:
             result = notify_pending(self._SETTINGS)

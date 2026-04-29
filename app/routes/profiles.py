@@ -65,6 +65,21 @@ def update_profile_route(profile_id):
     return jsonify({"status": "ok"})
 
 
+@bp.route("/profiles/<int:profile_id>/notify", methods=["POST"])
+def update_profile_notify_route(profile_id):
+    data = request.json or {}
+    email = data.get("email", "").strip()
+    notify_mode = data.get("notify_mode", "immediate")
+    digest_time = data.get("digest_time", "19:00")
+    db.update_profile_notify(profile_id, email, notify_mode, digest_time)
+    try:
+        from ..scheduler import update_profile_digest_schedules
+        update_profile_digest_schedules()
+    except Exception:
+        pass
+    return jsonify({"status": "ok"})
+
+
 @bp.route("/profiles/<int:profile_id>/delete", methods=["POST"])
 def delete_profile_route(profile_id):
     if session.get("profile_id") == profile_id:

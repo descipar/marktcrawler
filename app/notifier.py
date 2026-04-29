@@ -42,6 +42,10 @@ def notify(listings: list, settings: dict, force: bool = False) -> bool:
 def notify_pending(settings: dict) -> bool:
     """Sammelt alle unbenachrichtigten Anzeigen und sendet eine gebündelte E-Mail.
 
+    Per-Profil-Modus: Wenn Profile mit E-Mail und notify_mode='immediate'/'both'
+    vorhanden sind, sendet jedes Profil seine eigene E-Mail.
+    Fallback: globale email_recipient-Einstellung.
+
     B5-Fix: claim_unnotified_listings() holt und markiert atomar in einer
     Transaktion, sodass bei gleichzeitigen Aufrufen keine doppelten E-Mails
     entstehen können.
@@ -56,23 +60,41 @@ def notify_pending(settings: dict) -> bool:
 
     tpl = settings.get("email_subject_alert", "🔍 Marktcrawler: {n} neue Anzeige(n) gefunden!")
     subject = tpl.replace("{n}", str(len(listings)))
-    result = _send_dicts(subject, listings, settings)
-    if result:
+
+    profile_emails = [
+        p["email"] for p in db.get_profiles()
+        if p.get("email") and p.get("notify_mode") in ("immediate", "both")
+    ]
+
+    if profile_emails:
+        for email in profile_emails:
+            _send_dicts(subject, listings, settings, recipients=[email])
+        logger.info(f"notify_pending: {len(listings)} Anzeigen an {len(profile_emails)} Profile gesendet.")
+        db.log_notification("alert", len(listings), len(profile_emails))
+    else:
+        result = _send_dicts(subject, listings, settings)
+        if not result:
+            return False
         logger.info(f"notify_pending: {len(listings)} Anzeigen benachrichtigt.")
         raw_r = os.environ.get("EMAIL_RECIPIENT") or settings.get("email_recipient", "")
-        db.log_notification("alert", len(listings),
-                            len([r for r in raw_r.split(",") if r.strip()]))
-    return result
+        db.log_notification("alert", len(listings), len([r for r in raw_r.split(",") if r.strip()]))
+
+    return True
 
 
 # ── Tages-Digest ─────────────────────────────────────────────
 
-def send_digest(settings: dict) -> bool:
-    """Sendet die tägliche Zusammenfassung aller heute gefundenen Anzeigen."""
-    if not int(settings.get("digest_enabled") or 0):
-        return False
-    if not int(settings.get("email_enabled") or 0):
-        return False
+def send_digest(settings: dict, recipient: str | None = None) -> bool:
+    """Sendet die tägliche Zusammenfassung aller heute gefundenen Anzeigen.
+
+    recipient: direkte E-Mail-Adresse für per-Profil-Digest; überspringt
+               die globalen digest_enabled/email_enabled-Checks.
+    """
+    if recipient is None:
+        if not int(settings.get("digest_enabled") or 0):
+            return False
+        if not int(settings.get("email_enabled") or 0):
+            return False
 
     listings = db.get_listings_today()
     if not listings:
@@ -81,20 +103,29 @@ def send_digest(settings: dict) -> bool:
 
     tpl = settings.get("email_subject_digest", "🔍 Marktcrawler Tages-Digest: {n} Anzeige(n) heute")
     subject = tpl.replace("{n}", str(len(listings)))
-    logger.info(f"Sende Tages-Digest mit {len(listings)} Anzeigen.")
-    result = _send_dicts(subject, listings, settings, is_digest=True)
+    logger.info(f"Sende Tages-Digest mit {len(listings)} Anzeigen{' an ' + recipient if recipient else ''}.")
+    recipients = [recipient] if recipient else None
+    result = _send_dicts(subject, listings, settings, is_digest=True, recipients=recipients)
     if result:
         raw_r = os.environ.get("EMAIL_RECIPIENT") or settings.get("email_recipient", "")
-        db.log_notification("digest", len(listings),
-                            len([r for r in raw_r.split(",") if r.strip()]))
+        count = 1 if recipient else len([r for r in raw_r.split(",") if r.strip()])
+        db.log_notification("digest", len(listings), count)
     return result
 
 
 # ── Interner Versand ─────────────────────────────────────────
 
-def _send_dicts(subject: str, listings: list, settings: dict, is_digest: bool = False) -> bool:
-    """Sendet eine E-Mail mit gruppierten Listings (als Dicts)."""
-    sender, password, recipients = _get_email_config(settings)
+def _send_dicts(subject: str, listings: list, settings: dict,
+               is_digest: bool = False, recipients: list | None = None) -> bool:
+    """Sendet eine E-Mail mit gruppierten Listings (als Dicts).
+
+    recipients: explizite Empfängerliste; None = globale Konfiguration aus settings.
+    """
+    if recipients is None:
+        sender, password, recipients = _get_email_config(settings)
+    else:
+        sender = os.environ.get("EMAIL_SENDER") or settings.get("email_sender", "")
+        password = os.environ.get("EMAIL_PASSWORD") or settings.get("email_password", "")
     if not recipients:
         return False
 

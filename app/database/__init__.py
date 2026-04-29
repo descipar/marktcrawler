@@ -61,6 +61,7 @@ from .profiles import (
     get_profile,
     create_profile,
     update_profile,
+    update_profile_notify,
     delete_profile,
     update_profile_last_seen,
 )
@@ -93,7 +94,7 @@ __all__ = [
     "get_geocache", "save_geocache",
     # profiles
     "get_profiles", "get_profile", "create_profile", "update_profile",
-    "delete_profile", "update_profile_last_seen",
+    "update_profile_notify", "delete_profile", "update_profile_last_seen",
     # stats
     "log_crawl_run", "log_notification", "get_price_stats", "get_system_stats",
 ]

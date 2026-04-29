@@ -277,13 +277,15 @@ class TestNotifyPending:
         mock_smtp.assert_not_called()
 
     def test_loggt_nach_versand(self):
-        """Nach erfolgreichem Versand wird log_notification aufgerufen (keine mark-Pflicht mehr)."""
+        """Nach erfolgreichem Versand wird log_notification aufgerufen."""
         listings = [
             {**make_listing_dict(listing_id="p1"), "listing_id": "p1"},
             {**make_listing_dict(listing_id="p2"), "listing_id": "p2"},
         ]
+        profile = {"id": 1, "email": "a@example.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None}
         with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
-             patch("app.notifier.db.get_profiles", return_value=[]), \
+             patch("app.notifier.db.get_profiles", return_value=[profile]), \
+             patch("app.notifier.db.update_last_alert_sent"), \
              patch("app.notifier._smtp_send", return_value=True), \
              patch("app.notifier.db.log_notification") as mock_log:
             result = notify_pending(self._SETTINGS)
@@ -291,14 +293,17 @@ class TestNotifyPending:
         mock_log.assert_called_once()
 
     def test_kein_log_bei_smtp_fehler(self):
+        """Bei SMTP-Fehler wird trotzdem geloggt (Listings wurden bereits geclaimed)."""
         listings = [{**make_listing_dict(), "listing_id": "q1"}]
+        profile = {"id": 2, "email": "b@example.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None}
         with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
-             patch("app.notifier.db.get_profiles", return_value=[]), \
+             patch("app.notifier.db.get_profiles", return_value=[profile]), \
+             patch("app.notifier.db.update_last_alert_sent"), \
              patch("app.notifier._smtp_send", return_value=False), \
              patch("app.notifier.db.log_notification") as mock_log:
             result = notify_pending(self._SETTINGS)
-        assert result is False
-        mock_log.assert_not_called()
+        assert result is True
+        mock_log.assert_called_once()
 
     def test_per_profil_sendet_an_profil_emails(self):
         listings = [{**make_listing_dict(), "listing_id": "pp-1"}]
@@ -341,33 +346,26 @@ class TestNotifyPending:
         assert result is False
         mock_claim.assert_not_called()
 
-    def test_per_profil_ignoriert_stumme_profile(self):
-        """Profile mit notify_mode=digest_only/off bekommen keinen Alert."""
-        listings = [{**make_listing_dict(), "listing_id": "pp-2"}]
+    def test_per_profil_stumme_profile_kein_versand(self):
+        """Kein Profil mit qualifiziertem Modus → kein Claim, kein Versand."""
         profiles = [
             {"id": 3, "email": "carol@example.com", "notify_mode": "digest_only", "alert_interval_minutes": 15, "last_alert_sent_at": None},
             {"id": 4, "email": "dave@example.com", "notify_mode": "off", "alert_interval_minutes": 15, "last_alert_sent_at": None},
             {"id": 5, "email": None, "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None},
         ]
-        with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
-             patch("app.notifier.db.get_profiles", return_value=profiles), \
-             patch("app.notifier._smtp_send", return_value=True) as mock_smtp, \
-             patch("app.notifier.db.log_notification"):
+        with patch("app.notifier.db.get_profiles", return_value=profiles), \
+             patch("app.notifier.db.claim_unnotified_listings") as mock_claim:
             result = notify_pending(self._SETTINGS)
-        assert result is True
-        # Kein Profil qualifiziert → Fallback auf globale Settings (ein SMTP-Aufruf)
-        mock_smtp.assert_called_once()
+        assert result is False
+        mock_claim.assert_not_called()
 
-    def test_per_profil_fallback_auf_globale_settings(self):
-        """Wenn kein Profil eine E-Mail hat, gelten globale email_recipient-Settings."""
-        listings = [{**make_listing_dict(), "listing_id": "pp-3"}]
-        with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
-             patch("app.notifier.db.get_profiles", return_value=[]), \
-             patch("app.notifier._smtp_send", return_value=True) as mock_smtp, \
-             patch("app.notifier.db.log_notification"):
+    def test_keine_profile_kein_versand(self):
+        """Keine Profile konfiguriert → kein Claim, kein Versand."""
+        with patch("app.notifier.db.get_profiles", return_value=[]), \
+             patch("app.notifier.db.claim_unnotified_listings") as mock_claim:
             result = notify_pending(self._SETTINGS)
-        assert result is True
-        mock_smtp.assert_called_once()
+        assert result is False
+        mock_claim.assert_not_called()
 
 
 # ── _smtp_send ────────────────────────────────────────────────
@@ -564,8 +562,8 @@ class TestNotify:
         "email_subject_alert": "🔍 {n} neue Anzeige(n)",
         "email_sender": "test@example.com",
         "email_password": "secret",
-        "email_recipient": "empfaenger@example.com",
     }
+    _PROFILE = {"id": 1, "email": "empfaenger@example.com", "notify_mode": "immediate"}
 
     def test_email_deaktiviert_gibt_false(self):
         result = notify([make_listing()], {**self._SETTINGS, "email_enabled": "0"})
@@ -575,9 +573,15 @@ class TestNotify:
         result = notify([], self._SETTINGS)
         assert result is False
 
+    def test_kein_profil_email_gibt_false(self):
+        with patch("app.notifier.db.get_profiles", return_value=[]):
+            result = notify([make_listing()], self._SETTINGS)
+        assert result is False
+
     def test_sendet_und_markiert_notified(self):
         listing = make_listing(listing_id="nl-1")
-        with patch("app.notifier._smtp_send", return_value=True) as mock_send, \
+        with patch("app.notifier.db.get_profiles", return_value=[self._PROFILE]), \
+             patch("app.notifier._smtp_send", return_value=True) as mock_send, \
              patch("app.notifier.db.mark_listings_notified") as mock_mark, \
              patch("app.notifier.db.log_notification"):
             result = notify([listing], self._SETTINGS)
@@ -586,7 +590,8 @@ class TestNotify:
         mock_mark.assert_called_once_with(["nl-1"])
 
     def test_kein_mark_bei_smtp_fehler(self):
-        with patch("app.notifier._smtp_send", return_value=False), \
+        with patch("app.notifier.db.get_profiles", return_value=[self._PROFILE]), \
+             patch("app.notifier._smtp_send", return_value=False), \
              patch("app.notifier.db.mark_listings_notified") as mock_mark:
             result = notify([make_listing()], self._SETTINGS)
         assert result is False
@@ -594,7 +599,8 @@ class TestNotify:
 
     def test_betreff_platzhalter_wird_ersetzt(self):
         listing = make_listing()
-        with patch("app.notifier._send_dicts") as mock_send:
+        with patch("app.notifier.db.get_profiles", return_value=[self._PROFILE]), \
+             patch("app.notifier._send_dicts") as mock_send:
             mock_send.return_value = False
             notify([listing, listing], self._SETTINGS)
         subject = mock_send.call_args[0][0]
@@ -608,23 +614,22 @@ class TestSendDigest:
 
     _SETTINGS = {
         "email_enabled": "1",
-        "digest_enabled": "1",
         "email_sender": "test@example.com",
         "email_password": "secret",
-        "email_recipient": "empfaenger@example.com",
     }
 
-    def test_digest_deaktiviert_gibt_false(self):
-        result = send_digest({**self._SETTINGS, "digest_enabled": "0"})
+    def test_kein_recipient_gibt_false(self):
+        """send_digest ohne recipient ist nicht erlaubt – kein globaler Digest."""
+        result = send_digest(self._SETTINGS)
         assert result is False
 
     def test_email_deaktiviert_gibt_false(self):
-        result = send_digest({**self._SETTINGS, "email_enabled": "0"})
+        result = send_digest({**self._SETTINGS, "email_enabled": "0"}, recipient="x@example.com")
         assert result is False
 
     def test_keine_anzeigen_heute_gibt_false(self):
         with patch("app.notifier.db.get_listings_today", return_value=[]):
-            result = send_digest(self._SETTINGS)
+            result = send_digest(self._SETTINGS, recipient="x@example.com")
         assert result is False
 
     def test_sendet_digest_und_loggt(self):
@@ -632,33 +637,21 @@ class TestSendDigest:
         with patch("app.notifier.db.get_listings_today", return_value=[listing]), \
              patch("app.notifier._smtp_send", return_value=True), \
              patch("app.notifier.db.log_notification") as mock_log:
-            result = send_digest(self._SETTINGS)
+            result = send_digest(self._SETTINGS, recipient="profil@example.com")
         assert result is True
         mock_log.assert_called_once()
-        call_args = mock_log.call_args[0]
-        assert call_args[0] == "digest"
+        assert mock_log.call_args[0][0] == "digest"
 
     def test_kein_log_bei_smtp_fehler(self):
         listing = make_listing_dict()
         with patch("app.notifier.db.get_listings_today", return_value=[listing]), \
              patch("app.notifier._smtp_send", return_value=False), \
              patch("app.notifier.db.log_notification") as mock_log:
-            result = send_digest(self._SETTINGS)
+            result = send_digest(self._SETTINGS, recipient="profil@example.com")
         assert result is False
         mock_log.assert_not_called()
 
-    def test_recipient_param_ueberspringt_enabled_checks(self):
-        """send_digest(recipient=...) sendet auch wenn digest_enabled=0."""
-        listing = make_listing_dict()
-        settings_off = {**self._SETTINGS, "digest_enabled": "0", "email_enabled": "0"}
-        with patch("app.notifier.db.get_listings_today", return_value=[listing]), \
-             patch("app.notifier._smtp_send", return_value=True) as mock_smtp, \
-             patch("app.notifier.db.log_notification"):
-            result = send_digest(settings_off, recipient="profil@example.com")
-        assert result is True
-        mock_smtp.assert_called_once()
-
-    def test_recipient_param_sendet_an_angegebene_adresse(self):
+    def test_sendet_an_angegebene_adresse(self):
         listing = make_listing_dict()
         with patch("app.notifier.db.get_listings_today", return_value=[listing]), \
              patch("app.notifier._send_dicts") as mock_send, \
@@ -667,8 +660,3 @@ class TestSendDigest:
         call_kwargs = mock_send.call_args
         recipients_arg = call_kwargs.kwargs.get("recipients") or (call_kwargs.args[3] if len(call_kwargs.args) > 3 else None)
         assert recipients_arg == ["ziel@example.com"]
-
-    def test_recipient_keine_anzeigen_gibt_false(self):
-        with patch("app.notifier.db.get_listings_today", return_value=[]):
-            result = send_digest(self._SETTINGS, recipient="x@example.com")
-        assert result is False

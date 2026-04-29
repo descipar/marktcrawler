@@ -141,9 +141,6 @@
         </label>
       </div>
       <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
-        <div class="col-span-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-sm text-blue-800">
-          📬 Empfänger-E-Mail-Adressen werden jetzt <strong>pro Profil</strong> vergeben → <a href="#" onclick="switchTab('profiles');return false;" class="underline">Tab „Profile"</a>
-        </div>
         {% call field("Absender-E-Mail") %}
           <input type="email" name="email_sender" value="{{ s.email_sender }}"
             placeholder="crawler@gmail.com" class="input-field">

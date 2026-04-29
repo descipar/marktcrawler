@@ -20,22 +20,31 @@ logger = logging.getLogger(__name__)
 # ── Sofort-Benachrichtigung (manueller Crawl) ────────────────
 
 def notify(listings: list, settings: dict, force: bool = False) -> bool:
-    """Sendet sofortige E-Mail für manuell gestartete Crawls und markiert Listings als benachrichtigt."""
+    """Sendet sofortige E-Mail für manuell gestartete Crawls (ignoriert Intervall-Check)."""
     if not int(settings.get("email_enabled") or 0):
         return False
     if not listings:
         return False
 
+    profile_emails = [
+        p["email"] for p in db.get_profiles()
+        if p.get("email") and p.get("notify_mode") in ("immediate", "both")
+    ]
+    if not profile_emails:
+        logger.debug("notify: Keine Profil-E-Mails konfiguriert – kein Versand.")
+        return False
+
     listing_dicts = [asdict(l) for l in listings]
     tpl = settings.get("email_subject_alert", "🔍 Marktcrawler: {n} neue Anzeige(n) gefunden!")
     subject = tpl.replace("{n}", str(len(listing_dicts)))
-    result = _send_dicts(subject, listing_dicts, settings)
-    if result:
+    sent = any(
+        _send_dicts(subject, listing_dicts, settings, recipients=[email])
+        for email in profile_emails
+    )
+    if sent:
         db.mark_listings_notified([l.listing_id for l in listings])
-        raw_r = os.environ.get("EMAIL_RECIPIENT") or settings.get("email_recipient", "")
-        db.log_notification("alert", len(listing_dicts),
-                            len([r for r in raw_r.split(",") if r.strip()]))
-    return result
+        db.log_notification("alert", len(listing_dicts), len(profile_emails))
+    return sent
 
 
 # ── Gebündelter Benachrichtigungs-Job (alle 15 Min.) ─────────
@@ -56,28 +65,23 @@ def _alert_interval_elapsed(profile: dict, now: datetime) -> bool:
 
 
 def notify_pending(settings: dict) -> bool:
-    """Sammelt alle unbenachrichtigten Anzeigen und sendet eine gebündelte E-Mail.
+    """Sammelt alle unbenachrichtigten Anzeigen und sendet pro fälligem Profil eine E-Mail.
 
-    Per-Profil-Modus: Profile mit E-Mail und notify_mode='immediate'/'both' werden
-    einzeln benachrichtigt, aber nur wenn ihr alert_interval_minutes seit der letzten
-    Benachrichtigung abgelaufen ist. Sind Profile konfiguriert aber keines fällig →
-    kein Versand (Listings bleiben unnotified für den nächsten Lauf).
-    Fallback: globale email_recipient-Einstellung wenn kein Profil eine E-Mail hat.
+    Kein Profil mit E-Mail oder kein Profil hat sein Intervall erreicht → kein Versand,
+    kein Claim (Listings bleiben unnotified für den nächsten Lauf).
     """
     if not int(settings.get("email_enabled") or 0):
         return False
 
     now = datetime.now(timezone.utc)
-    all_profiles = db.get_profiles()
-    configured = [
-        p for p in all_profiles
-        if p.get("email") and p.get("notify_mode") in ("immediate", "both")
+    eligible = [
+        p for p in db.get_profiles()
+        if p.get("email")
+        and p.get("notify_mode") in ("immediate", "both")
+        and _alert_interval_elapsed(p, now)
     ]
-    eligible = [p for p in configured if _alert_interval_elapsed(p, now)]
-
-    # Profile konfiguriert aber kein Profil ist fällig → warten
-    if configured and not eligible:
-        logger.debug("notify_pending: Alle Profile innerhalb ihres Intervalls – kein Versand.")
+    if not eligible:
+        logger.debug("notify_pending: Keine Profil-E-Mails fällig.")
         return False
 
     listings = db.claim_unnotified_listings()
@@ -87,37 +91,25 @@ def notify_pending(settings: dict) -> bool:
 
     tpl = settings.get("email_subject_alert", "🔍 Marktcrawler: {n} neue Anzeige(n) gefunden!")
     subject = tpl.replace("{n}", str(len(listings)))
-
-    if eligible:
-        for profile in eligible:
-            _send_dicts(subject, listings, settings, recipients=[profile["email"]])
-            db.update_last_alert_sent(profile["id"])
-        logger.info(f"notify_pending: {len(listings)} Anzeigen an {len(eligible)} Profile gesendet.")
-        db.log_notification("alert", len(listings), len(eligible))
-    else:
-        result = _send_dicts(subject, listings, settings)
-        if not result:
-            return False
-        logger.info(f"notify_pending: {len(listings)} Anzeigen benachrichtigt.")
-        raw_r = os.environ.get("EMAIL_RECIPIENT") or settings.get("email_recipient", "")
-        db.log_notification("alert", len(listings), len([r for r in raw_r.split(",") if r.strip()]))
-
+    for profile in eligible:
+        _send_dicts(subject, listings, settings, recipients=[profile["email"]])
+        db.update_last_alert_sent(profile["id"])
+    logger.info(f"notify_pending: {len(listings)} Anzeigen an {len(eligible)} Profile gesendet.")
+    db.log_notification("alert", len(listings), len(eligible))
     return True
 
 
 # ── Tages-Digest ─────────────────────────────────────────────
 
 def send_digest(settings: dict, recipient: str | None = None) -> bool:
-    """Sendet die tägliche Zusammenfassung aller heute gefundenen Anzeigen.
+    """Sendet die tägliche Zusammenfassung an eine Profil-E-Mail-Adresse.
 
-    recipient: direkte E-Mail-Adresse für per-Profil-Digest; überspringt
-               die globalen digest_enabled/email_enabled-Checks.
+    recipient muss immer angegeben werden – kein globaler Fallback.
     """
-    if recipient is None:
-        if not int(settings.get("digest_enabled") or 0):
-            return False
-        if not int(settings.get("email_enabled") or 0):
-            return False
+    if not recipient:
+        return False
+    if not int(settings.get("email_enabled") or 0):
+        return False
 
     listings = db.get_listings_today()
     if not listings:
@@ -126,13 +118,10 @@ def send_digest(settings: dict, recipient: str | None = None) -> bool:
 
     tpl = settings.get("email_subject_digest", "🔍 Marktcrawler Tages-Digest: {n} Anzeige(n) heute")
     subject = tpl.replace("{n}", str(len(listings)))
-    logger.info(f"Sende Tages-Digest mit {len(listings)} Anzeigen{' an ' + recipient if recipient else ''}.")
-    recipients = [recipient] if recipient else None
-    result = _send_dicts(subject, listings, settings, is_digest=True, recipients=recipients)
+    logger.info(f"Sende Tages-Digest mit {len(listings)} Anzeigen an {recipient}.")
+    result = _send_dicts(subject, listings, settings, is_digest=True, recipients=[recipient])
     if result:
-        raw_r = os.environ.get("EMAIL_RECIPIENT") or settings.get("email_recipient", "")
-        count = 1 if recipient else len([r for r in raw_r.split(",") if r.strip()])
-        db.log_notification("digest", len(listings), count)
+        db.log_notification("digest", len(listings), 1)
     return result
 
 

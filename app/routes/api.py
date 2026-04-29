@@ -219,6 +219,14 @@ def api_clear_listings_by_platform():
                     "message": f"{deleted} Anzeigen von {platform} gelöscht."})
 
 
+@bp.route("/api/clear-geocache", methods=["POST"])
+def api_clear_geocache():
+    count = db.clear_geocache()
+    logger.info(f"🗑️ {count} Geocache-Einträge gelöscht.")
+    return jsonify({"status": "ok", "deleted": count,
+                    "message": f"{count} Geocache-Einträge gelöscht."})
+
+
 @bp.route("/api/clear-listings-by-age", methods=["POST"])
 def api_clear_listings_by_age():
     try:

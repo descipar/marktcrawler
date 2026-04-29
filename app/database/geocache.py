@@ -24,3 +24,11 @@ def save_geocache(location_text: str, lat: float, lon: float):
             (key, lat, lon),
         )
         conn.commit()
+
+
+def clear_geocache() -> int:
+    with _db() as conn:
+        conn.execute("DELETE FROM geocache")
+        count = conn.execute("SELECT changes()").fetchone()[0]
+        conn.commit()
+    return count

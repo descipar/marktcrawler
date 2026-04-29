@@ -329,32 +329,6 @@
       </div>
     </div>
 
-    <!-- Alte Anzeigen löschen -->
-    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      <div class="px-5 py-3 bg-orange-50 border-b border-slate-200">
-        <h2 class="font-semibold text-orange-800">🗑️ Alte Anzeigen löschen</h2>
-      </div>
-      <div class="p-5 flex items-end gap-3">
-        <div class="flex-1">
-          <label class="block text-sm font-medium text-slate-700 mb-1">Anzeigen löschen die älter sind als (Stunden)</label>
-          <input type="number" id="deleteAgeHours" min="1" placeholder="z.B. 48"
-            class="input-field w-full">
-        </div>
-        <button type="button" onclick="deleteOldListings(this)"
-          class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg">
-          Jetzt löschen
-        </button>
-      </div>
-      <div class="px-5 pb-4">
-        <div id="delete-log-output"
-          class="bg-slate-900 rounded-lg p-3 h-28 overflow-y-auto font-mono text-xs text-green-400 whitespace-pre-wrap leading-5">
-          <span class="text-slate-500">Noch kein Lösch-Lauf.</span>
-        </div>
-      </div>
-      <div class="px-5 pb-4 text-xs text-slate-500">
-        💡 Löscht Anzeigen dauerhaft aus der Datenbank und merkt sie als gesehen – sie werden beim nächsten Crawl nicht erneut gefunden. Favoriten bleiben erhalten.
-      </div>
-    </div>
 
   </div><!-- /tab-crawler -->
 
@@ -613,12 +587,41 @@
         <div class="border-t border-slate-100 pt-4 flex items-center justify-between gap-4">
           <div>
             <p class="text-sm text-slate-700 font-medium">Alle Suchergebnisse löschen</p>
-            <p class="text-xs text-slate-400 mt-0.5">Löscht alle gespeicherten Anzeigen und den Geocache. Einstellungen und Suchbegriffe bleiben erhalten. Favoriten werden nicht gelöscht.</p>
+            <p class="text-xs text-slate-400 mt-0.5">Löscht alle gespeicherten Anzeigen. Einstellungen und Suchbegriffe bleiben erhalten. Favoriten werden nicht gelöscht.</p>
           </div>
           <button type="button" id="clearListingsBtn" onclick="clearAllListings()"
             class="shrink-0 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
             Löschen
           </button>
+        </div>
+        <div class="border-t border-slate-100 pt-4 flex items-end gap-3">
+          <div class="flex-1">
+            <p class="text-sm text-slate-700 font-medium">Alte Anzeigen löschen</p>
+            <p class="text-xs text-slate-400 mt-0.5">Löscht Anzeigen dauerhaft und merkt sie als gesehen – sie werden beim nächsten Crawl nicht erneut gefunden. Favoriten bleiben erhalten.</p>
+            <input type="number" id="deleteAgeHours" min="1" placeholder="z.B. 48"
+              class="input-field mt-2 w-full">
+          </div>
+          <button type="button" onclick="deleteOldListings(this)"
+            class="shrink-0 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg transition-colors">
+            Jetzt löschen
+          </button>
+        </div>
+        <div class="border-t border-slate-100 pt-4 flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm text-slate-700 font-medium">Geocache löschen</p>
+            <p class="text-xs text-slate-400 mt-0.5">Löscht alle gecachten Standort-Koordinaten. Werden beim nächsten Crawl per Nominatim neu abgefragt.</p>
+          </div>
+          <button type="button" id="clearGeocacheBtn" onclick="clearGeoCache()"
+            class="shrink-0 bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
+            Löschen
+          </button>
+        </div>
+      </div>
+      <div class="px-5 pb-4 border-t border-slate-100 pt-4">
+        <p class="text-xs font-medium text-slate-500 mb-1.5">Aktivitäts-Log</p>
+        <div id="data-log-output"
+          class="bg-slate-900 rounded-lg p-3 h-28 overflow-y-auto font-mono text-xs text-green-400 whitespace-pre-wrap leading-5">
+          <span class="text-slate-500">Noch keine Aktion ausgeführt.</span>
         </div>
       </div>
     </div>
@@ -759,6 +762,31 @@ document.querySelectorAll('.test-btn').forEach(btn => {
 });
 
 // ── Datenverwaltung ──────────────────────────────────────
+let _dataLogTimer = null;
+
+function _refreshDataLog() {
+  fetch('/api/log').then(r => r.json()).then(lines => {
+    if (!lines.length) return;
+    const out = document.getElementById('data-log-output');
+    if (!out) return;
+    out.textContent = lines.join('\n');
+    out.scrollTop = out.scrollHeight;
+  }).catch(() => {});
+}
+
+function _startDataLog() {
+  const out = document.getElementById('data-log-output');
+  if (out) out.innerHTML = '<span class="text-slate-400">Läuft…</span>';
+  _refreshDataLog();
+  _dataLogTimer = setInterval(_refreshDataLog, 1500);
+}
+
+function _stopDataLog() {
+  clearInterval(_dataLogTimer);
+  _dataLogTimer = null;
+  setTimeout(_refreshDataLog, 400);
+}
+
 async function cleanupMismatched() {
   const btn = document.getElementById('cleanupMismatchedBtn');
   btn.disabled = true; btn.textContent = 'Läuft…';
@@ -766,6 +794,7 @@ async function cleanupMismatched() {
     const r = await fetch('/api/cleanup-mismatched', {method: 'POST'});
     const d = await r.json();
     btn.textContent = `✓ ${d.deleted} gelöscht`;
+    _refreshDataLog();
     setTimeout(() => { btn.disabled = false; btn.textContent = 'Bereinigen'; }, 5000);
   } catch(e) {
     btn.textContent = '✗ Fehler'; btn.disabled = false;
@@ -787,6 +816,7 @@ async function clearListingsByPlatform() {
       showToast(data.message || `${platform} gelöscht.`, 'success');
       btn.textContent = '✓ Gelöscht';
       btn.classList.replace('bg-red-600', 'bg-green-600');
+      _refreshDataLog();
       setTimeout(() => { btn.disabled = false; btn.textContent = 'Löschen'; btn.classList.replace('bg-green-600', 'bg-red-600'); }, 3000);
     } catch { btn.disabled = false; btn.textContent = 'Fehler'; }
   }, 'Löschen');
@@ -801,18 +831,37 @@ function clearAllListings() {
       .then(() => {
         btn.textContent = '✓ Gelöscht';
         btn.classList.replace('bg-red-600', 'bg-green-600');
+        _refreshDataLog();
         setTimeout(() => { btn.disabled = false; btn.textContent = 'Löschen'; btn.classList.replace('bg-green-600', 'bg-red-600'); }, 3000);
       })
       .catch(() => { btn.disabled = false; btn.textContent = 'Fehler'; });
   }, 'Löschen');
 }
 
+async function clearGeoCache() {
+  const btn = document.getElementById('clearGeocacheBtn');
+  btn.disabled = true; btn.textContent = 'Lädt...';
+  try {
+    const r = await fetch('/api/clear-geocache', {method: 'POST'});
+    const d = await r.json();
+    showToast(d.message || 'Geocache gelöscht.', 'success');
+    btn.textContent = '✓ Gelöscht';
+    btn.classList.replace('bg-slate-600', 'bg-green-600');
+    _refreshDataLog();
+    setTimeout(() => { btn.disabled = false; btn.textContent = 'Löschen'; btn.classList.replace('bg-green-600', 'bg-slate-600'); }, 3000);
+  } catch { btn.disabled = false; btn.textContent = 'Fehler'; }
+}
+
 function runAvailabilityCheck() {
   showConfirm('Verfügbarkeits-Check starten? Nicht mehr erreichbare Anzeigen (inkl. Favoriten) werden gelöscht.', () => {
+    _startDataLog();
     fetch('/api/availability-check', {method: 'POST'})
       .then(r => r.json())
-      .then(() => showToast('Verfügbarkeits-Check gestartet. Ergebnis im Dashboard-Log sichtbar.'))
-      .catch(() => showToast('Fehler beim Starten des Checks.'));
+      .then(() => {
+        showToast('Verfügbarkeits-Check gestartet.');
+        setTimeout(() => _stopDataLog(), 30000);
+      })
+      .catch(() => { _stopDataLog(); showToast('Fehler beim Starten des Checks.'); });
   }, 'Starten');
 }
 
@@ -903,35 +952,12 @@ async function saveProfileNotify(id, btn) {
   }
 }
 
-let _deleteLogTimer = null;
-
-function _refreshDeleteLog() {
-  fetch('/api/log').then(r => r.json()).then(lines => {
-    if (!lines.length) return;
-    const out = document.getElementById('delete-log-output');
-    out.textContent = lines.join('\n');
-    out.scrollTop = out.scrollHeight;
-  }).catch(() => {});
-}
-
-function _startDeleteLog() {
-  document.getElementById('delete-log-output').innerHTML = '<span class="text-slate-400">Läuft…</span>';
-  _refreshDeleteLog();
-  _deleteLogTimer = setInterval(_refreshDeleteLog, 1500);
-}
-
-function _stopDeleteLog() {
-  clearInterval(_deleteLogTimer);
-  _deleteLogTimer = null;
-  setTimeout(_refreshDeleteLog, 400);
-}
-
 function deleteOldListings(btn) {
   const hours = parseInt(document.getElementById('deleteAgeHours').value);
   if (!hours || hours <= 0) { showToast('Bitte eine gültige Stundenanzahl eingeben.'); return; }
   showConfirm(`Wirklich alle Anzeigen löschen die älter als ${hours} Stunden sind? Sie werden nicht erneut gefunden. Favoriten bleiben erhalten.`, () => {
     btn.disabled = true; btn.textContent = 'Lädt...';
-    _startDeleteLog();
+    _startDataLog();
     fetch('/api/clear-listings-by-age', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -939,12 +965,12 @@ function deleteOldListings(btn) {
     })
       .then(r => r.json())
       .then(d => {
-        _stopDeleteLog();
+        _stopDataLog();
         btn.textContent = `✓ ${d.deleted} gelöscht`;
         btn.classList.replace('bg-orange-600', 'bg-green-600');
         setTimeout(() => { btn.disabled = false; btn.textContent = 'Jetzt löschen'; btn.classList.replace('bg-green-600', 'bg-orange-600'); }, 3000);
       })
-      .catch(() => { _stopDeleteLog(); btn.disabled = false; btn.textContent = 'Fehler'; });
+      .catch(() => { _stopDataLog(); btn.disabled = false; btn.textContent = 'Fehler'; });
   }, 'Löschen');
 }
 

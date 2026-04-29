@@ -8,6 +8,7 @@ from unittest.mock import patch, MagicMock
 from app.notifier import (
     _card_html, _html_from_dicts, _html_grouped, _html_email, _text_from_dicts, _smtp_send,
     notify, notify_pending, send_digest, _get_email_config, _normalize_server_url,
+    _alert_interval_elapsed, _send_dicts, _get_server_url,
 )
 from app.scrapers.base import Listing
 
@@ -270,7 +271,9 @@ class TestNotifyPending:
         mock_claim.assert_not_called()
 
     def test_sendet_nicht_ohne_listings(self):
-        with patch("app.notifier.db.claim_unnotified_listings", return_value=[]), \
+        profile = {"id": 1, "email": "a@example.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None}
+        with patch("app.notifier.db.get_profiles", return_value=[profile]), \
+             patch("app.notifier.db.claim_unnotified_listings", return_value=[]), \
              patch("app.notifier._smtp_send") as mock_smtp:
             result = notify_pending(self._SETTINGS)
         assert result is False
@@ -660,3 +663,109 @@ class TestSendDigest:
         call_kwargs = mock_send.call_args
         recipients_arg = call_kwargs.kwargs.get("recipients") or (call_kwargs.args[3] if len(call_kwargs.args) > 3 else None)
         assert recipients_arg == ["ziel@example.com"]
+
+
+# ── _alert_interval_elapsed: Detailtests ─────────────────────
+
+class TestAlertIntervalElapsed:
+
+    def _now(self):
+        from datetime import datetime, timezone
+        return datetime.now(timezone.utc)
+
+    def test_naive_datetime_wird_als_utc_behandelt(self):
+        """Naive datetime-Strings (ohne Timezone) werden als UTC interpretiert – kein Fehler."""
+        from datetime import datetime, timedelta
+        old_naive = (datetime.utcnow() - timedelta(hours=2)).isoformat()
+        profile = {"alert_interval_minutes": 60, "last_alert_sent_at": old_naive}
+        assert _alert_interval_elapsed(profile, self._now()) is True
+
+    def test_ungueltige_zeitangabe_gibt_true(self):
+        """Ungültiger last_alert_sent_at-String → True (Intervall gilt als abgelaufen)."""
+        profile = {"alert_interval_minutes": 60, "last_alert_sent_at": "kein-datum"}
+        assert _alert_interval_elapsed(profile, self._now()) is True
+
+    def test_none_last_sent_gibt_true(self):
+        profile = {"alert_interval_minutes": 60, "last_alert_sent_at": None}
+        assert _alert_interval_elapsed(profile, self._now()) is True
+
+
+# ── _send_dicts ohne explizite recipients ────────────────────
+
+class TestSendDicts:
+
+    _SETTINGS = {
+        "email_enabled": "1",
+        "email_smtp_server": "smtp.example.com",
+        "email_smtp_port": "587",
+    }
+
+    def test_ohne_recipients_arg_nutzt_get_email_config(self):
+        """recipients=None → _get_email_config wird aufgerufen."""
+        listing = make_listing_dict()
+        with patch("app.notifier._get_email_config", return_value=("s@e.com", "pw", ["r@e.com"])) as mock_cfg, \
+             patch("app.notifier._smtp_send", return_value=True):
+            _send_dicts("Betreff", [listing], self._SETTINGS)
+        mock_cfg.assert_called_once()
+
+    def test_leere_recipients_gibt_false(self):
+        """recipients=[] → sofort False, kein SMTP-Aufruf."""
+        listing = make_listing_dict()
+        with patch("app.notifier._smtp_send") as mock_smtp:
+            result = _send_dicts("Betreff", [listing], self._SETTINGS, recipients=[])
+        assert result is False
+        mock_smtp.assert_not_called()
+
+
+# ── _smtp_send: Fehlerbehandlung ─────────────────────────────
+
+class TestSmtpSendErrors:
+
+    def _make_msg(self):
+        from email.mime.text import MIMEText
+        msg = MIMEText("test", "plain", "utf-8")
+        msg["Subject"] = "Test"
+        msg["From"] = "a@example.com"
+        msg["To"] = "b@example.com"
+        return msg
+
+    def test_authentication_error_gibt_false(self):
+        import smtplib
+        settings = {"email_smtp_server": "smtp.example.com", "email_smtp_port": "587"}
+        with patch("smtplib.SMTP") as mock_smtp_cls:
+            mock_smtp_cls.return_value.__enter__.side_effect = smtplib.SMTPAuthenticationError(535, b"auth failed")
+            result = _smtp_send(self._make_msg(), "a@example.com", "pw", ["b@example.com"], settings)
+        assert result is False
+
+    def test_allgemeiner_fehler_gibt_false(self):
+        settings = {"email_smtp_server": "smtp.example.com", "email_smtp_port": "587"}
+        with patch("smtplib.SMTP") as mock_smtp_cls:
+            mock_smtp_cls.return_value.__enter__.side_effect = ConnectionRefusedError("refused")
+            result = _smtp_send(self._make_msg(), "a@example.com", "pw", ["b@example.com"], settings)
+        assert result is False
+
+
+# ── _get_server_url ──────────────────────────────────────────
+
+class TestGetServerUrl:
+
+    def test_konfigurierte_url_wird_normalisiert(self):
+        """Wenn server_url in settings gesetzt, wird _normalize_server_url aufgerufen."""
+        result = _get_server_url({"server_url": "192.168.1.10"})
+        assert result == "http://192.168.1.10:5000"
+
+    def test_leere_url_versucht_socket_erkennung(self):
+        """Keine server_url → Socket-Erkennung; bei Fehler leerer String."""
+        import socket
+        with patch.object(socket.socket, "connect", side_effect=OSError("no route")):
+            result = _get_server_url({})
+        assert result == ""
+
+    def test_socket_erkennung_liefert_ip(self):
+        """Wenn Socket-Verbindung klappt, wird die erkannte IP zurückgegeben."""
+        import socket
+        with patch.object(socket.socket, "connect"), \
+             patch.object(socket.socket, "getsockname", return_value=("192.168.0.42", 0)), \
+             patch.object(socket.socket, "close"):
+            result = _get_server_url({})
+        assert result == "http://192.168.0.42:5000"

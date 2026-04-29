@@ -236,6 +236,31 @@ class TestApiCrawl:
             data = json.loads(resp.data)
             assert data["status"] == "already_running"
 
+    def test_crawl_alle_plattformen_startet_aktivierte(self, client, app):
+        import app.database as db
+        with app.app_context():
+            db.save_settings({"kleinanzeigen_enabled": "1", "shpock_enabled": "0"})
+        with patch("app.routes.api.is_running", return_value=False), \
+             patch("app.routes.api.run_crawl_async") as mock_run:
+            resp = client.post("/api/crawl", json={})
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data["status"] == "started"
+        platforms_started = [call.args[0] for call in mock_run.call_args_list]
+        assert "kleinanzeigen" in platforms_started
+
+    def test_crawl_unbekannte_plattform_gibt_400(self, client):
+        with patch("app.routes.api.is_running", return_value=False):
+            resp = client.post("/api/crawl", json={"platform": "gibts_nicht"})
+        assert resp.status_code == 400
+        assert json.loads(resp.data)["status"] == "error"
+
+    def test_crawl_einzelne_plattform_bereits_laufend_gibt_409(self, client):
+        with patch("app.routes.api.is_running", return_value=True):
+            resp = client.post("/api/crawl", json={"platform": "kleinanzeigen"})
+        assert resp.status_code == 409
+        assert json.loads(resp.data)["status"] == "already_running"
+
 
 # ── Status-API ────────────────────────────────────────────────
 
@@ -531,6 +556,16 @@ class TestApiTestScraper:
         data = json.loads(resp.data)
         assert data["status"] == "ok"
         assert data["count"] == 0
+
+    def test_scraper_exception_gibt_500(self, client):
+        with patch("app.scrapers.KleinanzeigenScraper", side_effect=RuntimeError("Verbindung fehlgeschlagen")):
+            resp = client.post("/api/test-scraper",
+                               json={"platform": "kleinanzeigen"},
+                               content_type="application/json")
+        assert resp.status_code == 500
+        data = json.loads(resp.data)
+        assert data["status"] == "error"
+        assert "Verbindung fehlgeschlagen" in data["message"]
 
 
 # ── KI-Modelle-API ───────────────────────────────────────────
@@ -1011,3 +1046,106 @@ class TestCheckUpdatesApi:
             data = client.get("/api/check-updates").get_json()
         assert data["count"] == 1
         assert data["updates"][0]["message"] == "feat: etwas"
+
+
+# ── Cleanup-Mismatched-API ────────────────────────────────────
+
+class TestApiCleanupMismatched:
+
+    def test_bereinigt_und_gibt_anzahl_zurueck(self, client, app):
+        from app.scrapers.base import Listing
+        import app.database as db
+        with app.app_context():
+            db.add_search_term("testbegriff")
+            db.save_listing(Listing(
+                platform="Test", title="Passt nicht xyz", price="5 €",
+                location="München", url="https://example.com/mm1",
+                listing_id="mm-test-1", search_term="testbegriff",
+            ))
+        resp = client.post("/api/cleanup-mismatched")
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data["status"] == "ok"
+        assert "deleted" in data
+        assert isinstance(data["deleted"], int)
+
+
+# ── Availability-Check-API ────────────────────────────────────
+
+class TestApiAvailabilityCheck:
+
+    def test_startet_check_gibt_200(self, client):
+        with patch("app.routes.api.threading.Thread") as mock_thread:
+            mock_thread.return_value.start = MagicMock()
+            resp = client.post("/api/availability-check")
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data["status"] == "started"
+        mock_thread.return_value.start.assert_called_once()
+
+
+# ── Geocache-API ──────────────────────────────────────────────
+
+class TestApiClearGeoCache:
+
+    def test_loescht_geocache_eintraege(self, client, app):
+        import app.database as db
+        with app.app_context():
+            db.save_geocache("München", 48.1351, 11.5820)
+            db.save_geocache("Berlin", 52.5200, 13.4050)
+        resp = client.post("/api/clear-geocache")
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data["status"] == "ok"
+        assert data["deleted"] == 2
+
+    def test_leerer_cache_loescht_zero(self, client):
+        resp = client.post("/api/clear-geocache")
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data["deleted"] == 0
+
+
+# ── Profil-Routen: Session-Grenzfälle ────────────────────────
+
+class TestProfileRoutesSessionEdgeCases:
+
+    def test_update_profil_aktualisiert_aktive_session(self, client, app):
+        """Wenn das zu bearbeitende Profil in der Session aktiv ist, wird die Session aktualisiert."""
+        import app.database as db
+        with app.app_context():
+            pid = db.create_profile("Alt", "👤")
+        client.post(f"/profiles/select/{pid}")
+        with client.session_transaction() as sess:
+            assert sess.get("profile_name") == "Alt"
+        client.post(f"/profiles/{pid}/update",
+                    json={"name": "Neu", "emoji": "🐱"},
+                    content_type="application/json")
+        with client.session_transaction() as sess:
+            assert sess.get("profile_name") == "Neu"
+            assert sess.get("profile_emoji") == "🐱"
+
+    def test_notify_route_laeuft_durch_bei_scheduler_fehler(self, client, app):
+        """scheduler.update_profile_digest_schedules() darf fehlschlagen ohne 500."""
+        import app.database as db
+        with app.app_context():
+            pid = db.create_profile("P", "👤")
+        with patch("app.scheduler.update_profile_digest_schedules", side_effect=RuntimeError("no scheduler")):
+            resp = client.post(
+                f"/profiles/{pid}/notify",
+                json={"email": "x@x.com", "notify_mode": "immediate", "digest_time": "19:00"},
+                content_type="application/json",
+            )
+        assert resp.status_code == 200
+
+    def test_loeschen_aktives_profil_leert_session(self, client, app):
+        """Wenn das aktive Profil gelöscht wird, wird die Session geleert."""
+        import app.database as db
+        with app.app_context():
+            pid = db.create_profile("Zu löschen", "👤")
+        client.post(f"/profiles/select/{pid}")
+        with client.session_transaction() as sess:
+            assert sess.get("profile_id") == pid
+        client.post(f"/profiles/{pid}/delete")
+        with client.session_transaction() as sess:
+            assert "profile_id" not in sess

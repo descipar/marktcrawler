@@ -33,7 +33,7 @@ baby-crawler-v2/
     │   ├── settings.py         # get_settings(), set_setting(), save_settings()
     │   ├── search_terms.py     # get_search_terms(), create/delete/toggle/update_max_price
     │   ├── listings.py         # save_listing(), get_listings(), clear_old_listings(), claim_unnotified_listings()
-    │   ├── geocache.py         # get_geocache(), save_geocache() – Keys lowercase-normalisiert
+    │   ├── geocache.py         # get_geocache(), save_geocache(), clear_geocache() – Keys lowercase-normalisiert
     │   ├── profiles.py         # get_profiles(), create/update/delete_profile()
     │   └── stats.py            # get_price_stats(), get_platform_counts(), log_crawl_run()
     ├── routes/                 # Flask-Routen (Blueprint "main")
@@ -274,6 +274,9 @@ Die Einstellungsseite ist in vier Tabs unterteilt: **Plattformen**, **Benachrich
 - **Inline-Validierung**: `showFieldError()` zeigt Fehler direkt am Feld, wechselt zum richtigen Tab.
 - **Test-Buttons**: Pro Plattform ein „Verbindung testen"-Button ruft `POST /api/test-scraper` auf und zeigt Ergebnis inline.
 
+### Daten-Tab: Datenverwaltung
+Alle datenbezogenen Operationen sind im Tab „🗑️ Daten" gebündelt: Verfügbarkeits-Check, Nicht passende Anzeigen bereinigen, Anzeigen per Plattform löschen, Alle Anzeigen löschen, **Alte Anzeigen löschen** (nach Alter in Stunden), **Geocache löschen** (`POST /api/clear-geocache`). Ein gemeinsames **Aktivitäts-Log-Terminal** (`#data-log-output`) am unteren Kartenrand zeigt Logs aller Operationen in Echtzeit. Alle Buttons rufen nach Abschluss `_refreshDataLog()` auf; lang laufende Operationen (deleteOldListings, availabilityCheck) verwenden `_startDataLog()` / `_stopDataLog()` zum Polling (Intervall 1,5s, maximal 30s beim Availability-Check).
+
 ### Dashboard: Filter-Panel
 Filterbereich ist ein- und ausklappbar (`toggleFilterPanel()`). Anzahl aktiver Filter wird als Badge am Toggle-Button angezeigt. Zustand wird in `localStorage` gespeichert.
 
@@ -370,6 +373,7 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 | GET | `/api/platforms` | Distinct Plattformen der gespeicherten Anzeigen (JSON Array) |
 | POST | `/api/test-scraper` | Scraper-Verbindung testen (JSON: `{"platform": "kleinanzeigen"}`) |
 | POST | `/api/clear-listings-by-age` | Anzeigen löschen + dismissen die älter als `hours` sind (JSON body: `{"hours": N}`) |
+| POST | `/api/clear-geocache` | Geocache leeren (alle gecachten Standortkoordinaten löschen); liefert `{"status": "ok", "deleted": N}` |
 | GET | `/api/check-updates` | Vergleicht aktuellen Commit-Hash mit `main` auf GitHub; liefert `{status, updates, count, repo_url}` |
 | GET | `/profiles/select` | Profil-Auswahl-Seite (nur wenn Profile existieren) |
 | POST | `/profiles/select/<id>` | Profil aktivieren, `last_seen_at` in DB aktualisieren, Session setzen |

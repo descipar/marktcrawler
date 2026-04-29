@@ -33,6 +33,18 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 - [x] E-Mail-Anzeige im Profil-Tab: Kompakte Status-Zeile zeigt hinterlegte E-Mail + aktiven Modus + Intervall; JS aktualisiert Zeile sofort nach Save ohne Reload
 - [x] 24h-Format-Fix für alle `type="time"`-Inputs: CSS `::-webkit-datetime-edit-ampm-field { display: none }` erzwingt 24h in WebKit unabhängig von OS-Locale
 - [x] `tests/test_notifier.py`: Intervall-Tests (Versand an Profile, last_alert_sent aktualisiert, Intervall nicht abgelaufen → kein Claim) — 598 Tests gesamt
+- [x] Kein globaler E-Mail-Fallback: Empfänger-E-Mail im Notifications-Tab entfernt; kein `email_recipient`-Feld mehr; kein stiller Fallback in `notify_pending()` / `notify()` / `send_digest()`; blaue Erklärungsbox entfernt
+- [x] Digest-Zeit + Profil-Digest-Zeit auf `type="text"` mit `pattern="[0-2][0-9]:[0-5][0-9]"` umgestellt — löst AM/PM-Anzeige in allen Browsern permanent
+
+---
+
+### Phase 29 – Daten-Tab & Coverage-Verbesserungen
+
+- [x] „Alte Anzeigen löschen"-Block vom Crawler-Tab in den Daten-Tab verschoben
+- [x] Gemeinsames Aktivitäts-Log-Terminal im Daten-Tab (`#data-log-output`): zeigt Logs aller Daten-Tab-Operationen; alle Buttons rufen `_refreshDataLog()` / `_startDataLog()` / `_stopDataLog()` auf
+- [x] Geocache-Löschung im Daten-Tab: `clear_geocache()` in `database/geocache.py`; `POST /api/clear-geocache`; Button mit Log-Refresh
+- [x] CI-Fix: `test_sendet_nicht_ohne_listings` mockt jetzt `db.get_profiles` — lief lokal durch vorhandene leere DB, schlug in CI fehl
+- [x] Coverage-Lücken geschlossen: 21 neue Tests für `notifier._alert_interval_elapsed` (naive tz, ungültiger String), `_send_dicts` (kein recipients-Arg, leere Liste), `_smtp_send` (Auth-Fehler, allg. Fehler), `_get_server_url` (Socket-Fallback), `api/crawl` (alle Plattformen, unbekannte Plattform, einzeln laufend), `api_test_scraper` (Exception), `api_cleanup_mismatched`, `api_availability_check`, `api/clear-geocache`, Profil-Session-Updates — 639 Tests gesamt (618 Unit + 22 UI)
 
 ---
 

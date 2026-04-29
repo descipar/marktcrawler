@@ -228,3 +228,65 @@ class TestProfilUI:
         page.locator("form[action*='/profiles/select/'] button").first.click()
         page.wait_for_url(live_server + "/")
         expect(page.locator("nav, header")).to_contain_text("Kai")
+
+    def test_profil_notify_email_speichern_zeigt_toast(self, page: Page, live_server: str):
+        """E-Mail + Modus im Profil-Tab speichern → Success-Toast erscheint."""
+        import app.database as db_module
+        db_module.create_profile("Benachrichtig-Test", "📧")
+
+        page.goto(f"{live_server}/settings")
+        page.locator("button[data-tab='profiles']").click()
+        expect(page.locator("#tab-profiles")).to_be_visible()
+
+        li = page.locator("li[data-profile-id]").first
+        li.locator("[data-field='email']").fill("test@example.com")
+        li.locator("[data-field='notify_mode']").select_option("both")
+        li.locator("button", has_text="Speichern").click()
+
+        expect(page.locator("[role='alert']")).to_contain_text("gespeichert")
+
+    def test_profil_notify_werte_nach_reload_vorhanden(self, page: Page, live_server: str):
+        """Gespeicherte Notify-Einstellungen bleiben nach Seiten-Reload erhalten."""
+        import app.database as db_module
+        db_module.create_profile("Persistenz-Test", "💾")
+
+        page.goto(f"{live_server}/settings")
+        page.locator("button[data-tab='profiles']").click()
+
+        li = page.locator("li[data-profile-id]").first
+        li.locator("[data-field='email']").fill("persist@example.com")
+        li.locator("[data-field='notify_mode']").select_option("digest_only")
+        li.locator("[data-field='digest_time']").fill("07:30")
+        li.locator("button", has_text="Speichern").click()
+        expect(page.locator("[role='alert']")).to_contain_text("gespeichert")
+
+        page.goto(f"{live_server}/settings")
+        page.locator("button[data-tab='profiles']").click()
+        li = page.locator("li[data-profile-id]").first
+        expect(li.locator("[data-field='email']")).to_have_value("persist@example.com")
+        expect(li.locator("[data-field='notify_mode']")).to_have_value("digest_only")
+        expect(li.locator("[data-field='digest_time']")).to_have_value("07:30")
+
+    def test_profil_notify_digest_time_feld_sichtbarkeit(self, page: Page, live_server: str):
+        """Digest-Zeit-Feld ist bei 'immediate'/'off' versteckt, bei 'digest_only'/'both' sichtbar."""
+        import app.database as db_module
+        db_module.create_profile("Sichtbarkeit-Test", "👁")
+
+        page.goto(f"{live_server}/settings")
+        page.locator("button[data-tab='profiles']").click()
+
+        li = page.locator("li[data-profile-id]").first
+        select = li.locator("[data-field='notify_mode']")
+        digest_wrap = li.locator(".digest-time-wrap")
+
+        select.select_option("immediate")
+        expect(digest_wrap).to_be_hidden()
+
+        select.select_option("off")
+        expect(digest_wrap).to_be_hidden()
+
+        select.select_option("digest_only")
+        expect(digest_wrap).to_be_visible()
+
+        select.select_option("both")
+        expect(digest_wrap).to_be_visible()

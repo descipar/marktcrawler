@@ -7,7 +7,7 @@ Selbst gehostet, Docker-ready, läuft unbeaufsichtigt auf einem Raspberry Pi.
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-462%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-465%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)
 
 ---
@@ -186,16 +186,21 @@ Anzeigen älter als 30 Tage werden automatisch bereinigt. **Favoriten werden dab
 
 ## 🧹 Datenpflege
 
-### Anzeigen gegen Suchbegriffe bereinigen
+`scripts/cleanup_mismatched_listings.py` bereinigt bestehende Anzeigen nach zwei Kriterien:
 
-Bei Mehrwort-Suchbegriffen (z.B. „baby werder") prüft der Crawler seit v1.1 ob **alle** Wörter in Titel oder Beschreibung vorkommen. Anzeigen, die vor diesem Update gespeichert wurden, können mit folgendem Script nachträglich bereinigt werden:
+**AND-Filter** — Bei Mehrwort-Suchbegriffen (z.B. „baby werder") müssen alle Wörter in Titel oder Beschreibung stehen. Anzeigen die nur eines der Wörter enthalten werden entfernt.
+
+**Sprachfilter** — Fremdsprachige Anzeigen (z.B. italienische Vinted-Listings) werden anhand der Beschreibung erkannt und entfernt. Nur aktiv wenn `--lang` angegeben oder der Sprachfilter in den Einstellungen aktiviert ist.
 
 ```bash
-# Bericht: zeigt nicht passende Anzeigen gruppiert nach Suchbegriff
+# Bericht (kein Löschen)
 DATA_DIR=./data python scripts/cleanup_mismatched_listings.py
 
-# Löschen: entfernt nicht passende Anzeigen und trägt sie als dismissed ein
+# AND-Filter + konfigurierten Sprachfilter anwenden und löschen
 DATA_DIR=./data python scripts/cleanup_mismatched_listings.py --delete
+
+# Sprachfilter manuell erzwingen (unabhängig von DB-Einstellung)
+DATA_DIR=./data python scripts/cleanup_mismatched_listings.py --lang de --delete
 ```
 
 Gelöschte Anzeigen werden in `dismissed_listings` eingetragen und tauchen beim nächsten Crawl nicht erneut auf.

@@ -150,7 +150,7 @@ def save_settings():
         "marktde_interval", "marktde_max_age_hours",
         "email_enabled", "email_subject_alert", "email_subject_digest",
         "email_smtp_server", "email_smtp_port",
-        "email_sender", "email_password", "email_recipient",
+        "email_sender", "email_password",
         "crawler_interval", "crawler_max_results", "crawler_delay",
         "crawler_blacklist", "crawler_lang_filter_enabled", "crawler_lang_filter_langs",
         "display_max_age_hours",

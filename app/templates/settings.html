@@ -72,8 +72,6 @@
   .tab-btn { padding: .5rem 1.25rem; font-size:.875rem; font-weight:500; color:#64748b; border-bottom:2px solid transparent; transition:all .15s; }
   .tab-btn:hover { color:#1e293b; }
   .active-tab { color:#9333ea; border-bottom-color:#9333ea; }
-  /* 24h-Format erzwingen: AM/PM-Feld in WebKit ausblenden */
-  input[type="time"]::-webkit-datetime-edit-ampm-field { display: none; }
 </style>
 
 <form method="POST" action="/settings" id="settings-form" autocomplete="off">
@@ -143,11 +141,9 @@
         </label>
       </div>
       <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
-        {% call field("Empfänger(innen)") %}
-          <input type="text" name="email_recipient" value="{{ s.email_recipient }}"
-            placeholder="kai@example.com, partner@example.com"
-            class="input-field col-span-2">
-        {% endcall %}
+        <div class="col-span-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-sm text-blue-800">
+          📬 Empfänger-E-Mail-Adressen werden jetzt <strong>pro Profil</strong> vergeben → <a href="#" onclick="switchTab('profiles');return false;" class="underline">Tab „Profile"</a>
+        </div>
         {% call field("Absender-E-Mail") %}
           <input type="email" name="email_sender" value="{{ s.email_sender }}"
             placeholder="crawler@gmail.com" class="input-field">
@@ -195,9 +191,9 @@
         </label>
       </div>
       <div class="p-5 grid grid-cols-2 gap-4" data-platform-fields>
-        {% call field("Uhrzeit") %}
-          <input type="time" name="digest_time" value="{{ s.digest_time or '19:00' }}"
-            lang="de-DE" class="input-field">
+        {% call field("Uhrzeit (HH:MM)") %}
+          <input type="text" name="digest_time" value="{{ s.digest_time or '19:00' }}"
+            placeholder="19:00" pattern="[0-2][0-9]:[0-5][0-9]" class="input-field w-28">
         {% endcall %}
       </div>
       <div class="px-5 pb-4 text-xs text-slate-500">
@@ -553,9 +549,10 @@
               </div>
               <div class="flex items-center gap-2 digest-time-wrap {% if mode in ('immediate', 'off') %}hidden{% endif %}">
                 <label class="text-xs text-slate-500 shrink-0">Digest-Uhrzeit</label>
-                <input type="time" lang="de-DE" data-field="digest_time"
+                <input type="text" data-field="digest_time"
                   value="{{ profile.digest_time or '19:00' }}"
-                  class="input-field text-sm py-1 w-28">
+                  placeholder="19:00" pattern="[0-2][0-9]:[0-5][0-9]"
+                  class="input-field text-sm py-1 w-24">
               </div>
               <button type="button" onclick="saveProfileNotify({{ profile.id }}, this)"
                 class="text-xs px-3 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors">

@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 
 from app.notifier import (
     _card_html, _html_from_dicts, _html_grouped, _html_email, _text_from_dicts, _smtp_send,
-    notify_pending, _get_email_config, _normalize_server_url,
+    notify, notify_pending, send_digest, _get_email_config, _normalize_server_url,
 )
 from app.scrapers.base import Listing
 
@@ -482,3 +482,96 @@ class TestCardHtmlDashboardLink:
         html = _card_html("T", "P", "t", "10 €", "Ort", "https://x.com",
                           db_id=None, server_url="http://192.168.1.10:5000")
         assert "Im Dashboard" not in html
+
+
+# ── notify() ─────────────────────────────────────────────────
+
+class TestNotify:
+
+    _SETTINGS = {
+        "email_enabled": "1",
+        "email_subject_alert": "🔍 {n} neue Anzeige(n)",
+        "email_sender": "test@example.com",
+        "email_password": "secret",
+        "email_recipient": "empfaenger@example.com",
+    }
+
+    def test_email_deaktiviert_gibt_false(self):
+        result = notify([make_listing()], {**self._SETTINGS, "email_enabled": "0"})
+        assert result is False
+
+    def test_leere_listings_gibt_false(self):
+        result = notify([], self._SETTINGS)
+        assert result is False
+
+    def test_sendet_und_markiert_notified(self):
+        listing = make_listing(listing_id="nl-1")
+        with patch("app.notifier._smtp_send", return_value=True) as mock_send, \
+             patch("app.notifier.db.mark_listings_notified") as mock_mark, \
+             patch("app.notifier.db.log_notification"):
+            result = notify([listing], self._SETTINGS)
+        assert result is True
+        mock_send.assert_called_once()
+        mock_mark.assert_called_once_with(["nl-1"])
+
+    def test_kein_mark_bei_smtp_fehler(self):
+        with patch("app.notifier._smtp_send", return_value=False), \
+             patch("app.notifier.db.mark_listings_notified") as mock_mark:
+            result = notify([make_listing()], self._SETTINGS)
+        assert result is False
+        mock_mark.assert_not_called()
+
+    def test_betreff_platzhalter_wird_ersetzt(self):
+        listing = make_listing()
+        with patch("app.notifier._send_dicts") as mock_send:
+            mock_send.return_value = False
+            notify([listing, listing], self._SETTINGS)
+        subject = mock_send.call_args[0][0]
+        assert "2" in subject
+        assert "{n}" not in subject
+
+
+# ── send_digest() ─────────────────────────────────────────────
+
+class TestSendDigest:
+
+    _SETTINGS = {
+        "email_enabled": "1",
+        "digest_enabled": "1",
+        "email_sender": "test@example.com",
+        "email_password": "secret",
+        "email_recipient": "empfaenger@example.com",
+    }
+
+    def test_digest_deaktiviert_gibt_false(self):
+        result = send_digest({**self._SETTINGS, "digest_enabled": "0"})
+        assert result is False
+
+    def test_email_deaktiviert_gibt_false(self):
+        result = send_digest({**self._SETTINGS, "email_enabled": "0"})
+        assert result is False
+
+    def test_keine_anzeigen_heute_gibt_false(self):
+        with patch("app.notifier.db.get_listings_today", return_value=[]):
+            result = send_digest(self._SETTINGS)
+        assert result is False
+
+    def test_sendet_digest_und_loggt(self):
+        listing = make_listing_dict()
+        with patch("app.notifier.db.get_listings_today", return_value=[listing]), \
+             patch("app.notifier._smtp_send", return_value=True), \
+             patch("app.notifier.db.log_notification") as mock_log:
+            result = send_digest(self._SETTINGS)
+        assert result is True
+        mock_log.assert_called_once()
+        call_args = mock_log.call_args[0]
+        assert call_args[0] == "digest"
+
+    def test_kein_log_bei_smtp_fehler(self):
+        listing = make_listing_dict()
+        with patch("app.notifier.db.get_listings_today", return_value=[listing]), \
+             patch("app.notifier._smtp_send", return_value=False), \
+             patch("app.notifier.db.log_notification") as mock_log:
+            result = send_digest(self._SETTINGS)
+        assert result is False
+        mock_log.assert_not_called()

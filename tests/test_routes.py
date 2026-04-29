@@ -768,6 +768,107 @@ class TestProfileRoutes:
         assert all(not l["is_new"] for l in listings)
 
 
+# ── Contact-Text-API ──────────────────────────────────────────
+
+class TestApiContactText:
+
+    def test_ki_deaktiviert_gibt_403(self, client, app):
+        import app.database as db
+        with app.app_context():
+            db.save_settings({"ai_enabled": "0"})
+        resp = client.post("/api/listings/1/contact-text")
+        assert resp.status_code == 403
+        assert "nicht aktiviert" in resp.get_json()["error"]
+
+    def test_anzeige_nicht_gefunden_gibt_404(self, client, app):
+        import app.database as db
+        with app.app_context():
+            db.save_settings({"ai_enabled": "1"})
+        resp = client.post("/api/listings/99999/contact-text")
+        assert resp.status_code == 404
+        assert "nicht gefunden" in resp.get_json()["error"]
+
+    def test_ki_aktiviert_ruft_generate_auf(self, client, app):
+        import app.database as db
+        from app.scrapers.base import Listing
+        from unittest.mock import patch
+        with app.app_context():
+            db.save_settings({"ai_enabled": "1"})
+            db.save_listing(Listing(
+                platform="Test", title="Kinderwagen", price="50 €",
+                location="Dortmund", url="https://example.com/ct1",
+                listing_id="ct-1", search_term="kinderwagen",
+            ))
+            db_id = db.get_listings()[0]["id"]
+        with patch("app.ai.generate_contact_text", return_value="Hallo, ich interessiere mich..."):
+            resp = client.post(f"/api/listings/{db_id}/contact-text")
+        assert resp.status_code == 200
+        assert "Hallo" in resp.get_json()["text"]
+
+
+# ── Profil-Routen (Lücken) ────────────────────────────────────
+
+class TestProfileRoutesEdgeCases:
+
+    def test_profil_logout_leert_session(self, client, app):
+        import app.database as db
+        with app.app_context():
+            pid = db.create_profile("Test", "👤")
+        client.post(f"/profiles/select/{pid}")
+        with client.session_transaction() as sess:
+            assert "profile_id" in sess
+        client.post("/profiles/logout")
+        with client.session_transaction() as sess:
+            assert "profile_id" not in sess
+
+    def test_profil_logout_ohne_profile_redirect_zu_index(self, client):
+        resp = client.post("/profiles/logout", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "/" in resp.headers["Location"]
+
+    def test_profil_logout_mit_profilen_redirect_zu_select(self, client, app):
+        import app.database as db
+        with app.app_context():
+            db.create_profile("Test", "👤")
+        resp = client.post("/profiles/logout", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "profiles/select" in resp.headers["Location"]
+
+    def test_select_unbekannte_id_redirect(self, client):
+        resp = client.post("/profiles/select/99999", follow_redirects=False)
+        assert resp.status_code == 302
+
+    def test_erstellen_leerer_name_kein_profil(self, client, app):
+        import app.database as db
+        client.post("/profiles", data={"name": "", "emoji": "👤"})
+        with app.app_context():
+            assert len(db.get_profiles()) == 0
+
+    def test_erstellen_name_zu_lang_kein_profil(self, client, app):
+        import app.database as db
+        client.post("/profiles", data={"name": "x" * 51, "emoji": "👤"})
+        with app.app_context():
+            assert len(db.get_profiles()) == 0
+
+    def test_update_leerer_name_gibt_400(self, client, app):
+        import app.database as db
+        with app.app_context():
+            pid = db.create_profile("Original", "👤")
+        resp = client.post(f"/profiles/{pid}/update",
+                           json={"name": "", "emoji": "👤"},
+                           content_type="application/json")
+        assert resp.status_code == 400
+
+    def test_update_name_zu_lang_gibt_400(self, client, app):
+        import app.database as db
+        with app.app_context():
+            pid = db.create_profile("Original", "👤")
+        resp = client.post(f"/profiles/{pid}/update",
+                           json={"name": "x" * 51, "emoji": "👤"},
+                           content_type="application/json")
+        assert resp.status_code == 400
+
+
 # ── Info-Seite ────────────────────────────────────────────────
 
 class TestInfoPage:

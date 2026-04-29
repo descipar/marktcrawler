@@ -1,7 +1,8 @@
 """Tests für app/scheduler.py: start_date-Logik nach Server-Neustart."""
 
 from datetime import datetime, timedelta, timezone
-from app.scheduler import _calc_start_date
+from unittest.mock import MagicMock, patch
+from app.scheduler import _calc_start_date, _schedule_digest
 
 
 def _utcnow() -> datetime:
@@ -46,3 +47,45 @@ class TestCalcStartDate:
     def test_ungueltige_last_end_gibt_none(self):
         assert _calc_start_date("kein-datum", 15, 60) is None
         assert _calc_start_date("2024-99-99", 15, 60) is None
+
+
+class TestScheduleDigest:
+
+    def _make_scheduler(self):
+        mock = MagicMock()
+        mock.get_job.return_value = None
+        return mock
+
+    def test_digest_deaktiviert_kein_job(self):
+        mock_scheduler = self._make_scheduler()
+        with patch("app.scheduler._scheduler", mock_scheduler), \
+             patch("app.scheduler.db.get_setting", side_effect=lambda k, d="": "0" if k == "digest_enabled" else d):
+            _schedule_digest()
+        mock_scheduler.add_job.assert_not_called()
+
+    def test_gueltiger_digest_time_richtet_job_ein(self):
+        mock_scheduler = self._make_scheduler()
+        settings = {"digest_enabled": "1", "digest_time": "19:00"}
+        with patch("app.scheduler._scheduler", mock_scheduler), \
+             patch("app.scheduler.db.get_setting", side_effect=lambda k, d="": settings.get(k, d)):
+            _schedule_digest()
+        mock_scheduler.add_job.assert_called_once()
+        kwargs = mock_scheduler.add_job.call_args[1]
+        assert kwargs["id"] == "digest_job"
+
+    def test_ungueltiger_digest_time_kein_job(self):
+        mock_scheduler = self._make_scheduler()
+        settings = {"digest_enabled": "1", "digest_time": "ungueltig"}
+        with patch("app.scheduler._scheduler", mock_scheduler), \
+             patch("app.scheduler.db.get_setting", side_effect=lambda k, d="": settings.get(k, d)):
+            _schedule_digest()
+        mock_scheduler.add_job.assert_not_called()
+
+    def test_remove_job_wenn_bereits_vorhanden(self):
+        mock_scheduler = self._make_scheduler()
+        mock_scheduler.get_job.return_value = MagicMock()
+        settings = {"digest_enabled": "1", "digest_time": "08:30"}
+        with patch("app.scheduler._scheduler", mock_scheduler), \
+             patch("app.scheduler.db.get_setting", side_effect=lambda k, d="": settings.get(k, d)):
+            _schedule_digest()
+        mock_scheduler.remove_job.assert_called_once_with("digest_job")

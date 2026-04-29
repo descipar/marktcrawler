@@ -20,6 +20,19 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 
 ---
 
+### Phase 27 – Neue Plattformen: Willhaben.at & markt.de
+
+- [x] **WillhabenScraper** (`app/scrapers/willhaben.py`): `__NEXT_DATA__`-JSON-Parsing (Next.js SSR), `_attr()`-Hilfsfunktion für Attributlisten, PayLivery-Parameter (Versand-Only, Default aktiv), Haversine-Radius wenn PayLivery deaktiviert
+- [x] **MarktdeScraper** (`app/scrapers/markt.py`): BeautifulSoup HTML, `_city_slug()` mit Umlaut-Normalisierung, Radius als URL-Parameter, Pagination
+- [x] Beide in `PLATFORM_SCRAPER_MAP` + `DEFAULT_INTERVALS` + `scrapers/__init__.py` eingetragen
+- [x] `DEFAULT_SETTINGS` in `core.py` ergänzt (willhaben_*, marktde_*)
+- [x] Settings-Formular: neue Plattform-Abschnitte mit PayLivery-Checkbox und Hinweistext
+- [x] `allowed_keys` in `views.py` + `test-scraper`-Endpoint in `api.py` aktualisiert
+- [x] Fix: `crawler_lang_filter_enabled` und `willhaben_paylivery_only` als Checkboxen korrekt behandelt
+- [x] 26 neue Tests (519 gesamt)
+
+---
+
 ### Phase 26 – Crawl-Qualität
 
 - [x] **Wortgrenzen-Matching**: `_matches_all_words()` nutzt jetzt `\b`-Regex statt Substring-Suche — verhindert False-Positives wie „werder" → „Schwerder" oder „body" → „somebody". Cleanup-Script ebenfalls aktualisiert.

@@ -21,7 +21,11 @@ Vollständige Beschreibung aller Features, der Admin-UI und der API-Endpunkte.
 Suchbegriffe werden in der Sidebar verwaltet: hinzufügen, aktivieren/deaktivieren, löschen. Beim Löschen eines Suchbegriffs werden auch alle zugehörigen Anzeigen entfernt. Pro Suchbegriff kann eine optionale Preisobergrenze gesetzt werden (Stift-Icon → Eingabefeld → ENTER), die den globalen Plattform-Maximalpreis überschreibt.
 
 ### Plattformen
-Gleichzeitig durchsuchbar: **Kleinanzeigen.de**, **Shpock**, **Vinted**, **eBay**, **Facebook Marketplace** (optional). Jede Plattform hat ein eigenes konfigurierbares Crawl-Intervall (Standard: Kleinanzeigen 15 Min., Shpock/Vinted 30 Min., eBay/Facebook 60 Min.).
+Gleichzeitig durchsuchbar: **Kleinanzeigen.de**, **Shpock**, **Vinted**, **eBay**, **Willhaben.at**, **markt.de**, **Facebook Marketplace** (optional). Jede Plattform hat ein eigenes konfigurierbares Crawl-Intervall (Standard: Kleinanzeigen 15 Min., Shpock/Vinted/Willhaben 30 Min., eBay/markt.de/Facebook 60 Min.).
+
+**Willhaben.at** — Österreichisches Kleinanzeigen-Portal. Der Scraper liest `__NEXT_DATA__`-JSON aus der Next.js-Seite aus. Standard: nur PayLivery-Angebote (`willhaben_paylivery_only = 1`) — das sind Versand-Angebote, die nach Deutschland geliefert werden. Bei aktiviertem PayLivery wird der Radius-Filter deaktiviert (Standort in Österreich ist irrelevant). Mit `paylivery_only = 0` können auch Abholangebote gecrawlt werden; dann wird der Haversine-Radius auf COORDINATES-Attribute angewendet.
+
+**markt.de** — Deutsches Kleinanzeigen-Portal mit Fokus auf regionale Schnäppchen. Der Scraper parst HTML via BeautifulSoup. Die Suchanfrage wird als `markt.de/{city-slug}/suche/{term}/` aufgebaut; Umlaute im Städtenamen werden automatisch normalisiert (München → muenchen). Der Radius wird als URL-Parameter übergeben.
 
 ### Mehrwort-Suchbegriffe (AND-Logik mit Wortgrenzen)
 Bei Mehrwort-Suchbegriffen (z.B. „baby werder") müssen **alle** Wörter in Titel oder Beschreibung vorkommen. Das Matching verwendet `\b`-Wortgrenzen (Regex), sodass „werder" nicht auf „Schwerder" trifft. Anzeigen, die nicht alle Wörter enthalten, werden still übersprungen.

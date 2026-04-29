@@ -86,6 +86,12 @@ def _matches_all_words(listing: Listing, term: str) -> bool:
 
 _LANG_FILTER_MIN_CHARS = 20
 
+try:
+    from langdetect import DetectorFactory as _DetectorFactory
+    _DetectorFactory.seed = 0  # deterministische Ergebnisse bei gleichem Text
+except ImportError:
+    pass
+
 
 def _is_lang_allowed(listing: Listing, allowed_langs: List[str]) -> bool:
     """Gibt True zurück wenn die erkannte Sprache erlaubt ist oder nicht eindeutig erkannt werden kann."""

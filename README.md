@@ -121,6 +121,8 @@ Dann in **Einstellungen → KI-Assistent**: Modell `gemma2:2b`, Base-URL `http:/
 ### Docker (empfohlen)
 
 ```bash
+git clone https://github.com/descipar/marktcrawler.git
+cd marktcrawler
 docker compose up -d --build   # Starten
 docker compose logs -f          # Logs ansehen
 docker compose down             # Stoppen
@@ -142,6 +144,8 @@ docker compose up -d --build
 ### Lokal (ohne Docker)
 
 ```bash
+git clone https://github.com/descipar/marktcrawler.git
+cd marktcrawler
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt

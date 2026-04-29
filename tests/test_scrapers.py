@@ -458,6 +458,404 @@ class TestVintedScraperStandort:
         assert len(results) == 1
 
 
+# ── eBay: fehlende Pfade ──────────────────────────────────────────────────────
+
+class TestEbayScraperCoverage:
+
+    def test_parse_ohne_title_element_gibt_none(self):
+        from bs4 import BeautifulSoup
+        scraper = EbayScraper({})
+        item = BeautifulSoup('<li class="s-item"><span>kein Titel</span></li>', "lxml").select_one("li")
+        assert scraper._parse(item, "test") is None
+
+    def test_parse_shop_on_ebay_titel_gibt_none(self):
+        from bs4 import BeautifulSoup
+        html = '<li class="s-item"><h3 class="s-item__title">Shop on eBay</h3></li>'
+        scraper = EbayScraper({})
+        item = BeautifulSoup(html, "lxml").select_one("li")
+        assert scraper._parse(item, "test") is None
+
+    def test_parse_exception_gibt_none(self):
+        scraper = EbayScraper({})
+        assert scraper._parse(None, "test") is None
+
+
+# ── Shpock: fehlende Pfade ────────────────────────────────────────────────────
+
+class TestShpockScraperCoverage:
+
+    def _scraper(self, settings=None):
+        return ShpockScraper(settings or {"shpock_radius": "0"})
+
+    def _api_response(self, items):
+        return {"data": {"itemSearch": {"itemResults": [{"items": items}]}}}
+
+    def test_search_filtert_nicht_item_summary(self):
+        """Items mit falschem __typename werden übersprungen."""
+        scraper = self._scraper()
+        wrong = {**SHPOCK_ITEM, "__typename": "Advertisement"}
+        with patch.object(scraper.session, "post", return_value=_mock_response(self._api_response([wrong]))):
+            assert scraper.search("test") == []
+
+    def test_search_ueberspringt_none_listings(self):
+        """_parse gibt None zurück → Item wird übersprungen."""
+        scraper = self._scraper()
+        # Kaputtes media (kein 'id') → _parse wirft KeyError → None
+        broken = {**SHPOCK_ITEM, "media": [{"no_id": "x"}]}
+        with patch.object(scraper.session, "post", return_value=_mock_response(self._api_response([broken]))):
+            assert scraper.search("test") == []
+
+    def test_search_preis_nicht_parsierbar_wird_durchgelassen(self):
+        """ValueError beim Preisvergleich wird abgefangen; Listing bleibt erhalten."""
+        scraper = self._scraper({"shpock_radius": "0", "shpock_max_price": "50"})
+        unparseable = Listing("Shpock", "Test", "auf Anfrage", "", "https://x.com", "sp_x", "test")
+        with patch.object(scraper, "_parse", return_value=unparseable):
+            with patch.object(scraper.session, "post", return_value=_mock_response(self._api_response([SHPOCK_ITEM]))):
+                results = scraper.search("test")
+        assert len(results) == 1
+
+    def test_search_stoppt_bei_max_results(self):
+        """max_results wird eingehalten; überzählige Items werden nicht zurückgegeben."""
+        scraper = self._scraper()
+        two_items = [SHPOCK_ITEM, {**SHPOCK_ITEM, "id": "xyz999"}]
+        with patch.object(scraper.session, "post", return_value=_mock_response(self._api_response(two_items))):
+            results = scraper.search("test", max_results=1)
+        assert len(results) == 1
+
+    def test_parse_preis_ka_fuer_none(self):
+        """price=None und isFree=False → 'k.A.'."""
+        scraper = self._scraper()
+        listing = scraper._parse({**SHPOCK_ITEM, "price": None, "isFree": False}, "test")
+        assert listing is not None
+        assert listing.price == "k.A."
+
+    def test_parse_exception_gibt_none(self):
+        scraper = self._scraper()
+        assert scraper._parse(None, "test") is None
+
+
+# ── Vinted: fehlende Pfade ────────────────────────────────────────────────────
+
+class TestVintedScraperCoverage:
+
+    def test_resolve_location_geocode_fehlschlag_gibt_none(self):
+        """geocode gibt None zurück → _home bleibt None."""
+        with patch("app.scrapers.vinted.geocode", return_value=None):
+            with patch.object(VintedScraper, "_authenticate"):
+                scraper = VintedScraper({"vinted_location": "Unbekannte-Stadt-XYZ"})
+        assert scraper._home is None
+
+    def test_authenticate_nicht_ok_gibt_false(self):
+        """HTTP non-ok → _authenticate gibt False zurück."""
+        scraper = VintedScraper({})
+        mock_resp = MagicMock()
+        mock_resp.ok = False
+        mock_resp.status_code = 403
+        with patch.object(scraper.session, "get", return_value=mock_resp):
+            assert scraper._authenticate() is False
+
+    def test_authenticate_exception_gibt_false(self):
+        """Netzwerkfehler in _authenticate → False."""
+        scraper = VintedScraper({})
+        with patch.object(scraper.session, "get", side_effect=ConnectionError("Timeout")):
+            assert scraper._authenticate() is False
+
+    def test_search_age_filter_verwirft_altes_item(self):
+        """Items älter als vinted_max_age_hours werden gefiltert."""
+        import time
+        scraper = VintedScraper({"vinted_max_age_hours": "24"})
+        old_ts = str(int(time.time()) - 48 * 3600)
+        old_item = {**VINTED_ITEM, "created_at_ts": old_ts}
+        with patch.object(scraper.session, "get", return_value=_mock_response({"items": [old_item]})):
+            assert scraper.search("babywanne") == []
+
+    def test_search_ueberspringt_none_listings(self):
+        """_parse gibt None zurück → Item wird übersprungen."""
+        scraper = VintedScraper({})
+        with patch.object(scraper, "_parse", return_value=None):
+            with patch.object(scraper.session, "get", return_value=_mock_response({"items": [VINTED_ITEM]})):
+                assert scraper.search("test") == []
+
+    def test_parse_preis_nicht_konvertierbar_ergibt_ka(self):
+        """Nicht-numerischer Preisstring → 'k.A.'."""
+        scraper = VintedScraper({})
+        listing = scraper._parse({**VINTED_ITEM, "price": "auf Anfrage"}, "test")
+        assert listing is not None
+        assert listing.price == "k.A."
+
+    def test_parse_exception_gibt_none(self):
+        scraper = VintedScraper({})
+        assert scraper._parse(None, "test") is None
+
+
+# ── markt.de: fehlende Pfade ──────────────────────────────────────────────────
+
+MARKTDE_EMPTY_TITLE_HTML = """
+<article class="clsy-c-result-list-item">
+  <a class="clsy-c-result-list-item__link" href="/test/99999/"></a>
+</article>
+"""
+
+
+class TestMarktdeScraperCoverage:
+
+    def test_parse_leerer_titel_gibt_none(self):
+        from bs4 import BeautifulSoup
+        scraper = MarktdeScraper({})
+        item = BeautifulSoup(MARKTDE_EMPTY_TITLE_HTML, "lxml").select_one(".clsy-c-result-list-item")
+        assert scraper._parse(item, "test") is None
+
+    def test_parse_exception_gibt_none(self):
+        scraper = MarktdeScraper({})
+        assert scraper._parse(None, "test") is None
+
+    def test_search_stoppt_bei_max_results_innerhalb_seite(self):
+        """max_results < Seiten-Items → Loop bricht ab, nicht alle Items werden verarbeitet."""
+        scraper = MarktdeScraper({"marktde_location": "Berlin"})
+        page = _marktde_page(MARKTDE_ITEM_HTML * 5)
+        with patch.object(scraper.session, "get", return_value=_mock_response(text=page)):
+            results = scraper.search("kinderwagen", max_results=2)
+        assert len(results) == 2
+
+    def test_search_ruft_zweite_seite_ab(self):
+        """Volle Seite (20 Items) → page-Parameter für Seite 2 gesetzt."""
+        scraper = MarktdeScraper({"marktde_location": "Berlin"})
+        page1 = _marktde_page(MARKTDE_ITEM_HTML * 20)
+        page2 = _marktde_page(MARKTDE_ITEM_HTML * 3)
+        with patch.object(scraper.session, "get", side_effect=[
+            _mock_response(text=page1), _mock_response(text=page2),
+        ]) as mock_get:
+            results = scraper.search("kinderwagen", max_results=30)
+        assert len(results) == 23
+        # Zweiter Aufruf muss page-Parameter enthalten
+        second_call_params = mock_get.call_args_list[1][1]["params"]
+        assert second_call_params.get("page") == 2
+
+
+# ── willhaben: fehlende Pfade ─────────────────────────────────────────────────
+
+class TestWillhabenScraperCoverage:
+
+    def test_search_stoppt_bei_max_results_und_paginiert(self):
+        """max_results=1 mit 3 Items → stoppt nach erstem + pagination-Check läuft trotzdem."""
+        scraper = WillhabenScraper({"willhaben_paylivery_only": "1"})
+        html = _willhaben_html([_willhaben_advert(str(i)) for i in range(3)])
+        with patch.object(scraper.session, "get", return_value=_mock_response(text=html)):
+            results = scraper.search("test", max_results=1)
+        assert len(results) == 1
+
+    def test_search_ueberspringt_none_listings(self):
+        """_parse gibt None zurück → Item wird übersprungen."""
+        scraper = WillhabenScraper({})
+        html = _willhaben_html([_willhaben_advert()])
+        with patch.object(scraper, "_parse", return_value=None):
+            with patch.object(scraper.session, "get", return_value=_mock_response(text=html)):
+                assert scraper.search("test") == []
+
+    def test_search_price_filter_in_loop(self):
+        """Item mit Preis über max_price wird im Loop gefiltert."""
+        scraper = WillhabenScraper({"willhaben_max_price": "80", "willhaben_paylivery_only": "1"})
+        teures_item = _willhaben_advert(price="€ 150")
+        html = _willhaben_html([teures_item])
+        with patch.object(scraper.session, "get", return_value=_mock_response(text=html)):
+            assert scraper.search("test") == []
+
+    def test_search_pagination_bei_gefilterten_items(self):
+        """Seite voll aber viele Items gefiltert → Seite 2 wird abgerufen."""
+        scraper = WillhabenScraper({"willhaben_max_price": "80", "willhaben_paylivery_only": "1"})
+        cheap = [_willhaben_advert(str(i), price="€ 50") for i in range(2)]
+        expensive = [_willhaben_advert(str(i + 10), price="€ 500") for i in range(8)]
+        page2 = _willhaben_html([_willhaben_advert("99", price="€ 30")])
+        # per_page = min(10, 30) = 10; page1 hat genau 10 → nicht früh abbrechen
+        with patch.object(scraper.session, "get", side_effect=[
+            _mock_response(text=_willhaben_html(cheap + expensive)),
+            _mock_response(text=page2),
+        ]):
+            results = scraper.search("test", max_results=10)
+        assert len(results) == 3  # 2 günstige + 1 von Seite 2
+
+    def test_extract_adverts_ungueliges_json(self):
+        """Fehlerhaftes JSON in __NEXT_DATA__ → leere Liste, kein Absturz."""
+        scraper = WillhabenScraper({})
+        html = '<script id="__NEXT_DATA__">{ das ist kein json {{{</script>'
+        assert scraper._extract_adverts(html) == []
+
+    def test_extract_coords_exception_wird_abgefangen(self):
+        """Exception beim Koordinaten-Parsen wird abgefangen → None."""
+        scraper = WillhabenScraper({})
+        bad_val = MagicMock()
+        bad_val.__bool__ = lambda s: True
+        bad_val.__contains__ = lambda s, x: True
+        bad_val.strip = MagicMock(return_value=bad_val)
+        bad_val.split = MagicMock(side_effect=ValueError("Mock"))
+        attrs = [{"name": "COORDINATES", "values": [bad_val]}]
+        assert scraper._extract_coords({"attributes": {"attribute": attrs}}) is None
+
+    def test_parse_exception_gibt_none(self):
+        scraper = WillhabenScraper({})
+        assert scraper._parse(None, "test") is None
+
+
+# ── Kleinanzeigen ─────────────────────────────────────────────────────────────
+
+from app.scrapers.kleinanzeigen import KleinanzeigenScraper, _ascii_slug
+
+KA_ITEM_HTML = """
+<article class="aditem">
+  <h2 class="text-module-begin">
+    <a href="/s-anzeige/kinderwagen-abc/123456789-123-456">Kinderwagen ABC</a>
+  </h2>
+  <p class="aditem-main--middle--price-shipping--price">80 €</p>
+  <div class="aditem-main--top--left">Dortmund</div>
+  <p class="aditem-main--middle--description">Sehr guter Zustand</p>
+  <img class="aditem-image" src="https://img.kleinanzeigen.de/api/v1/img.jpg" />
+</article>
+"""
+
+
+def _ka_page(items_html: str) -> str:
+    return f"<html><body>{items_html}</body></html>"
+
+
+class TestAsciiSlug:
+
+    def test_umlaut_ae(self):
+        assert _ascii_slug("Kinderwagen") == "kinderwagen"
+
+    def test_umlaut_oe(self):
+        assert _ascii_slug("Köln") == "koeln"
+
+    def test_umlaut_ue(self):
+        assert _ascii_slug("Übersicht") == "uebersicht"
+
+    def test_umlaut_ss(self):
+        assert _ascii_slug("Straße") == "strasse"
+
+    def test_leerzeichen_zu_bindestrich(self):
+        assert _ascii_slug("baby stuhl") == "baby-stuhl"
+
+    def test_mehrere_leerzeichen(self):
+        assert _ascii_slug("baby  stuhl") == "baby-stuhl"
+
+
+class TestKleinanzeigenScraper:
+
+    def _scraper(self, settings=None):
+        with patch.object(KleinanzeigenScraper, "_resolve_location_id", return_value=None):
+            return KleinanzeigenScraper(settings or {})
+
+    def test_ist_base_scraper(self):
+        assert isinstance(self._scraper(), BaseScraper)
+
+    def test_resolve_location_kein_ort_gibt_none(self):
+        with patch.object(KleinanzeigenScraper, "_resolve_location_id", return_value=None):
+            scraper = KleinanzeigenScraper({})
+        assert scraper._location_id is None
+
+    def test_resolve_location_id_findet_id(self):
+        """Redirect-URL enthält locationId → wird korrekt extrahiert."""
+        scraper = self._scraper({"kleinanzeigen_location": "Dortmund", "kleinanzeigen_radius": "30"})
+        mock_resp = _mock_response()
+        mock_resp.url = "https://www.kleinanzeigen.de/s-dortmund/kinderwagen/k0l7637r30"
+        with patch.object(scraper.session, "get", return_value=mock_resp):
+            lid = scraper._resolve_location_id()
+        assert lid == 7637
+
+    def test_resolve_location_id_keine_id_in_url(self):
+        """Redirect-URL ohne locationId → None."""
+        scraper = self._scraper({"kleinanzeigen_location": "Dortmund"})
+        mock_resp = _mock_response()
+        mock_resp.url = "https://www.kleinanzeigen.de/s-anzeigen/kinderwagen/k0"
+        with patch.object(scraper.session, "get", return_value=mock_resp):
+            assert scraper._resolve_location_id() is None
+
+    def test_resolve_location_id_exception_gibt_none(self):
+        """Netzwerkfehler → None."""
+        scraper = self._scraper({"kleinanzeigen_location": "Dortmund"})
+        with patch.object(scraper.session, "get", side_effect=Exception("Timeout")):
+            assert scraper._resolve_location_id() is None
+
+    def test_search_gibt_listings_zurueck(self):
+        scraper = self._scraper()
+        with patch.object(scraper.session, "get", return_value=_mock_response(text=_ka_page(KA_ITEM_HTML))):
+            results = scraper.search("kinderwagen", max_results=5)
+        assert len(results) == 1
+        assert results[0].title == "Kinderwagen ABC"
+
+    def test_search_bei_exception(self):
+        scraper = self._scraper()
+        with patch.object(scraper.session, "get", side_effect=Exception("Timeout")):
+            assert scraper.search("kinderwagen") == []
+
+    def test_parse_felder(self):
+        from bs4 import BeautifulSoup
+        scraper = self._scraper()
+        item = BeautifulSoup(KA_ITEM_HTML, "lxml").select_one("article.aditem")
+        listing = scraper._parse(item, "kinderwagen")
+        assert listing is not None
+        assert listing.platform == "Kleinanzeigen"
+        assert listing.title == "Kinderwagen ABC"
+        assert listing.listing_id == "ka_123456789"
+        assert listing.price == "80 €"
+        assert listing.location == "Dortmund"
+        assert listing.description == "Sehr guter Zustand"
+        assert listing.image_url == "https://img.kleinanzeigen.de/api/v1/img.jpg"
+        assert listing.search_term == "kinderwagen"
+
+    def test_parse_ohne_title_element_gibt_none(self):
+        from bs4 import BeautifulSoup
+        scraper = self._scraper()
+        item = BeautifulSoup('<article class="aditem"><p>kein Titel</p></article>', "lxml").select_one("article")
+        assert scraper._parse(item, "test") is None
+
+    def test_parse_exception_gibt_none(self):
+        scraper = self._scraper()
+        assert scraper._parse(None, "test") is None
+
+    def test_build_url_mit_location_id(self):
+        with patch.object(KleinanzeigenScraper, "_resolve_location_id", return_value=7637):
+            scraper = KleinanzeigenScraper({
+                "kleinanzeigen_location": "Dortmund",
+                "kleinanzeigen_radius": "30",
+            })
+        url = scraper._build_url("kinderwagen")
+        assert "k0l7637r30" in url
+        assert "dortmund" in url
+
+    def test_build_url_ohne_location_fallback(self):
+        scraper = self._scraper()
+        url = scraper._build_url("kinderwagen")
+        assert "q-kinderwagen" in url
+
+    def test_build_url_mit_max_price(self):
+        with patch.object(KleinanzeigenScraper, "_resolve_location_id", return_value=7637):
+            scraper = KleinanzeigenScraper({
+                "kleinanzeigen_location": "Dortmund",
+                "kleinanzeigen_max_price": "100",
+                "kleinanzeigen_radius": "30",
+            })
+        url = scraper._build_url("kinderwagen")
+        assert "maxPrice=100" in url
+
+    def test_build_url_fallback_mit_max_price(self):
+        with patch.object(KleinanzeigenScraper, "_resolve_location_id", return_value=None):
+            scraper = KleinanzeigenScraper({"kleinanzeigen_max_price": "80"})
+        url = scraper._build_url("kinderwagen")
+        assert "maxPrice=80" in url
+
+    def test_price_ok_filtert_teure_items(self):
+        with patch.object(KleinanzeigenScraper, "_resolve_location_id", return_value=None):
+            scraper = KleinanzeigenScraper({"kleinanzeigen_max_price": "50"})
+        listing = Listing("Kleinanzeigen", "Test", "80 €", "", "", "ka_1", "test")
+        assert scraper._price_ok(listing) is False
+
+    def test_price_ok_guenstiges_item(self):
+        with patch.object(KleinanzeigenScraper, "_resolve_location_id", return_value=None):
+            scraper = KleinanzeigenScraper({"kleinanzeigen_max_price": "100"})
+        listing = Listing("Kleinanzeigen", "Test", "80 €", "", "", "ka_1", "test")
+        assert scraper._price_ok(listing) is True
+
+
 # ── Willhaben ─────────────────────────────────────────────────────────────────
 
 def _willhaben_advert(advert_id="12345", title="Kinderwagen ABC", price="€ 50",

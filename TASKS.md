@@ -30,6 +30,7 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 - [x] `allowed_keys` in `views.py` + `test-scraper`-Endpoint in `api.py` aktualisiert
 - [x] Fix: `crawler_lang_filter_enabled` und `willhaben_paylivery_only` als Checkboxen korrekt behandelt
 - [x] 26 neue Tests (519 gesamt)
+- [x] **100% Testabdeckung** aller 6 Scraper (ebay, kleinanzeigen, markt, shpock, vinted, willhaben): 49 neue Coverage-Tests, Fix `except Exception` in `kleinanzeigen.py` — 568 Tests gesamt
 
 ---
 

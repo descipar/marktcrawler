@@ -74,7 +74,7 @@ class KleinanzeigenScraper(BaseScraper):
         try:
             r = self.session.get(url, timeout=15)
             r.raise_for_status()
-        except requests.RequestException as e:
+        except Exception as e:
             logger.error(f"[Kleinanzeigen] Fehler bei '{term}': {e}")
             return []
 

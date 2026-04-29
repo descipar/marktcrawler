@@ -898,6 +898,44 @@ class TestProfileRoutesEdgeCases:
                            content_type="application/json")
         assert resp.status_code == 400
 
+    def test_notify_speichert_email_und_modus(self, client, app):
+        import app.database as db
+        with app.app_context():
+            pid = db.create_profile("Notify-Test", "👤")
+        resp = client.post(
+            f"/profiles/{pid}/notify",
+            json={"email": "test@example.com", "notify_mode": "both", "digest_time": "08:00"},
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        assert resp.get_json()["status"] == "ok"
+        with app.app_context():
+            p = db.get_profile(pid)
+        assert p["email"] == "test@example.com"
+        assert p["notify_mode"] == "both"
+        assert p["digest_time"] == "08:00"
+
+    def test_notify_leere_email_wird_null(self, client, app):
+        import app.database as db
+        with app.app_context():
+            pid = db.create_profile("Stumm", "👤")
+            db.update_profile_notify(pid, "old@example.com", "immediate", "19:00")
+        client.post(
+            f"/profiles/{pid}/notify",
+            json={"email": "", "notify_mode": "off", "digest_time": "19:00"},
+            content_type="application/json",
+        )
+        with app.app_context():
+            assert db.get_profile(pid)["email"] is None
+
+    def test_notify_unbekanntes_profil_gibt_200(self, client):
+        resp = client.post(
+            "/profiles/99999/notify",
+            json={"email": "x@x.com", "notify_mode": "immediate", "digest_time": "19:00"},
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+
 
 # ── Info-Seite ────────────────────────────────────────────────
 

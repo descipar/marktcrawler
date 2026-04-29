@@ -1005,6 +1005,35 @@ class TestProfiles:
         temp_db.update_profile_last_seen(pid)
         assert temp_db.get_profile(pid)["last_seen_at"] is not None
 
+    def test_update_profile_notify_speichert_felder(self, temp_db):
+        pid = temp_db.create_profile("Alice", "👤")
+        temp_db.update_profile_notify(pid, "alice@example.com", "immediate", "08:00")
+        p = temp_db.get_profile(pid)
+        assert p["email"] == "alice@example.com"
+        assert p["notify_mode"] == "immediate"
+        assert p["digest_time"] == "08:00"
+
+    def test_update_profile_notify_alle_modi(self, temp_db):
+        pid = temp_db.create_profile("Bob", "👤")
+        for mode in ("immediate", "digest_only", "both", "off"):
+            temp_db.update_profile_notify(pid, "b@example.com", mode, "19:00")
+            assert temp_db.get_profile(pid)["notify_mode"] == mode
+
+    def test_update_profile_notify_ungültiger_modus_wird_zu_immediate(self, temp_db):
+        pid = temp_db.create_profile("Carol", "👤")
+        temp_db.update_profile_notify(pid, "c@example.com", "ungültig", "19:00")
+        assert temp_db.get_profile(pid)["notify_mode"] == "immediate"
+
+    def test_update_profile_notify_leere_email_wird_null(self, temp_db):
+        pid = temp_db.create_profile("Dave", "👤")
+        temp_db.update_profile_notify(pid, "", "immediate", "19:00")
+        assert temp_db.get_profile(pid)["email"] is None
+
+    def test_update_profile_notify_leere_digest_time_verwendet_default(self, temp_db):
+        pid = temp_db.create_profile("Eve", "👤")
+        temp_db.update_profile_notify(pid, "e@example.com", "both", "")
+        assert temp_db.get_profile(pid)["digest_time"] == "19:00"
+
 
 # ── Crawl-Log & Notification-Log ─────────────────────────────
 

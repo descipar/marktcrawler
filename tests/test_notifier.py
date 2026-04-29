@@ -300,6 +300,51 @@ class TestNotifyPending:
         assert result is False
         mock_log.assert_not_called()
 
+    def test_per_profil_sendet_an_profil_emails(self):
+        listings = [{**make_listing_dict(), "listing_id": "pp-1"}]
+        profiles = [
+            {"email": "alice@example.com", "notify_mode": "immediate"},
+            {"email": "bob@example.com", "notify_mode": "both"},
+        ]
+        with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
+             patch("app.notifier.db.get_profiles", return_value=profiles), \
+             patch("app.notifier._send_dicts") as mock_send, \
+             patch("app.notifier.db.log_notification"):
+            result = notify_pending(self._SETTINGS)
+        assert result is True
+        assert mock_send.call_count == 2
+        recipients = [call.kwargs.get("recipients") or call.args[3] for call in mock_send.call_args_list]
+        assert ["alice@example.com"] in recipients
+        assert ["bob@example.com"] in recipients
+
+    def test_per_profil_ignoriert_stumme_profile(self):
+        """Profile mit notify_mode=digest_only/off bekommen keinen Alert."""
+        listings = [{**make_listing_dict(), "listing_id": "pp-2"}]
+        profiles = [
+            {"email": "carol@example.com", "notify_mode": "digest_only"},
+            {"email": "dave@example.com", "notify_mode": "off"},
+            {"email": None, "notify_mode": "immediate"},
+        ]
+        with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
+             patch("app.notifier.db.get_profiles", return_value=profiles), \
+             patch("app.notifier._smtp_send", return_value=True) as mock_smtp, \
+             patch("app.notifier.db.log_notification"):
+            result = notify_pending(self._SETTINGS)
+        assert result is True
+        # Kein Profil qualifiziert → Fallback auf globale Settings (ein SMTP-Aufruf)
+        mock_smtp.assert_called_once()
+
+    def test_per_profil_fallback_auf_globale_settings(self):
+        """Wenn kein Profil eine E-Mail hat, gelten globale email_recipient-Settings."""
+        listings = [{**make_listing_dict(), "listing_id": "pp-3"}]
+        with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
+             patch("app.notifier.db.get_profiles", return_value=[]), \
+             patch("app.notifier._smtp_send", return_value=True) as mock_smtp, \
+             patch("app.notifier.db.log_notification"):
+            result = notify_pending(self._SETTINGS)
+        assert result is True
+        mock_smtp.assert_called_once()
+
 
 # ── _smtp_send ────────────────────────────────────────────────
 
@@ -577,3 +622,29 @@ class TestSendDigest:
             result = send_digest(self._SETTINGS)
         assert result is False
         mock_log.assert_not_called()
+
+    def test_recipient_param_ueberspringt_enabled_checks(self):
+        """send_digest(recipient=...) sendet auch wenn digest_enabled=0."""
+        listing = make_listing_dict()
+        settings_off = {**self._SETTINGS, "digest_enabled": "0", "email_enabled": "0"}
+        with patch("app.notifier.db.get_listings_today", return_value=[listing]), \
+             patch("app.notifier._smtp_send", return_value=True) as mock_smtp, \
+             patch("app.notifier.db.log_notification"):
+            result = send_digest(settings_off, recipient="profil@example.com")
+        assert result is True
+        mock_smtp.assert_called_once()
+
+    def test_recipient_param_sendet_an_angegebene_adresse(self):
+        listing = make_listing_dict()
+        with patch("app.notifier.db.get_listings_today", return_value=[listing]), \
+             patch("app.notifier._send_dicts") as mock_send, \
+             patch("app.notifier.db.log_notification"):
+            send_digest(self._SETTINGS, recipient="ziel@example.com")
+        call_kwargs = mock_send.call_args
+        recipients_arg = call_kwargs.kwargs.get("recipients") or (call_kwargs.args[3] if len(call_kwargs.args) > 3 else None)
+        assert recipients_arg == ["ziel@example.com"]
+
+    def test_recipient_keine_anzeigen_gibt_false(self):
+        with patch("app.notifier.db.get_listings_today", return_value=[]):
+            result = send_digest(self._SETTINGS, recipient="x@example.com")
+        assert result is False

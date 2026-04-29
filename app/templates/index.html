@@ -77,11 +77,9 @@
     <select id="crawl-platform-select"
       class="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 bg-white">
       <option value="all">Alle aktiven Plattformen</option>
-      <option value="kleinanzeigen">Kleinanzeigen</option>
-      <option value="shpock">Shpock</option>
-      <option value="vinted">Vinted</option>
-      <option value="ebay">eBay</option>
-      <option value="facebook">Facebook</option>
+      {% for p in platform_stats if p.enabled %}
+      <option value="{{ p.id }}">{{ p.display }}</option>
+      {% endfor %}
     </select>
     <button id="crawl-btn-top" onclick="startCrawl()"
       class="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white py-2 rounded-lg text-sm font-semibold transition-colors">

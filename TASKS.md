@@ -20,6 +20,18 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 
 ---
 
+### Phase 28 – Per-Profil-E-Mail-Benachrichtigungen
+
+- [x] DB-Migration v10: `profiles` bekommt Spalten `email`, `notify_mode` (immediate/digest_only/both/none), `digest_time`
+- [x] `database/profiles.py`: `update_profile_notify()` als neue Funktion; `get_profiles()` liefert neue Felder
+- [x] `notifier.py`: `notify_pending()` sendet pro Profil mit `mode=immediate/both` an die profil-eigene E-Mail; Fallback auf globale Settings wenn kein Profil eine E-Mail hat
+- [x] `scheduler.py`: `_schedule_profile_digests()` legt pro aktivem Profil einen eigenen CronJob an; `update_profile_digest_schedules()` wird vom Route-Handler aufgerufen wenn Profil-Settings sich ändern
+- [x] `routes/profiles.py`: neuer `POST /profiles/<id>/notify`-Endpunkt (JSON: `email`, `notify_mode`, `digest_time`)
+- [x] `settings.html`: Profile-Tab zeigt inline E-Mail/Modus/Digest-Zeit pro Profil (AJAX-Save)
+- [x] `tests/test_notifier.py`: `db.get_profiles()` in zwei Tests gemockt — 579 Tests gesamt
+
+---
+
 ### Phase 27 – Neue Plattformen: Willhaben.at & markt.de
 
 - [x] **WillhabenScraper** (`app/scrapers/willhaben.py`): `__NEXT_DATA__`-JSON-Parsing (Next.js SSR), `_attr()`-Hilfsfunktion für Attributlisten, PayLivery-Parameter (Versand-Only, Default aktiv), Haversine-Radius wenn PayLivery deaktiviert

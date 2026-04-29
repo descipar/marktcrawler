@@ -87,6 +87,14 @@ Timestamps werden als „vor 2h" / „vor 30 Min." angezeigt (Tooltip mit absolu
 ### Mehrbenutzer-Profile
 Mehrere Personen können die App gemeinsam nutzen, ohne sich gegenseitig die „Neu"-Badges wegzunehmen. Beim Öffnen der App wird ein Profil gewählt (Netflix-Stil). Jedes Profil merkt sich den eigenen `last_seen_at`-Zeitstempel — Anzeigen, die nach dem letzten Besuch gefunden wurden, tragen das **✨ Neu**-Badge. Suchbegriffe und Einstellungen sind global geteilt. Profile werden in **Einstellungen → Profile** verwaltet (anlegen, umbenennen, Emoji setzen, löschen). Der aktive Nutzer ist in der Navbar sichtbar; Wechseln per Klick.
 
+Jedes Profil kann zusätzlich eine **eigene E-Mail-Adresse** und einen **Benachrichtigungsmodus** haben (konfigurierbar direkt im Profile-Tab der Einstellungen):
+- **⚡ Sofort-Alert** — bei jedem notify_job-Lauf (alle 15 Min.) alle neuen Anzeigen
+- **📋 Nur Tages-Digest** — täglich zur konfigurierten Uhrzeit
+- **Beides** — Alert + Digest
+- **Keine E-Mails** — stumm (nur Neu-Badge im Dashboard)
+
+Fallback: Wenn kein Profil eine E-Mail hat, gelten die globalen `email_recipient`- und `digest_enabled`-Settings — bestehende Single-User-Setups bleiben unverändert. Endpoint: `POST /profiles/<id>/notify` (JSON: `{"email": "...", "notify_mode": "immediate|digest_only|both|none", "digest_time": "HH:MM"}`).
+
 ### Pagination
 30 Anzeigen pro Seite, „Mehr laden"-Button lädt weitere per AJAX.
 
@@ -104,13 +112,13 @@ Im Daten-Tab der Einstellungen: Plattform aus Dropdown wählen → Löschen. `db
 ## Benachrichtigungen & Automatisierung
 
 ### E-Mail-Alert (gebündelt)
-Alle 15 Min. prüft der Notify-Job ob es neue (nicht gemeldete) Anzeigen gibt. Falls ja, wird eine gebündelte HTML-E-Mail versandt — strukturiert nach Plattform → Suchbegriff mit Inhaltsverzeichnis. Gratis-Items werden grün hervorgehoben. Jede Anzeige wird nur einmal gemeldet.
+Alle 15 Min. prüft der Notify-Job ob es neue (nicht gemeldete) Anzeigen gibt. Falls ja, wird eine gebündelte HTML-E-Mail versandt — strukturiert nach Plattform → Suchbegriff mit Inhaltsverzeichnis. Gratis-Items werden grün hervorgehoben. Jede Anzeige wird nur einmal gemeldet. Mit Per-Profil-E-Mails: `notify_pending()` sendet an alle Profile mit `notify_mode=immediate` oder `both`, jeweils an die profil-eigene Adresse.
 
 ### Manueller Crawl
 Per Knopfdruck im Dashboard: einzelne Plattform oder alle aktiven. Live-Log-Terminal zeigt den Fortschritt. Bei neuen Treffern wird sofort eine E-Mail versandt (unabhängig vom 15-Min.-Job).
 
 ### Tages-Digest
-Täglich zur konfigurierten Uhrzeit (z.B. `19:00`) eine Zusammenfassung aller heute gefundenen Anzeigen als HTML-E-Mail. Unabhängig vom gebündelten Alert — eine Anzeige kann in beiden auftauchen.
+Täglich zur konfigurierten Uhrzeit (z.B. `19:00`) eine Zusammenfassung aller heute gefundenen Anzeigen als HTML-E-Mail. Unabhängig vom gebündelten Alert — eine Anzeige kann in beiden auftauchen. Per-Profil: `scheduler._schedule_profile_digests()` legt für jedes Profil mit `notify_mode=digest_only` oder `both` und eigener E-Mail-Adresse einen eigenen CronJob mit der profil-spezifischen `digest_time` an.
 
 ### Pro-Plattform-Scheduler
 Jede Plattform hat ihr eigenes konfigurierbares Crawl-Intervall. Der Scheduler läuft im Hintergrund — kein manueller Cronjob nötig.

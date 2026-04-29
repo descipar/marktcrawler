@@ -28,11 +28,12 @@ Selbst gehostet und Docker-ready — läuft im Hintergrund auf einem Server, NAS
 ### Benachrichtigungen
 - **E-Mail-Alert (gebündelt)** — alle neuen Anzeigen alle 15 Min. kompakt per E-Mail, strukturiert nach Plattform und Suchbegriff
 - **Tages-Digest** — tägliche Zusammenfassung zur konfigurierten Uhrzeit
+- **Per-Profil-Benachrichtigungen** — jedes Profil hat eigene E-Mail-Adresse und Modus (Sofort-Alert / nur Digest / beides / stumm)
 
 ### Anzeigen & KI
 - **✨ KI-Anfragetext** — generiert per Klick einen Kontakttext an den Verkäufer; bei VB-Anzeigen mit automatischem Preisvorschlag
 - **⭐ Favoriten & Notizen** — Anzeigen markieren und kommentieren; Favoriten werden nie automatisch gelöscht
-- **👤 Mehrbenutzer-Profile** — jedes Profil sieht „✨ Neu"-Badge für Anzeigen seit dem letzten Besuch
+- **👤 Mehrbenutzer-Profile** — jedes Profil sieht „✨ Neu"-Badge für Anzeigen seit dem letzten Besuch; eigene E-Mail-Benachrichtigungen pro Profil
 - **Duplikat-Erkennung & Verfügbarkeits-Check** — plattformübergreifende Duplikaterkennung; veraltete Anzeigen automatisch entfernen
 
 📄 [Alle Features](docs/features.md)

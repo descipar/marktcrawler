@@ -288,6 +288,7 @@ const listingsCache = {};
 <!-- ── JavaScript ────────────────────────────────────────── -->
 <script>
 const PAGE_SIZE = 30;
+const TOTAL_LISTINGS = {{ stats.total_listings }};
 const LOG_POLL_INTERVAL_MS = 2000;
 const EXCLUDE_DEBOUNCE_MS = 400;
 const TOAST_DURATION_MS = 5000;
@@ -988,7 +989,11 @@ async function pollStatus() {
 (function(){
   const initialCount = document.getElementById('listings-grid').querySelectorAll('.listing-card').length;
   currentOffset = initialCount;
-  updateLoadMore(initialCount);
+  if (initialCount < TOTAL_LISTINGS) {
+    document.getElementById('load-more-wrap').classList.remove('hidden');
+  } else {
+    updateLoadMore(initialCount);
+  }
 })();
 
 // Polling starten wenn Crawl läuft, sonst einmalig laden

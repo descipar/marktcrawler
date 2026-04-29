@@ -1,8 +1,8 @@
-"""Prüft bestehende Anzeigen gegen ihre gespeicherten Suchbegriffe (AND-Logik).
+"""Prüft bestehende Anzeigen auf zwei Kriterien und löscht optional nicht passende:
 
-Anzeigen, deren Titel + Beschreibung nicht alle Wörter des zugehörigen
-Suchbegriffs enthalten, wurden vor Einführung des AND-Filters gespeichert
-und werden optional gelöscht.
+  1. AND-Filter: Alle Wörter des Suchbegriffs müssen in Titel + Beschreibung stehen.
+  2. Sprachfilter: Anzeigensprache muss in der konfigurierten Erlaubt-Liste sein
+     (nur wenn crawler_lang_filter_enabled = 1 in der DB).
 
 Aufruf:
     python scripts/cleanup_mismatched_listings.py           # nur Bericht
@@ -15,9 +15,9 @@ import os
 import re
 import sqlite3
 import sys
+from collections import defaultdict
 from pathlib import Path
 
-# Projekt-Root ins sys.path damit dotenv + app imports funktionieren
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -30,6 +30,15 @@ except ImportError:
 DATA_DIR = Path(os.environ.get("DATA_DIR", ROOT / "data"))
 DB_PATH = DATA_DIR / "baby_crawler.db"
 
+_LANG_FILTER_MIN_CHARS = 40
+
+try:
+    from langdetect import DetectorFactory
+    DetectorFactory.seed = 0
+    _langdetect_available = True
+except ImportError:
+    _langdetect_available = False
+
 
 def _matches_all_words(title: str, description: str, term: str) -> bool:
     words = term.lower().split()
@@ -39,9 +48,40 @@ def _matches_all_words(title: str, description: str, term: str) -> bool:
     return all(bool(re.search(r"\b" + re.escape(w) + r"\b", text)) for w in words)
 
 
+def _is_lang_allowed(title: str, description: str, allowed_langs: list) -> bool:
+    if not allowed_langs or not _langdetect_available:
+        return True
+    try:
+        from langdetect import detect_langs
+
+        desc = (description or "").strip()
+        if len(desc) < _LANG_FILTER_MIN_CHARS:
+            return True
+
+        results = detect_langs(desc)
+        if not results:
+            return True
+        best = results[0]
+        if best.prob < 0.60:
+            return True
+        if any(r.lang in allowed_langs for r in results):
+            return True
+        return False
+    except Exception:
+        return True
+
+
+def _get_setting(conn, key: str, default: str = "") -> str:
+    row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+    return row[0] if row else default
+
+
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--delete", action="store_true", help="Nicht passende Anzeigen löschen")
+    parser.add_argument("--lang", metavar="de,en", help="Sprachfilter erzwingen (überschreibt DB-Einstellung)")
     args = parser.parse_args()
 
     if not DB_PATH.exists():
@@ -51,49 +91,82 @@ def main():
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
 
+    if args.lang:
+        lang_filter_enabled = True
+        allowed_langs = [l.strip() for l in args.lang.split(",") if l.strip()]
+    else:
+        lang_filter_enabled = _get_setting(conn, "crawler_lang_filter_enabled", "0") == "1"
+        allowed_langs = [
+            l.strip()
+            for l in _get_setting(conn, "crawler_lang_filter_langs", "de").split(",")
+            if l.strip()
+        ]
+
     rows = conn.execute(
         "SELECT id, listing_id, title, description, search_term, platform FROM listings"
     ).fetchall()
 
-    mismatches = [
-        r for r in rows
-        if r["search_term"] and not _matches_all_words(r["title"], r["description"], r["search_term"])
-    ]
-
     total = len(rows)
-    bad = len(mismatches)
-    print(f"Gesamt: {total} Anzeigen  |  Nicht passend: {bad}")
+    word_mismatches = []
+    lang_mismatches = []
 
-    if not mismatches:
-        print("Alles in Ordnung – keine Anzeigen zu bereinigen.")
+    for r in rows:
+        title = r["title"] or ""
+        desc = r["description"] or ""
+        term = r["search_term"] or ""
+
+        if term and not _matches_all_words(title, desc, term):
+            word_mismatches.append(r)
+        elif lang_filter_enabled and not _is_lang_allowed(title, desc, allowed_langs):
+            lang_mismatches.append(r)
+
+    bad = len(word_mismatches) + len(lang_mismatches)
+    print(f"Gesamt: {total} Anzeigen")
+    print(f"  AND-Filter (Suchbegriff-Mismatch): {len(word_mismatches)}")
+    if lang_filter_enabled:
+        print(f"  Sprachfilter ({', '.join(allowed_langs)}):       {len(lang_mismatches)}")
+    else:
+        print(f"  Sprachfilter: deaktiviert (crawler_lang_filter_enabled = 0)")
+    print(f"  Gesamt zu bereinigen: {bad}")
+
+    if not bad:
+        print("\nAlles in Ordnung – keine Anzeigen zu bereinigen.")
         conn.close()
         return
 
-    # Gruppenübersicht nach Suchbegriff
-    from collections import defaultdict
-    by_term: dict = defaultdict(list)
-    for r in mismatches:
-        by_term[r["search_term"]].append(r)
+    if word_mismatches:
+        print("\n── AND-Filter-Mismatches ──────────────────────────────")
+        by_term: dict = defaultdict(list)
+        for r in word_mismatches:
+            by_term[r["search_term"]].append(r)
+        for term, listings in sorted(by_term.items()):
+            print(f"  [{term}]  →  {len(listings)} nicht passend")
+            for r in listings[:3]:
+                print(f"      • [{r['platform']}] {(r['title'] or '')[:70]}")
+            if len(listings) > 3:
+                print(f"      … und {len(listings) - 3} weitere")
 
-    print()
-    for term, listings in sorted(by_term.items()):
-        print(f"  [{term}]  →  {len(listings)} nicht passend")
-        for r in listings[:5]:
-            title_preview = (r["title"] or "")[:70]
-            print(f"      • [{r['platform']}] {title_preview}")
-        if len(listings) > 5:
-            print(f"      … und {len(listings) - 5} weitere")
+    if lang_mismatches:
+        print("\n── Sprachfilter-Mismatches ────────────────────────────")
+        by_platform: dict = defaultdict(list)
+        for r in lang_mismatches:
+            by_platform[r["platform"]].append(r)
+        for platform, listings in sorted(by_platform.items()):
+            print(f"  [{platform}]  →  {len(listings)} fremdsprachig")
+            for r in listings[:3]:
+                print(f"      • {(r['title'] or '')[:70]}")
+            if len(listings) > 3:
+                print(f"      … und {len(listings) - 3} weitere")
 
     if not args.delete:
         print(f"\nHinweis: Zum Löschen --delete übergeben.")
         conn.close()
         return
 
-    ids = [r["id"] for r in mismatches]
-    listing_ids = [r["listing_id"] for r in mismatches]
+    all_bad = word_mismatches + lang_mismatches
+    ids = [r["id"] for r in all_bad]
+    listing_ids = [r["listing_id"] for r in all_bad]
 
-    # Nicht passende Anzeigen in dismissed_listings eintragen damit sie beim
-    # nächsten Crawl nicht als "neu" wieder auftauchen
     conn.execute("BEGIN")
     conn.executemany(
         "INSERT OR IGNORE INTO dismissed_listings (listing_id, dismissed_at) VALUES (?, datetime('now'))",

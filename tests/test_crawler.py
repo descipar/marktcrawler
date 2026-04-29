@@ -238,47 +238,79 @@ class TestMatchesAllWords:
 
 class TestIsLangAllowed:
 
-    def test_leere_allowed_langs_immer_true(self):
-        assert _is_lang_allowed(make_listing(title="Bonjour le monde"), []) is True
+    def _lang(self, code: str, prob: float = 0.99):
+        """Hilfsfunktion: Mock-Language-Objekt für detect_langs-Ergebnisse."""
+        obj = MagicMock()
+        obj.lang = code
+        obj.prob = prob
+        return obj
 
-    def test_zu_kurzer_text_immer_true(self):
-        assert _is_lang_allowed(make_listing(title="Bébé"), ["de"]) is True
-
-    def _mock_langdetect(self, return_value=None, side_effect=None):
-        """Erstellt ein Mock-Modul für langdetect (funktioniert auch ohne Installation)."""
+    def _mock_detect_langs(self, results, side_effect=None):
+        """Patcht langdetect.detect_langs im sys.modules."""
         mock_mod = MagicMock()
         if side_effect:
-            mock_mod.detect.side_effect = side_effect
+            mock_mod.detect_langs.side_effect = side_effect
         else:
-            mock_mod.detect.return_value = return_value
+            mock_mod.detect_langs.return_value = results
+        mock_mod.DetectorFactory = MagicMock()
         return patch.dict(sys.modules, {"langdetect": mock_mod})
 
+    def test_leere_allowed_langs_immer_true(self):
+        assert _is_lang_allowed(make_listing(description="Bonjour le monde, ceci est une description"), []) is True
+
+    def test_zu_kurze_beschreibung_immer_true(self):
+        # Beschreibung unter 40 Zeichen → kein Filtern (Produktnamen-Schutz)
+        assert _is_lang_allowed(make_listing(description="Bébé vêtement"), ["de"]) is True
+
+    def test_keine_beschreibung_immer_true(self):
+        assert _is_lang_allowed(make_listing(description=""), ["de"]) is True
+
     def test_erkannte_sprache_erlaubt(self):
-        with self._mock_langdetect("de"):
+        with self._mock_detect_langs([self._lang("de")]):
             assert _is_lang_allowed(
-                make_listing(title="Sehr gut erhaltener Kinderwagen"), ["de"]
+                make_listing(description="Sehr gut erhalten, kaum benutzt, aus tierfreiem Haushalt"),
+                ["de"],
             ) is True
 
     def test_erkannte_sprache_nicht_erlaubt(self):
-        with self._mock_langdetect("fr"):
+        with self._mock_detect_langs([self._lang("it")]):
             assert _is_lang_allowed(
-                make_listing(title="T-shirt Star Wars bébé trois mois vêtement"), ["de"]
+                make_listing(description="abbigliamento per bambini da uno a tre mesi quasi nuovo"),
+                ["de"],
             ) is False
 
-    def test_mehrere_erlaubte_sprachen(self):
-        with self._mock_langdetect("en"):
+    def test_niedrige_konfidenz_gibt_true(self):
+        with self._mock_detect_langs([self._lang("fr", prob=0.55)]):
             assert _is_lang_allowed(
-                make_listing(title="Nice baby stroller in very good condition"), ["de", "en"]
+                make_listing(description="Tripp Trapp Classic Kissen Nordic Grey Kein Versand hier"),
+                ["de"],
+            ) is True
+
+    def test_erlaubte_sprache_in_ergebnissen_gibt_true(self):
+        # Englisch dominant aber Deutsch taucht auf → behalten
+        with self._mock_detect_langs([self._lang("en", 0.75), self._lang("de", 0.25)]):
+            assert _is_lang_allowed(
+                make_listing(description="Ergobaby carrier baby Babytrage sehr gut erhalten neuwertig"),
+                ["de"],
+            ) is True
+
+    def test_mehrere_erlaubte_sprachen(self):
+        with self._mock_detect_langs([self._lang("en")]):
+            assert _is_lang_allowed(
+                make_listing(description="Nice baby stroller in very good condition barely used once"),
+                ["de", "en"],
             ) is True
 
     def test_detection_exception_gibt_true(self):
-        with self._mock_langdetect(side_effect=Exception("DetectorError")):
+        with self._mock_detect_langs(None, side_effect=Exception("DetectorError")):
             assert _is_lang_allowed(
-                make_listing(title="Kurzer Text Kinderwagen Vinted Anzeige"), ["de"]
+                make_listing(description="Kurzer Text Kinderwagen Vinted Anzeige hier zu verkaufen"),
+                ["de"],
             ) is True
 
     def test_langdetect_nicht_installiert_gibt_true(self):
         with patch.dict(sys.modules, {"langdetect": None}):
             assert _is_lang_allowed(
-                make_listing(title="Irgendein Anzeigentext für den Test hier"), ["de"]
+                make_listing(description="Irgendein Anzeigentext für den Test hier und da"),
+                ["de"],
             ) is True

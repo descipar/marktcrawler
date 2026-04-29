@@ -84,7 +84,7 @@ def _matches_all_words(listing: Listing, term: str) -> bool:
     return all(bool(re.search(r"\b" + re.escape(w) + r"\b", text)) for w in words)
 
 
-_LANG_FILTER_MIN_CHARS = 20
+_LANG_FILTER_MIN_CHARS = 40
 
 try:
     from langdetect import DetectorFactory as _DetectorFactory
@@ -94,15 +94,31 @@ except ImportError:
 
 
 def _is_lang_allowed(listing: Listing, allowed_langs: List[str]) -> bool:
-    """Gibt True zurück wenn die erkannte Sprache erlaubt ist oder nicht eindeutig erkannt werden kann."""
+    """Gibt True wenn die Sprache erlaubt ist oder nicht sicher erkannt werden kann.
+
+    Strategie: Primär wird die Beschreibung analysiert (natürliche Sprache).
+    Nur wenn diese zu kurz ist, wird Titel+Beschreibung kombiniert – dann aber
+    mit höherer Konfidenzschwelle (0.85) um False-Positives durch englische
+    Produktnamen in deutschen Titeln zu vermeiden.
+    """
     if not allowed_langs:
         return True
-    text = f"{listing.title or ''} {listing.description or ''}".strip()
-    if len(text) < _LANG_FILTER_MIN_CHARS:
-        return True
     try:
-        from langdetect import detect
-        return detect(text) in allowed_langs
+        from langdetect import detect_langs
+
+        desc = (listing.description or "").strip()
+        if len(desc) < _LANG_FILTER_MIN_CHARS:
+            return True  # Beschreibung zu kurz → nicht filtern; Titel enthält oft Produktnamen
+
+        results = detect_langs(desc)
+        if not results:
+            return True
+        best = results[0]
+        if best.prob < 0.60:
+            return True
+        if any(r.lang in allowed_langs for r in results):
+            return True
+        return False
     except Exception:
         return True
 

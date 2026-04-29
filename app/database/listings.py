@@ -321,6 +321,27 @@ def clear_listings_older_than(hours: int) -> int:
     return len(ids)
 
 
+def clear_listings_by_platform(platform: str) -> int:
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT listing_id FROM listings WHERE platform=? AND is_favorite=0",
+            (platform,),
+        ).fetchall()
+        if not rows:
+            return 0
+        ids = [r["listing_id"] for r in rows]
+        conn.executemany(
+            "INSERT OR IGNORE INTO dismissed_listings(listing_id) VALUES(?)",
+            [(lid,) for lid in ids],
+        )
+        conn.execute(
+            "DELETE FROM listings WHERE platform=? AND is_favorite=0",
+            (platform,),
+        )
+        conn.commit()
+    return len(ids)
+
+
 def clear_all_listings():
     with _db() as conn:
         conn.execute("DELETE FROM listings WHERE is_favorite = 0")

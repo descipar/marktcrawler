@@ -537,6 +537,22 @@
             Bereinigen
           </button>
         </div>
+        <div class="border-t border-slate-100 pt-4 flex items-start justify-between gap-4">
+          <div class="flex-1">
+            <p class="text-sm text-slate-700 font-medium">Anzeigen einer Plattform löschen</p>
+            <p class="text-xs text-slate-400 mt-0.5">Löscht alle Anzeigen der gewählten Plattform und merkt sie als gesehen – beim nächsten Crawl werden sie neu gefunden. Favoriten bleiben erhalten.</p>
+            <select id="clearPlatformSelect"
+              class="mt-2 text-sm border border-slate-300 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500">
+              {% for pid, pname in platforms %}
+              <option value="{{ pname }}">{{ pname }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="button" onclick="clearListingsByPlatform()"
+            class="shrink-0 mt-6 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
+            Löschen
+          </button>
+        </div>
         <div class="border-t border-slate-100 pt-4 flex items-center justify-between gap-4">
           <div>
             <p class="text-sm text-slate-700 font-medium">Alle Suchergebnisse löschen</p>
@@ -697,6 +713,26 @@ async function cleanupMismatched() {
   } catch(e) {
     btn.textContent = '✗ Fehler'; btn.disabled = false;
   }
+}
+
+async function clearListingsByPlatform() {
+  const sel = document.getElementById('clearPlatformSelect');
+  const platform = sel.value;
+  showConfirm(`Wirklich alle Anzeigen von ${platform} löschen? (Favoriten bleiben erhalten)`, async () => {
+    const btn = sel.nextElementSibling;
+    btn.disabled = true; btn.textContent = 'Lädt...';
+    try {
+      const r = await fetch('/api/clear-listings-by-platform', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({platform}),
+      });
+      const data = await r.json();
+      showToast(data.message || `${platform} gelöscht.`);
+      btn.textContent = '✓ Gelöscht';
+      btn.classList.replace('bg-red-600', 'bg-green-600');
+      setTimeout(() => { btn.disabled = false; btn.textContent = 'Löschen'; btn.classList.replace('bg-green-600', 'bg-red-600'); }, 3000);
+    } catch { btn.disabled = false; btn.textContent = 'Fehler'; }
+  }, 'Löschen');
 }
 
 function clearAllListings() {

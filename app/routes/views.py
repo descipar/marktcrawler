@@ -5,7 +5,7 @@ import logging
 from flask import render_template, request, jsonify, redirect, url_for, flash, session
 
 from . import bp
-from ._helpers import PLATFORMS, build_platform_max_ages, build_platform_stats, is_running
+from ._helpers import PLATFORMS, _PLATFORM_DISPLAY, build_platform_max_ages, build_platform_stats, is_running
 from .. import database as db
 from ..scheduler import get_next_run, get_next_runs, update_platform_schedules, update_digest_schedule, update_availability_schedule
 
@@ -130,7 +130,8 @@ def update_note(db_id):
 @bp.route("/settings")
 def settings_page():
     settings = db.get_settings()
-    return render_template("settings.html", s=settings, profiles=db.get_profiles())
+    platforms = [(p, _PLATFORM_DISPLAY.get(p, p.capitalize())) for p in PLATFORMS]
+    return render_template("settings.html", s=settings, profiles=db.get_profiles(), platforms=platforms)
 
 
 @bp.route("/settings", methods=["POST"])

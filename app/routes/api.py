@@ -208,6 +208,17 @@ def api_availability_check():
     return jsonify({"status": "started", "message": "Verfügbarkeits-Check gestartet."})
 
 
+@bp.route("/api/clear-listings-by-platform", methods=["POST"])
+def api_clear_listings_by_platform():
+    platform = (request.get_json(silent=True) or {}).get("platform", "").strip()
+    if not platform:
+        return jsonify({"error": "Kein Platform-Name angegeben."}), 400
+    deleted = db.clear_listings_by_platform(platform)
+    logger.info(f"🗑️ {deleted} Anzeige(n) von '{platform}' gelöscht und als gesehen markiert.")
+    return jsonify({"status": "ok", "deleted": deleted,
+                    "message": f"{deleted} Anzeigen von {platform} gelöscht."})
+
+
 @bp.route("/api/clear-listings-by-age", methods=["POST"])
 def api_clear_listings_by_age():
     try:

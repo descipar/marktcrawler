@@ -618,6 +618,48 @@ class TestClearListingsOlderThan:
         assert deleted == 2
 
 
+class TestClearListingsByPlatform:
+
+    def _save(self, temp_db, lid, platform="TestPlattform"):
+        from app.scrapers.base import Listing
+        temp_db.save_listing(Listing(
+            platform=platform, title=lid, price="10 €",
+            location="Wien", url=f"https://example.com/{lid}",
+            listing_id=lid, search_term="test",
+        ))
+
+    def test_loescht_listings_der_plattform(self, temp_db):
+        self._save(temp_db, "wh-1", "Willhaben")
+        self._save(temp_db, "wh-2", "Willhaben")
+        deleted = temp_db.clear_listings_by_platform("Willhaben")
+        assert deleted == 2
+        assert temp_db.get_listing_count() == 0
+
+    def test_belaesst_andere_plattformen(self, temp_db):
+        self._save(temp_db, "wh-1", "Willhaben")
+        self._save(temp_db, "ka-1", "Kleinanzeigen")
+        temp_db.clear_listings_by_platform("Willhaben")
+        assert temp_db.get_listing_count() == 1
+        assert temp_db.get_listings()[0]["listing_id"] == "ka-1"
+
+    def test_schont_favoriten(self, temp_db):
+        self._save(temp_db, "wh-fav", "Willhaben")
+        db_id = temp_db.get_listings()[0]["id"]
+        temp_db.toggle_favorite(db_id)
+        deleted = temp_db.clear_listings_by_platform("Willhaben")
+        assert deleted == 0
+        assert temp_db.get_listing_count() == 1
+
+    def test_dismissed_nach_loeschen(self, temp_db):
+        self._save(temp_db, "wh-dismiss", "Willhaben")
+        temp_db.clear_listings_by_platform("Willhaben")
+        assert temp_db.is_dismissed("wh-dismiss") is True
+
+    def test_leere_plattform_gibt_null(self, temp_db):
+        deleted = temp_db.clear_listings_by_platform("Willhaben")
+        assert deleted == 0
+
+
 class TestMigrationFramework:
     """Tests für das versionierte Migrations-Framework (_migrations-Tabelle)."""
 

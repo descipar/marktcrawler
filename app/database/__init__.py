@@ -43,6 +43,7 @@ from .listings import (
     mark_listings_notified,
     clear_old_listings,
     clear_listings_older_than,
+    clear_listings_by_platform,
     clear_all_listings,
     get_all_listing_urls,
     mark_listings_availability_checked,
@@ -85,7 +86,7 @@ __all__ = [
     "get_distinct_platforms", "get_platform_counts", "get_listings", "get_listing_count",
     "get_listing_by_id", "get_listings_today", "get_unnotified_listings",
     "claim_unnotified_listings", "mark_listings_notified",
-    "clear_old_listings", "clear_listings_older_than", "clear_all_listings",
+    "clear_old_listings", "clear_listings_older_than", "clear_listings_by_platform", "clear_all_listings",
     "get_all_listing_urls", "mark_listings_availability_checked",
     "delete_listing_by_listing_id", "cleanup_mismatched_listings",
     # geocache

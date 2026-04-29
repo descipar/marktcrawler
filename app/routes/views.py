@@ -143,11 +143,16 @@ def save_settings():
         "facebook_enabled", "facebook_max_price", "facebook_location", "facebook_interval", "facebook_max_age_hours",
         "vinted_enabled", "vinted_max_price", "vinted_location", "vinted_radius", "vinted_interval", "vinted_max_age_hours",
         "ebay_enabled", "ebay_max_price", "ebay_location", "ebay_radius", "ebay_interval", "ebay_max_age_hours",
+        "willhaben_enabled", "willhaben_max_price", "willhaben_location", "willhaben_radius",
+        "willhaben_paylivery_only", "willhaben_interval", "willhaben_max_age_hours",
+        "marktde_enabled", "marktde_max_price", "marktde_location", "marktde_radius",
+        "marktde_interval", "marktde_max_age_hours",
         "email_enabled", "email_subject_alert", "email_subject_digest",
         "email_smtp_server", "email_smtp_port",
         "email_sender", "email_password", "email_recipient",
         "crawler_interval", "crawler_max_results", "crawler_delay",
-        "crawler_blacklist", "display_max_age_hours",
+        "crawler_blacklist", "crawler_lang_filter_enabled", "crawler_lang_filter_langs",
+        "display_max_age_hours",
         "digest_enabled", "digest_time",
         "home_location",
         "availability_check_enabled", "availability_check_interval_hours",
@@ -155,9 +160,11 @@ def save_settings():
         "ai_enabled", "ai_api_key", "ai_model", "ai_base_url", "ai_prompt_hints",
         "server_url",
     }
+    # Checkbox-Keys die nicht auf _enabled enden
+    _extra_bool_keys = {"willhaben_paylivery_only", "crawler_lang_filter_enabled"}
     data = {}
     for key in allowed_keys:
-        if key.endswith("_enabled"):
+        if key.endswith("_enabled") or key in _extra_bool_keys:
             data[key] = "1" if request.form.get(key) else "0"
         else:
             val = request.form.get(key, "")

@@ -46,6 +46,21 @@ DEFAULT_SETTINGS: Dict[str, str] = {
     "ebay_location": "München",
     "ebay_radius": "30",
     "ebay_max_age_hours": "0",
+    # Willhaben
+    "willhaben_enabled": "0",
+    "willhaben_max_price": "100",
+    "willhaben_location": "München",
+    "willhaben_radius": "50",
+    "willhaben_paylivery_only": "1",  # nur Versand-Angebote (PayLivery)
+    "willhaben_interval": "30",
+    "willhaben_max_age_hours": "0",
+    # markt.de
+    "marktde_enabled": "0",
+    "marktde_max_price": "100",
+    "marktde_location": "München",
+    "marktde_radius": "50",
+    "marktde_interval": "60",
+    "marktde_max_age_hours": "0",
     # E-Mail
     "email_enabled": "0",
     "email_subject_alert": "🔍 Marktcrawler: {n} neue Anzeige(n) gefunden!",

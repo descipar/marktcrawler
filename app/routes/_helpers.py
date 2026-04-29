@@ -14,6 +14,8 @@ _PLATFORM_DISPLAY = {
     "vinted": "Vinted",
     "ebay": "eBay",
     "facebook": "Facebook",
+    "willhaben": "Willhaben",
+    "marktde": "markt.de",
 }
 
 

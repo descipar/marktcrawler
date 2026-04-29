@@ -11,7 +11,7 @@ from . import database as db
 from .geo import distance_to_home
 from .logbuffer import clear as clear_log
 from .notifier import notify
-from .scrapers import KleinanzeigenScraper, ShpockScraper, FacebookScraper, VintedScraper, EbayScraper
+from .scrapers import KleinanzeigenScraper, ShpockScraper, FacebookScraper, VintedScraper, EbayScraper, WillhabenScraper, MarktdeScraper
 from .scrapers.base import Listing, price_within_limit
 
 logger = logging.getLogger(__name__)
@@ -22,6 +22,8 @@ PLATFORM_SCRAPER_MAP = {
     "facebook": FacebookScraper,
     "vinted": VintedScraper,
     "ebay": EbayScraper,
+    "willhaben": WillhabenScraper,
+    "marktde": MarktdeScraper,
 }
 
 # Standardintervalle (Minuten) – Fallback wenn kein DB-Wert vorhanden
@@ -31,6 +33,8 @@ DEFAULT_INTERVALS = {
     "facebook": 60,
     "vinted": 30,
     "ebay": 60,
+    "willhaben": 30,
+    "marktde": 60,
 }
 
 _running: set = set()  # Menge der gerade laufenden Plattform-Namen

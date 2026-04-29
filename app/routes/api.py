@@ -235,6 +235,8 @@ def api_test_scraper():
         "vinted": "VintedScraper",
         "ebay": "EbayScraper",
         "facebook": "FacebookScraper",
+        "willhaben": "WillhabenScraper",
+        "marktde": "MarktdeScraper",
     }
     cls_name = scraper_map.get(platform)
     if not cls_name:

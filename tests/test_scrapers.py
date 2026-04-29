@@ -1,5 +1,6 @@
-"""Tests für VintedScraper, ShpockScraper und EbayScraper."""
+"""Tests für VintedScraper, ShpockScraper, EbayScraper, WillhabenScraper, MarktdeScraper."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,6 +10,8 @@ from app.scrapers.ebay import EbayScraper
 from app.scrapers.kleinanzeigen import KleinanzeigenScraper
 from app.scrapers.shpock import ShpockScraper
 from app.scrapers.vinted import VintedScraper
+from app.scrapers.willhaben import WillhabenScraper, _attr
+from app.scrapers.markt import MarktdeScraper, _city_slug
 
 
 # ── BaseScraper-Vererbung ─────────────────────────────────────
@@ -453,3 +456,268 @@ class TestVintedScraperStandort:
             with patch("app.scrapers.vinted.geocode", return_value=(48.2601, 11.4338)):
                 results = scraper.search("babywanne")
         assert len(results) == 1
+
+
+# ── Willhaben ─────────────────────────────────────────────────────────────────
+
+def _willhaben_advert(advert_id="12345", title="Kinderwagen ABC", price="€ 50",
+                       location="Wien", seo_url="/iad/kaufen/d/abc/12345/",
+                       description="Super Zustand", image="https://img.willhaben.at/1.jpg",
+                       coords="48.2083,16.3731") -> dict:
+    attrs = [
+        {"name": "HEADING", "values": [title]},
+        {"name": "PRICE_FOR_DISPLAY", "values": [price]},
+        {"name": "LOCATION", "values": [location]},
+        {"name": "SEO_URL", "values": [seo_url]},
+        {"name": "BODY_DYN", "values": [description]},
+        {"name": "MMO", "values": [image]},
+        {"name": "COORDINATES", "values": [coords]},
+    ]
+    return {"id": advert_id, "attributes": {"attribute": attrs}}
+
+
+def _willhaben_html(adverts: list) -> str:
+    data = {
+        "props": {
+            "pageProps": {
+                "searchResult": {
+                    "advertSummaryList": {
+                        "advertSummary": adverts
+                    }
+                }
+            }
+        }
+    }
+    return f'<script id="__NEXT_DATA__">{json.dumps(data)}</script>'
+
+
+class TestWillhabenScraper:
+
+    def _scraper(self, settings=None):
+        return WillhabenScraper(settings or {})
+
+    def test_ist_base_scraper(self):
+        assert isinstance(self._scraper(), BaseScraper)
+
+    def test_attr_helper(self):
+        attrs = [{"name": "HEADING", "values": ["Kinderwagen"]}, {"name": "PRICE", "values": ["50"]}]
+        assert _attr(attrs, "HEADING") == "Kinderwagen"
+        assert _attr(attrs, "MISSING") == ""
+
+    def test_parse_felder(self):
+        scraper = self._scraper()
+        advert = _willhaben_advert()
+        listing = scraper._parse(advert, "kinderwagen")
+        assert listing is not None
+        assert listing.platform == "Willhaben"
+        assert listing.title == "Kinderwagen ABC"
+        assert listing.price == "€ 50"
+        assert listing.location == "Wien"
+        assert listing.listing_id == "wh_12345"
+        assert listing.url == "https://www.willhaben.at/iad/kaufen/d/abc/12345/"
+        assert listing.description == "Super Zustand"
+        assert listing.image_url == "https://img.willhaben.at/1.jpg"
+        assert listing.search_term == "kinderwagen"
+
+    def test_parse_seo_url_absolut(self):
+        scraper = self._scraper()
+        advert = _willhaben_advert(seo_url="https://www.willhaben.at/iad/x/99/")
+        listing = scraper._parse(advert, "test")
+        assert listing.url == "https://www.willhaben.at/iad/x/99/"
+
+    def test_parse_ohne_seo_url_fallback(self):
+        scraper = self._scraper()
+        advert = _willhaben_advert(seo_url="")
+        listing = scraper._parse(advert, "test")
+        assert listing.url == "https://www.willhaben.at/iad/kaufen-und-verkaufen/d/12345"
+
+    def test_parse_fehlende_felder_kein_absturz(self):
+        scraper = self._scraper()
+        assert scraper._parse({}, "test") is not None
+
+    def test_extract_adverts_parst_next_data(self):
+        scraper = self._scraper()
+        adverts = [_willhaben_advert()]
+        html = _willhaben_html(adverts)
+        result = scraper._extract_adverts(html)
+        assert len(result) == 1
+
+    def test_extract_adverts_kein_next_data(self):
+        scraper = self._scraper()
+        assert scraper._extract_adverts("<html>leer</html>") == []
+
+    def test_extract_coords(self):
+        scraper = self._scraper()
+        advert = _willhaben_advert(coords="48.2083,16.3731")
+        coords = scraper._extract_coords(advert)
+        assert coords == (48.2083, 16.3731)
+
+    def test_extract_coords_fehlt(self):
+        scraper = self._scraper()
+        advert = _willhaben_advert(coords="")
+        assert scraper._extract_coords(advert) is None
+
+    def test_search_gibt_listings_zurueck(self):
+        scraper = self._scraper()
+        html = _willhaben_html([_willhaben_advert()])
+        with patch.object(scraper.session, "get", return_value=_mock_response(text=html)):
+            results = scraper.search("kinderwagen", max_results=5)
+        assert len(results) == 1
+        assert results[0].title == "Kinderwagen ABC"
+
+    def test_search_bei_exception(self):
+        scraper = self._scraper()
+        with patch.object(scraper.session, "get", side_effect=Exception("Timeout")):
+            assert scraper.search("kinderwagen") == []
+
+    def test_search_paylivery_param_gesetzt(self):
+        scraper = WillhabenScraper({"willhaben_paylivery_only": "1"})
+        with patch.object(scraper.session, "get", return_value=_mock_response(text="<html></html>")) as mock_get:
+            scraper.search("kinderwagen")
+        params = mock_get.call_args[1]["params"]
+        assert params.get("paylivery") == "true"
+
+    def test_search_kein_paylivery_param_wenn_deaktiviert(self):
+        scraper = WillhabenScraper({"willhaben_paylivery_only": "0"})
+        with patch.object(scraper.session, "get", return_value=_mock_response(text="<html></html>")) as mock_get:
+            scraper.search("kinderwagen")
+        params = mock_get.call_args[1]["params"]
+        assert "paylivery" not in params
+
+    def test_search_max_price_in_params(self):
+        scraper = WillhabenScraper({"willhaben_max_price": "80"})
+        with patch.object(scraper.session, "get", return_value=_mock_response(text="<html></html>")) as mock_get:
+            scraper.search("kinderwagen")
+        params = mock_get.call_args[1]["params"]
+        assert params.get("PRICE_TO") == 80
+
+    def test_search_paylivery_ueberspringt_radius_filter(self):
+        """PayLivery aktiviert → Radius-Filter wird nicht angewendet."""
+        scraper = WillhabenScraper({
+            "willhaben_paylivery_only": "1",
+            "home_latitude": "48.1351",
+            "home_longitude": "11.5820",
+            "willhaben_radius": "50",
+        })
+        # Wien liegt ~600 km von München
+        advert = _willhaben_advert(coords="48.2083,16.3731")
+        html = _willhaben_html([advert])
+        with patch.object(scraper.session, "get", return_value=_mock_response(text=html)):
+            results = scraper.search("kinderwagen")
+        assert len(results) == 1
+
+    def test_search_radius_filter_ohne_paylivery(self):
+        """PayLivery deaktiviert + Radius → weit entfernte Items werden gefiltert."""
+        scraper = WillhabenScraper({
+            "willhaben_paylivery_only": "0",
+            "home_latitude": "48.1351",
+            "home_longitude": "11.5820",
+            "willhaben_radius": "50",
+        })
+        # Wien liegt ~600 km von München
+        advert = _willhaben_advert(coords="48.2083,16.3731")
+        html = _willhaben_html([advert])
+        with patch.object(scraper.session, "get", return_value=_mock_response(text=html)):
+            results = scraper.search("kinderwagen")
+        assert results == []
+
+
+# ── markt.de ─────────────────────────────────────────────────────────────────
+
+MARKTDE_ITEM_HTML = """
+<article class="clsy-c-result-list-item">
+  <a class="clsy-c-result-list-item__link" href="/kinderwagen/12345/">Kinderwagen Bugaboo</a>
+  <span class="clsy-c-result-list-item__price-amount">75 €</span>
+  <span class="clsy-c-result-list-item__location">München</span>
+  <div class="clsy-c-result-list-item__thumbnail">
+    <img src="https://cdn.markt.de/img/12345.jpg" alt="Bild">
+  </div>
+  <p class="clsy-c-result-list-item__description">Sehr guter Zustand</p>
+</article>
+"""
+
+
+def _marktde_page(items_html: str) -> str:
+    return f"<html><body><div>{items_html}</div></body></html>"
+
+
+class TestMarktdeScraper:
+
+    def _scraper(self, settings=None):
+        return MarktdeScraper(settings or {})
+
+    def test_ist_base_scraper(self):
+        assert isinstance(self._scraper(), BaseScraper)
+
+    def test_city_slug_umlaut(self):
+        assert _city_slug("München") == "muenchen"
+        assert _city_slug("Köln") == "koeln"
+        assert _city_slug("Düsseldorf") == "duesseldorf"
+        assert _city_slug("Straße") == "strasse"
+
+    def test_city_slug_leerzeichen(self):
+        assert _city_slug("Bad Homburg") == "bad-homburg"
+
+    def test_city_slug_lowercase(self):
+        assert _city_slug("BERLIN") == "berlin"
+
+    def test_parse_felder(self):
+        from bs4 import BeautifulSoup
+        scraper = self._scraper()
+        item = BeautifulSoup(MARKTDE_ITEM_HTML, "lxml").select_one(".clsy-c-result-list-item")
+        listing = scraper._parse(item, "kinderwagen")
+        assert listing is not None
+        assert listing.platform == "markt.de"
+        assert listing.title == "Kinderwagen Bugaboo"
+        assert listing.price == "75 €"
+        assert listing.location == "München"
+        assert listing.listing_id == "md_12345"
+        assert listing.url == "https://www.markt.de/kinderwagen/12345/"
+        assert listing.image_url == "https://cdn.markt.de/img/12345.jpg"
+        assert listing.description == "Sehr guter Zustand"
+        assert listing.search_term == "kinderwagen"
+
+    def test_parse_ohne_link_gibt_none(self):
+        from bs4 import BeautifulSoup
+        scraper = self._scraper()
+        item = BeautifulSoup("<article class='clsy-c-result-list-item'></article>", "lxml").select_one(".clsy-c-result-list-item")
+        assert scraper._parse(item, "test") is None
+
+    def test_search_gibt_listings_zurueck(self):
+        scraper = MarktdeScraper({"marktde_location": "münchen"})
+        html = _marktde_page(MARKTDE_ITEM_HTML)
+        with patch.object(scraper.session, "get", return_value=_mock_response(text=html)):
+            results = scraper.search("kinderwagen", max_results=5)
+        assert len(results) == 1
+        assert results[0].title == "Kinderwagen Bugaboo"
+
+    def test_search_leere_ergebnisseite(self):
+        scraper = self._scraper()
+        with patch.object(scraper.session, "get", return_value=_mock_response(text="<html></html>")):
+            assert scraper.search("kinderwagen") == []
+
+    def test_search_bei_exception(self):
+        scraper = self._scraper()
+        with patch.object(scraper.session, "get", side_effect=Exception("Timeout")):
+            assert scraper.search("kinderwagen") == []
+
+    def test_search_max_price_filter(self):
+        scraper = MarktdeScraper({"marktde_max_price": "50"})
+        html = _marktde_page(MARKTDE_ITEM_HTML)  # Preis = 75 €, über 50 → gefiltert
+        with patch.object(scraper.session, "get", return_value=_mock_response(text=html)):
+            results = scraper.search("kinderwagen")
+        assert results == []
+
+    def test_search_url_enthaelt_city_slug(self):
+        scraper = MarktdeScraper({"marktde_location": "München"})
+        with patch.object(scraper.session, "get", return_value=_mock_response(text="<html></html>")) as mock_get:
+            scraper.search("kinderwagen")
+        url = mock_get.call_args[0][0]
+        assert "muenchen" in url
+
+    def test_search_url_enthaelt_term(self):
+        scraper = MarktdeScraper({"marktde_location": "Berlin"})
+        with patch.object(scraper.session, "get", return_value=_mock_response(text="<html></html>")) as mock_get:
+            scraper.search("baby stuhl")
+        url = mock_get.call_args[0][0]
+        assert "baby" in url.lower()

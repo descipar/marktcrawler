@@ -1,13 +1,13 @@
 # 🔍 Marktcrawler
 
-Siehst du eine Anzeige für einen günstigen Kinderwagen — aber immer zu spät? **Marktcrawler** durchsucht Kleinanzeigen.de, Shpock, Vinted, eBay und Facebook Marketplace automatisch nach deinen Suchbegriffen und schickt dir eine E-Mail, sobald neue Treffer auftauchen.
+Siehst du eine Anzeige für einen günstigen Kinderwagen — aber immer zu spät? **Marktcrawler** durchsucht Kleinanzeigen.de, Shpock, Vinted, eBay, Willhaben.at, markt.de und Facebook Marketplace automatisch nach deinen Suchbegriffen und schickt dir eine E-Mail, sobald neue Treffer auftauchen.
 
 Selbst gehostet, Docker-ready, läuft unbeaufsichtigt auf einem Raspberry Pi.
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-490%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-519%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)
 
 ---
@@ -21,7 +21,7 @@ Selbst gehostet, Docker-ready, läuft unbeaufsichtigt auf einem Raspberry Pi.
 ## ✨ Features
 
 ### Suche & Crawler
-- **5 Plattformen gleichzeitig** — Kleinanzeigen.de, Shpock, Vinted, eBay, Facebook Marketplace; jede mit eigenem Crawl-Intervall
+- **7 Plattformen gleichzeitig** — Kleinanzeigen.de, Shpock, Vinted, eBay, Willhaben.at, markt.de, Facebook Marketplace; jede mit eigenem Crawl-Intervall
 - **Suchbegriffe** mit optionalem Preislimit pro Begriff; Blacklist für Ausschluss-Keywords (z.B. „defekt", „bastler")
 - **Radius-Filter** mit Standort-Geocoding via OpenStreetMap; Radius 0 = kein Filter
 

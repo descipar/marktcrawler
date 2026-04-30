@@ -108,6 +108,8 @@ Dann in **Einstellungen → KI-Assistent**: Modell `gemma2:2b`, Base-URL `http:/
 
 ### Docker (empfohlen)
 
+Läuft auf jedem Server, NAS oder Raspberry Pi (4/5, ~5 Watt, 24/7).
+
 ```bash
 git clone https://github.com/descipar/marktcrawler.git
 cd marktcrawler
@@ -117,16 +119,10 @@ docker compose down             # Stoppen
 git pull && docker compose up -d --build  # Update
 ```
 
-### Raspberry Pi 4
-
-Stromsparend (~5 Watt), läuft still 24/7:
+Auf einem frischen Raspberry Pi zuerst Docker installieren:
 
 ```bash
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker pi
-git clone https://github.com/descipar/marktcrawler.git /home/pi/marktcrawler
-cd /home/pi/marktcrawler
-docker compose up -d --build
+curl -fsSL https://get.docker.com | sh && sudo usermod -aG docker $USER
 ```
 
 ### Windows (Installer)

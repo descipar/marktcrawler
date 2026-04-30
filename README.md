@@ -7,7 +7,8 @@ Selbst gehostet und Docker-ready — läuft im Hintergrund auf einem Server, NAS
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-640%20passed-brightgreen?logo=pytest)
+![Windows](https://img.shields.io/badge/Windows-Installer-0078D4?logo=windows&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-629%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)
 
 ---
@@ -127,6 +128,18 @@ git clone https://github.com/descipar/marktcrawler.git /home/pi/marktcrawler
 cd /home/pi/marktcrawler
 docker compose up -d --build
 ```
+
+### Windows (Installer)
+
+Für nicht-technische Nutzer: fertige `MarktcrawlerSetup.exe` aus den [Releases](https://github.com/descipar/marktcrawler/releases/latest) herunterladen und ausführen.
+
+- Installations-Wizard auf Deutsch
+- Desktop-Verknüpfung wird angelegt
+- Klick auf Icon → Browser öffnet sich automatisch auf `http://localhost:5000`
+- Tray-Icon in der Taskleiste (Rechtsklick → Beenden)
+- Daten liegen in `%APPDATA%\Marktcrawler\` und überleben Updates
+
+> ⚠️ Facebook Marketplace ist in der Windows-Version nicht verfügbar (benötigt Playwright).
 
 ### Lokal (ohne Docker)
 

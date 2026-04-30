@@ -1,5 +1,5 @@
 ; Inno Setup Skript für Marktcrawler
-; Wird vom GitHub Actions Windows-Runner erzeugt.
+; {#SourcePath} = Verzeichnis dieser .iss-Datei (= windows\)
 ; Manuell bauen: iscc windows\installer.iss  (aus Projekt-Root)
 
 #define AppName      "Marktcrawler"
@@ -19,9 +19,9 @@ AppUpdatesURL={#AppURL}/releases
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 AllowNoIcons=yes
-OutputDir=windows\Output
+OutputDir={#SourcePath}\Output
 OutputBaseFilename=MarktcrawlerSetup
-SetupIconFile=windows\icon.ico
+SetupIconFile={#SourcePath}\icon.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -37,7 +37,7 @@ Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 Name: "desktopicon"; Description: "Desktop-Verknüpfung erstellen"; GroupDescription: "Zusätzliche Symbole:"; Flags: checked
 
 [Files]
-Source: "dist\Marktcrawler\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourcePath}\..\dist\Marktcrawler\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#AppName}";               Filename: "{app}\{#AppExeName}"

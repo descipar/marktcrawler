@@ -1,13 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
 # PyInstaller-Spec für den Windows-Build.
-# Ausführen aus dem Projekt-Root: pyinstaller windows/marktcrawler.spec
+# SPECPATH ist der Ordner dieser Datei (= windows/).
+# PROJ ist der Projekt-Root (eine Ebene darüber).
 
-import sys
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+import os
+from PyInstaller.utils.hooks import collect_data_files
+
+PROJ = os.path.abspath(os.path.join(SPECPATH, ".."))
 
 datas = [
-    ("app/templates",   "app/templates"),
-    ("app/_version.py", "app"),
+    (os.path.join(PROJ, "app", "templates"),  "app/templates"),
+    (os.path.join(PROJ, "app", "_version.py"), "app"),
 ]
 
 # langdetect bringt Sprach-Profile als Datendateien mit
@@ -46,8 +49,8 @@ excludes = [
 ]
 
 a = Analysis(
-    ["windows/main_windows.py"],
-    pathex=["."],
+    [os.path.join(SPECPATH, "main_windows.py")],   # relativ zum Spec-Verzeichnis
+    pathex=[PROJ],                                   # App-Package im Projekt-Root finden
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,
@@ -68,8 +71,8 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,          # kein schwarzes CMD-Fenster
-    icon="windows/icon.ico",
+    console=False,
+    icon=os.path.join(SPECPATH, "icon.ico"),
 )
 
 coll = COLLECT(

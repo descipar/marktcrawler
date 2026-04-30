@@ -34,7 +34,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Desktop-Verknüpfung erstellen"; GroupDescription: "Zusätzliche Symbole:"; Flags: checked
+Name: "desktopicon"; Description: "Desktop-Verknüpfung erstellen"; GroupDescription: "Zusätzliche Symbole:"
 
 [Files]
 Source: "{#SourcePath}\..\dist\Marktcrawler\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

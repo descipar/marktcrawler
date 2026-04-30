@@ -1,0 +1,60 @@
+name: Build Windows Installer
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # vollständige Git-History für bake_version.py
+
+      - name: Python 3.12 einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: App-Abhängigkeiten installieren
+        run: |
+          pip install -r requirements.txt
+          pip install -r windows/requirements-windows.txt
+
+      - name: _version.py einbrennen
+        run: python scripts/bake_version.py
+
+      - name: Icon erzeugen
+        run: python windows/create_icon.py
+
+      - name: PyInstaller-Build
+        run: pyinstaller windows/marktcrawler.spec --noconfirm
+
+      - name: Inno Setup installieren
+        run: choco install innosetup --yes --no-progress
+
+      - name: Installer bauen
+        run: iscc windows\installer.iss
+
+      - name: Installer-Artefakt hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: MarktcrawlerSetup
+          path: windows\Output\MarktcrawlerSetup.exe
+          retention-days: 30
+
+      - name: Als Release-Asset anhängen (nur bei Tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: windows\Output\MarktcrawlerSetup.exe
+          fail_on_unmatched_files: true

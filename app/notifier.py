@@ -231,8 +231,9 @@ def _card_html(title, platform, search_term, price, location, url,
                image_url="", is_free=False, distance_km=None,
                found_at="", is_digest=False, db_id=None, server_url="") -> str:
     bg = "#dcedc8" if is_free else _PLATFORM_COLORS.get(platform, "#f5f5f5")
-    img = (f'<img src="{escape(image_url)}" style="max-width:180px;border-radius:6px;'
-           f'margin-bottom:8px"><br>') if image_url else ""
+    img = (f'<img src="{escape(image_url)}" width="180" '
+           f'style="max-width:180px;max-height:180px;width:auto;height:auto;'
+           f'display:block;border-radius:6px;margin-bottom:8px"><br>') if image_url else ""
     free_badge = ('<span style="background:#1b5e20;color:#fff;font-size:11px;'
                   'padding:2px 8px;border-radius:12px;font-weight:bold;'
                   'margin-left:6px">🎁 Gratis</span>') if is_free else ""

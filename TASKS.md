@@ -38,6 +38,17 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 
 ---
 
+### Phase 30 – Ruhezeit (Quiet Hours) pro Profil
+
+- [x] DB-Migration v12: `profiles` bekommt `quiet_start` (Default `20:00`) und `quiet_end` (Default `08:00`)
+- [x] `notifier.py`: `_is_quiet_hours(profile, now_local)` mit korrekter Über-Mitternacht-Logik; `notify_pending()` überspringt Profile in Ruhezeit — kein Claim, Listings akkumulieren bis Ruhezeit endet
+- [x] `database/profiles.py`: `update_profile_notify()` nimmt `quiet_start`/`quiet_end` entgegen
+- [x] `routes/profiles.py`: `POST /profiles/<id>/notify` leitet `quiet_start`/`quiet_end` weiter
+- [x] `settings.html`: Zwei Zeitfelder (Von/Bis) pro Profil; Status-Zeile zeigt 🌙 HH:MM–HH:MM; JS sendet neue Felder mit; `toggleProfileNotifyFields` blendet Ruhezeit bei Modus `off` aus
+- [x] 11 neue Tests für `_is_quiet_hours` (innerhalb/außerhalb, Grenzfälle, Über-Mitternacht, Tagfenster, ungültige Eingaben, Defaults, Integration in `notify_pending`) — 629 Tests gesamt
+
+---
+
 ### Phase 29 – Daten-Tab & Coverage-Verbesserungen
 
 - [x] „Alte Anzeigen löschen"-Block vom Crawler-Tab in den Daten-Tab verschoben

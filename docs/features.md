@@ -93,7 +93,9 @@ Jedes Profil kann zusätzlich eine **eigene E-Mail-Adresse** und einen **Benachr
 - **Beides** — Alert + Digest
 - **Keine E-Mails** — stumm (nur Neu-Badge im Dashboard)
 
-Es gibt kein globales Empfänger-Feld mehr. Wenn kein Profil eine E-Mail hat, werden keine Mails verschickt. Endpoint: `POST /profiles/<id>/notify` (JSON: `{"email": "...", "notify_mode": "immediate|digest_only|both|off", "digest_time": "HH:MM", "alert_interval_minutes": 15}`).
+**Ruhezeit (Quiet Hours)** — Pro Profil konfigurierbar ab wann bis wann keine Mails verschickt werden (Standard: 20:00–08:00). Während der Ruhezeit werden Listings **nicht** als notified markiert — sie akkumulieren und werden mit der ersten Mail nach Ende der Ruhezeit gesammelt zugestellt. Über-Mitternacht-Fenster werden korrekt behandelt (z.B. 22:00–06:00).
+
+Es gibt kein globales Empfänger-Feld mehr. Wenn kein Profil eine E-Mail hat, werden keine Mails verschickt. Endpoint: `POST /profiles/<id>/notify` (JSON: `{"email": "...", "notify_mode": "immediate|digest_only|both|off", "digest_time": "HH:MM", "alert_interval_minutes": 15, "quiet_start": "HH:MM", "quiet_end": "HH:MM"}`).
 
 ### Pagination
 30 Anzeigen pro Seite, „Mehr laden"-Button lädt weitere per AJAX.
@@ -181,7 +183,7 @@ Die Einstellungsseite ist in fünf Tabs gegliedert. Deaktivierte Plattformen wer
 | Crawler | Crawler | Max. Ergebnisse pro Suche, Pause zwischen Anfragen (s), Blacklist, Sprachfilter, Heimstandort, Verfügbarkeits-Check |
 | Datenverwaltung | 🗑️ Daten | Verfügbarkeits-Check starten, Bereinigen, Plattform löschen, Alle löschen, Alte Anzeigen löschen (Stunden), Geocache löschen, Aktivitäts-Log-Terminal |
 | KI-Assistent | KI-Assistent | Aktiviert, API-Key, Modell (Selector + Live-Fetch), Persönliche Hinweise, Base-URL |
-| Profile | Profile | Anlegen (Name + Emoji), umbenennen, löschen; pro Profil: E-Mail-Adresse, Modus, Alert-Intervall, Digest-Uhrzeit |
+| Profile | Profile | Anlegen (Name + Emoji), umbenennen, löschen; pro Profil: E-Mail-Adresse, Modus, Alert-Intervall, Digest-Uhrzeit, Ruhezeit (Von/Bis) |
 
 ---
 

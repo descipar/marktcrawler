@@ -348,6 +348,14 @@ def _mig_profile_alert_interval(conn: sqlite3.Connection):
         conn.execute("ALTER TABLE profiles ADD COLUMN last_alert_sent_at TEXT")
 
 
+def _mig_profile_quiet_hours(conn: sqlite3.Connection):
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(profiles)")}
+    if "quiet_start" not in cols:
+        conn.execute("ALTER TABLE profiles ADD COLUMN quiet_start TEXT DEFAULT '20:00'")
+    if "quiet_end" not in cols:
+        conn.execute("ALTER TABLE profiles ADD COLUMN quiet_end TEXT DEFAULT '08:00'")
+
+
 def _mig_cleanup_mismatched(conn: sqlite3.Connection):
     """Bereinigt Altanzeigen die nicht allen Wörtern ihres Suchbegriffs entsprechen.
 
@@ -396,6 +404,7 @@ _MIGRATIONS = [
     ("v9_cleanup_mismatched",       _mig_cleanup_mismatched),
     ("v10_profile_notify_fields",   _mig_profile_notify_fields),
     ("v11_profile_alert_interval",  _mig_profile_alert_interval),
+    ("v12_profile_quiet_hours",     _mig_profile_quiet_hours),
 ]
 
 

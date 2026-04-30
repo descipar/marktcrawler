@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 from app.notifier import (
     _card_html, _html_from_dicts, _html_grouped, _html_email, _text_from_dicts, _smtp_send,
     notify, notify_pending, send_digest, _get_email_config, _normalize_server_url,
-    _alert_interval_elapsed, _send_dicts, _get_server_url,
+    _alert_interval_elapsed, _send_dicts, _get_server_url, _is_quiet_hours,
 )
 from app.scrapers.base import Listing
 
@@ -271,7 +271,7 @@ class TestNotifyPending:
         mock_claim.assert_not_called()
 
     def test_sendet_nicht_ohne_listings(self):
-        profile = {"id": 1, "email": "a@example.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None}
+        profile = {"id": 1, "email": "a@example.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None, "quiet_start": "00:00", "quiet_end": "00:00"}
         with patch("app.notifier.db.get_profiles", return_value=[profile]), \
              patch("app.notifier.db.claim_unnotified_listings", return_value=[]), \
              patch("app.notifier._smtp_send") as mock_smtp:
@@ -285,7 +285,7 @@ class TestNotifyPending:
             {**make_listing_dict(listing_id="p1"), "listing_id": "p1"},
             {**make_listing_dict(listing_id="p2"), "listing_id": "p2"},
         ]
-        profile = {"id": 1, "email": "a@example.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None}
+        profile = {"id": 1, "email": "a@example.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None, "quiet_start": "00:00", "quiet_end": "00:00"}
         with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
              patch("app.notifier.db.get_profiles", return_value=[profile]), \
              patch("app.notifier.db.update_last_alert_sent"), \
@@ -298,7 +298,7 @@ class TestNotifyPending:
     def test_kein_log_bei_smtp_fehler(self):
         """Bei SMTP-Fehler wird trotzdem geloggt (Listings wurden bereits geclaimed)."""
         listings = [{**make_listing_dict(), "listing_id": "q1"}]
-        profile = {"id": 2, "email": "b@example.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None}
+        profile = {"id": 2, "email": "b@example.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None, "quiet_start": "00:00", "quiet_end": "00:00"}
         with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
              patch("app.notifier.db.get_profiles", return_value=[profile]), \
              patch("app.notifier.db.update_last_alert_sent"), \
@@ -311,8 +311,8 @@ class TestNotifyPending:
     def test_per_profil_sendet_an_profil_emails(self):
         listings = [{**make_listing_dict(), "listing_id": "pp-1"}]
         profiles = [
-            {"id": 1, "email": "alice@example.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None},
-            {"id": 2, "email": "bob@example.com", "notify_mode": "both", "alert_interval_minutes": 15, "last_alert_sent_at": None},
+            {"id": 1, "email": "alice@example.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None, "quiet_start": "00:00", "quiet_end": "00:00"},
+            {"id": 2, "email": "bob@example.com", "notify_mode": "both", "alert_interval_minutes": 15, "last_alert_sent_at": None, "quiet_start": "00:00", "quiet_end": "00:00"},
         ]
         with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
              patch("app.notifier.db.get_profiles", return_value=profiles), \
@@ -329,7 +329,7 @@ class TestNotifyPending:
     def test_per_profil_aktualisiert_last_alert_sent(self):
         """Nach Versand wird last_alert_sent_at pro Profil aktualisiert."""
         listings = [{**make_listing_dict(), "listing_id": "pp-ts"}]
-        profiles = [{"id": 10, "email": "x@x.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None}]
+        profiles = [{"id": 10, "email": "x@x.com", "notify_mode": "immediate", "alert_interval_minutes": 15, "last_alert_sent_at": None, "quiet_start": "00:00", "quiet_end": "00:00"}]
         with patch("app.notifier.db.claim_unnotified_listings", return_value=listings), \
              patch("app.notifier.db.get_profiles", return_value=profiles), \
              patch("app.notifier.db.update_last_alert_sent") as mock_upd, \
@@ -769,3 +769,82 @@ class TestGetServerUrl:
              patch.object(socket.socket, "close"):
             result = _get_server_url({})
         assert result == "http://192.168.0.42:5000"
+
+
+# ── _is_quiet_hours ──────────────────────────────────────────
+
+class TestIsQuietHours:
+
+    def _now(self, hour: int, minute: int = 0):
+        from datetime import datetime
+        return datetime(2024, 1, 15, hour, minute)  # naive lokale Zeit
+
+    def _profile(self, start="20:00", end="08:00"):
+        return {"quiet_start": start, "quiet_end": end}
+
+    def test_innerhalb_nacht_fenster(self):
+        """22:00 liegt im Fenster 20:00–08:00."""
+        assert _is_quiet_hours(self._profile(), self._now(22)) is True
+
+    def test_kurz_nach_mitternacht(self):
+        """02:00 liegt im Fenster 20:00–08:00 (Über-Mitternacht)."""
+        assert _is_quiet_hours(self._profile(), self._now(2)) is True
+
+    def test_kurz_vor_ende(self):
+        """07:59 liegt noch im Fenster 20:00–08:00."""
+        assert _is_quiet_hours(self._profile(), self._now(7, 59)) is True
+
+    def test_genau_am_ende_nicht_mehr_ruhig(self):
+        """08:00 ist nicht mehr Ruhezeit (Ende exklusiv)."""
+        assert _is_quiet_hours(self._profile(), self._now(8)) is False
+
+    def test_tagsüber_ausserhalb(self):
+        """12:00 liegt nicht im Fenster 20:00–08:00."""
+        assert _is_quiet_hours(self._profile(), self._now(12)) is False
+
+    def test_genau_am_anfang(self):
+        """20:00 ist Beginn der Ruhezeit (inklusive)."""
+        assert _is_quiet_hours(self._profile(), self._now(20)) is True
+
+    def test_gleiches_start_end_gibt_false(self):
+        """Wenn start == end, kein Ruhezeit-Fenster aktiv."""
+        assert _is_quiet_hours(self._profile("08:00", "08:00"), self._now(8)) is False
+
+    def test_tagfenster_nicht_ueber_mitternacht(self):
+        """Fenster 10:00–14:00 (kein Mitternacht-Übergang)."""
+        profile = self._profile("10:00", "14:00")
+        assert _is_quiet_hours(profile, self._now(12)) is True
+        assert _is_quiet_hours(profile, self._now(9)) is False
+        assert _is_quiet_hours(profile, self._now(14)) is False
+
+    def test_ungueltige_zeitangabe_gibt_false(self):
+        """Ungültige Zeit-Strings → kein Absturz, gibt False zurück."""
+        profile = {"quiet_start": "kaputt", "quiet_end": "auch"}
+        assert _is_quiet_hours(profile, self._now(22)) is False
+
+    def test_fehlende_felder_nutzen_defaults(self):
+        """Fehlende quiet_start/quiet_end → Default 20:00–08:00."""
+        assert _is_quiet_hours({}, self._now(22)) is True
+        assert _is_quiet_hours({}, self._now(12)) is False
+
+    def test_notify_pending_respektiert_ruhezeit(self):
+        """notify_pending sendet nicht während der Ruhezeit eines Profils."""
+        from unittest.mock import patch
+        import datetime as dt
+        settings = {"email_enabled": "1"}
+        profile = {
+            "id": 1, "email": "a@example.com", "notify_mode": "immediate",
+            "alert_interval_minutes": 15, "last_alert_sent_at": None,
+            "quiet_start": "22:00", "quiet_end": "06:00",
+        }
+        # 23:00 lokale Zeit → Ruhezeit
+        fake_local = dt.datetime(2024, 1, 15, 23, 0)
+        fake_utc = dt.datetime(2024, 1, 15, 22, 0, tzinfo=dt.timezone.utc)
+        with patch("app.notifier.db.get_profiles", return_value=[profile]), \
+             patch("app.notifier.db.claim_unnotified_listings", return_value=[]), \
+             patch("app.notifier.datetime") as mock_dt, \
+             patch("app.notifier._smtp_send") as mock_smtp:
+            mock_dt.now.side_effect = lambda tz=None: fake_utc if tz else fake_local
+            result = notify_pending(settings)
+        assert result is False
+        mock_smtp.assert_not_called()

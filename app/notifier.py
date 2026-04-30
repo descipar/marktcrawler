@@ -64,6 +64,29 @@ def _alert_interval_elapsed(profile: dict, now: datetime) -> bool:
         return True
 
 
+def _is_quiet_hours(profile: dict, now_local: datetime) -> bool:
+    """Gibt True zurück wenn die lokale Uhrzeit in der Ruhezeit des Profils liegt.
+
+    now_local muss naive lokale Zeit sein (kein tzinfo) — kommt von datetime.now().
+    """
+    quiet_start = profile.get("quiet_start") or "20:00"
+    quiet_end = profile.get("quiet_end") or "08:00"
+    try:
+        sh, sm = map(int, quiet_start.split(":"))
+        eh, em = map(int, quiet_end.split(":"))
+    except (ValueError, AttributeError):
+        return False
+    current = now_local.hour * 60 + now_local.minute
+    start = sh * 60 + sm
+    end = eh * 60 + em
+    if start == end:
+        return False
+    if start > end:
+        # Über Mitternacht (z.B. 20:00–08:00)
+        return current >= start or current < end
+    return start <= current < end
+
+
 def notify_pending(settings: dict) -> bool:
     """Sammelt alle unbenachrichtigten Anzeigen und sendet pro fälligem Profil eine E-Mail.
 
@@ -74,11 +97,13 @@ def notify_pending(settings: dict) -> bool:
         return False
 
     now = datetime.now(timezone.utc)
+    now_local = datetime.now()
     eligible = [
         p for p in db.get_profiles()
         if p.get("email")
         and p.get("notify_mode") in ("immediate", "both")
         and _alert_interval_elapsed(p, now)
+        and not _is_quiet_hours(p, now_local)
     ]
     if not eligible:
         logger.debug("notify_pending: Keine Profil-E-Mails fällig.")

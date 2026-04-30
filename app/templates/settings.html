@@ -453,6 +453,8 @@
         {% for profile in profiles %}
         {% set mode = profile.notify_mode or 'immediate' %}
         {% set interval = profile.alert_interval_minutes or 15 %}
+        {% set q_start = profile.quiet_start or '20:00' %}
+        {% set q_end = profile.quiet_end or '08:00' %}
         <li class="px-5 py-4" data-profile-id="{{ profile.id }}">
           <!-- Zeile 1: Identität + Aktionen -->
           <div class="flex items-center gap-4">
@@ -484,6 +486,7 @@
               {% elif mode == 'both' %}⚡📋 Alert alle {{ interval }} Min + Digest ({{ profile.digest_time or '19:00' }} Uhr)
               {% else %}🔕 Keine E-Mails
               {% endif %}
+              &nbsp;·&nbsp;🌙 {{ q_start }}–{{ q_end }} Uhr
             </p>
             {% else %}
             <p class="text-xs text-slate-400">Keine E-Mail konfiguriert – Profil erhält keine Benachrichtigungen.</p>
@@ -524,6 +527,18 @@
                   value="{{ profile.digest_time or '19:00' }}"
                   placeholder="19:00" pattern="[0-2][0-9]:[0-5][0-9]"
                   class="input-field text-sm py-1 w-24">
+              </div>
+              <div class="flex items-center gap-2 {% if mode == 'off' %}hidden{% endif %} quiet-hours-wrap">
+                <label class="text-xs text-slate-500 shrink-0">🌙 Ruhezeit</label>
+                <input type="text" data-field="quiet_start"
+                  value="{{ q_start }}"
+                  placeholder="20:00" pattern="[0-2][0-9]:[0-5][0-9]"
+                  class="input-field text-sm py-1 w-20">
+                <span class="text-xs text-slate-400">–</span>
+                <input type="text" data-field="quiet_end"
+                  value="{{ q_end }}"
+                  placeholder="08:00" pattern="[0-2][0-9]:[0-5][0-9]"
+                  class="input-field text-sm py-1 w-20">
               </div>
               <button type="button" onclick="saveProfileNotify({{ profile.id }}, this)"
                 class="text-xs px-3 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors">
@@ -917,8 +932,10 @@ function toggleProfileNotifyFields(select) {
   const mode = select.value;
   const digestWrap = li.querySelector('.digest-time-wrap');
   const intervalWrap = li.querySelector('.alert-interval-wrap');
+  const quietWrap = li.querySelector('.quiet-hours-wrap');
   if (digestWrap) digestWrap.classList.toggle('hidden', mode === 'immediate' || mode === 'off');
   if (intervalWrap) intervalWrap.classList.toggle('hidden', mode === 'digest_only' || mode === 'off');
+  if (quietWrap) quietWrap.classList.toggle('hidden', mode === 'off');
 }
 
 async function saveProfileNotify(id, btn) {
@@ -929,14 +946,17 @@ async function saveProfileNotify(id, btn) {
   const digest_time = digestEl ? digestEl.value || '19:00' : '19:00';
   const intervalEl = li.querySelector('[data-field="alert_interval_minutes"]');
   const alert_interval_minutes = intervalEl ? parseInt(intervalEl.value) || 15 : 15;
+  const quietStartEl = li.querySelector('[data-field="quiet_start"]');
+  const quietEndEl = li.querySelector('[data-field="quiet_end"]');
+  const quiet_start = quietStartEl ? quietStartEl.value || '20:00' : '20:00';
+  const quiet_end = quietEndEl ? quietEndEl.value || '08:00' : '08:00';
   const res = await fetch(`/profiles/${id}/notify`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({email, notify_mode, digest_time, alert_interval_minutes})
+    body: JSON.stringify({email, notify_mode, digest_time, alert_interval_minutes, quiet_start, quiet_end})
   });
   if (res.ok) {
     showToast('Benachrichtigungs-Einstellungen gespeichert.');
-    // Status-Zeile aktualisieren ohne Reload
     const statusEl = li.querySelector('p.text-xs');
     if (statusEl) {
       const intervalText = notify_mode === 'immediate' ? `⚡ Sofort alle ${alert_interval_minutes} Min`
@@ -944,7 +964,7 @@ async function saveProfileNotify(id, btn) {
         : notify_mode === 'both' ? `⚡📋 Alert alle ${alert_interval_minutes} Min + Digest (${digest_time} Uhr)`
         : '🔕 Keine E-Mails';
       statusEl.innerHTML = email
-        ? `📧 <span class="font-mono text-slate-700">${email}</span> &nbsp;·&nbsp; ${intervalText}`
+        ? `📧 <span class="font-mono text-slate-700">${email}</span> &nbsp;·&nbsp; ${intervalText} &nbsp;·&nbsp; 🌙 ${quiet_start}–${quiet_end} Uhr`
         : '<span class="text-slate-400">Keine E-Mail konfiguriert – Profil erhält keine Benachrichtigungen.</span>';
     }
   } else {

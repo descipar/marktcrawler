@@ -10,7 +10,12 @@ Selbst gehostet und Docker-ready — läuft im Hintergrund auf einem Server, NAS
 ![Windows](https://img.shields.io/badge/Windows-Installer-0078D4?logo=windows&logoColor=white)
 ![Tests](https://img.shields.io/badge/Tests-630%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)
-[![Scraper Health](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health.yml/badge.svg)](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health.yml)
+[![Kleinanzeigen](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-kleinanzeigen.yml/badge.svg)](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-kleinanzeigen.yml)
+[![eBay](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-ebay.yml/badge.svg)](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-ebay.yml)
+[![Shpock](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-shpock.yml/badge.svg)](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-shpock.yml)
+[![Vinted](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-vinted.yml/badge.svg)](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-vinted.yml)
+[![Willhaben](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-willhaben.yml/badge.svg)](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-willhaben.yml)
+[![markt.de](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-marktde.yml/badge.svg)](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-marktde.yml)
 
 ---
 

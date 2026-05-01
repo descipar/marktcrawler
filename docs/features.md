@@ -126,7 +126,7 @@ Täglich zur konfigurierten Uhrzeit (z.B. `19:00`) eine Zusammenfassung aller he
 Jede Plattform hat ihr eigenes konfigurierbares Crawl-Intervall. Der Scheduler läuft im Hintergrund — kein manueller Cronjob nötig.
 
 ### Scraper Health Check (GitHub Action)
-`.github/workflows/scraper-health.yml` läuft täglich um 03:00 UTC und prüft ob alle 6 Scraper (Kleinanzeigen, eBay, Shpock, Vinted, Willhaben, markt.de) noch Ergebnisse liefern. Jeder Scraper wird direkt aus dem Projekt importiert und mit einem einzigen Suchbegriff (`kinderwagen`, `max_results=3`) aufgerufen — keine Mocks, keine neuen Dateien. Geocoding wird deaktiviert (`radius=0` / `paylivery_only=1`). Facebook wird übersprungen (braucht interaktiven Login). Exit-Code 1 wenn irgendein Scraper 0 Ergebnisse oder eine Exception liefert. Das Ergebnis ist als Badge im README sichtbar.
+6 separate GitHub-Action-Workflows (`scraper-health-{name}.yml`), gestaffelt ab 03:00 UTC (alle 5 Min.): Kleinanzeigen, eBay, Shpock, Vinted, Willhaben, markt.de. Jeder importiert seinen Scraper direkt aus dem Projekt (`importlib`) und ruft einmalig `search("kinderwagen", max_results=3)` auf — keine Mocks, keine neuen Dateien. Geocoding deaktiviert (`radius=0` / `paylivery_only=1`). Facebook übersprungen (braucht interaktiven Login). Exit-Code 1 bei 0 Ergebnissen oder Exception. 6 individuelle Badges im README — man sieht sofort welche Plattform defekt ist (z.B. eBay oft instabiler als Kleinanzeigen).
 
 ---
 
@@ -240,8 +240,13 @@ marktcrawler/
 ├── docs/
 │   └── screenshots/        # UI-Vorschaubilder
 ├── .github/workflows/
-│   ├── ci.yml              # Tests bei jedem Push/PR
-│   └── scraper-health.yml  # Täglicher Scraper-Health-Check (03:00 UTC)
+│   ├── ci.yml                          # Tests bei jedem Push/PR
+│   ├── scraper-health-kleinanzeigen.yml  # Health Check 03:00 UTC
+│   ├── scraper-health-ebay.yml           # Health Check 03:05 UTC
+│   ├── scraper-health-shpock.yml         # Health Check 03:10 UTC
+│   ├── scraper-health-vinted.yml         # Health Check 03:15 UTC
+│   ├── scraper-health-willhaben.yml      # Health Check 03:20 UTC
+│   └── scraper-health-marktde.yml        # Health Check 03:25 UTC
 ├── tests/                  # 630 Unit-Tests + 22 Playwright UI-Tests
 │   ├── conftest.py
 │   ├── test_crawler.py

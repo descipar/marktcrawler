@@ -1,0 +1,36 @@
+name: Scraper Health – Vinted
+
+on:
+  schedule:
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: pip install requests
+      - name: Vinted prüfen
+        env:
+          DATA_DIR: /tmp
+        run: |
+          python3 << 'PYEOF'
+          import sys, importlib
+          SETTINGS = {
+              "vinted_max_price": "300",
+              "vinted_radius": "0",
+              "vinted_max_age_hours": "72",
+          }
+          mod = importlib.import_module("app.scrapers.vinted")
+          items = mod.VintedScraper(SETTINGS).search("kinderwagen", max_results=3)
+          if items:
+              print(f"OK: {len(items)} Ergebnisse")
+          else:
+              print("FAIL: 0 Ergebnisse – API-Struktur möglicherweise geändert")
+              sys.exit(1)
+          PYEOF

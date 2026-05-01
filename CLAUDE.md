@@ -361,7 +361,7 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 
 `.github/workflows/ci.yml` — läuft bei jedem Push/PR: alle Unit- und Playwright-Tests.
 
-`.github/workflows/scraper-health.yml` — läuft täglich um 03:00 UTC: prüft ob alle 6 Scraper (Kleinanzeigen, eBay, Shpock, Vinted, Willhaben, markt.de) noch Ergebnisse liefern. Facebook wird übersprungen (braucht interaktiven Login). Die Scraper werden direkt aus dem Projekt importiert (`importlib`) und mit minimalen Settings (kein Geocoding: `radius=0` / `paylivery_only=1`) ausgeführt. Exit-Code 1 wenn irgendein Scraper 0 Ergebnisse oder eine Exception liefert → Workflow-Badge im README wird rot.
+**6 separate Health-Check-Workflows** (je `scraper-health-{name}.yml`), gestaffelt ab 03:00 UTC (alle 5 Min.): Kleinanzeigen, eBay, Shpock, Vinted, Willhaben, markt.de. Jeder Workflow importiert seinen Scraper direkt aus dem Projekt (`importlib`) und ruft einmalig `search("kinderwagen", max_results=3)` auf — keine Mocks, keine neuen Dateien. Geocoding deaktiviert (`radius=0` / `paylivery_only=1`). Facebook übersprungen (braucht interaktiven Login). Exit-Code 1 bei 0 Ergebnissen oder Exception → jeweiliger Badge im README wird rot. Pro-Scraper-Badges erlauben es auf einen Blick zu sehen welche Plattform defekt ist.
 
 ## API-Endpunkte
 

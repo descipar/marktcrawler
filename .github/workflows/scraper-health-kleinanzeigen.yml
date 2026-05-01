@@ -1,0 +1,36 @@
+name: Scraper Health – Kleinanzeigen
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: pip install requests beautifulsoup4 lxml
+      - name: Kleinanzeigen prüfen
+        env:
+          DATA_DIR: /tmp
+        run: |
+          python3 << 'PYEOF'
+          import sys, importlib
+          SETTINGS = {
+              "kleinanzeigen_max_price": "300",
+              "kleinanzeigen_location": "münchen",
+              "kleinanzeigen_radius": "50",
+          }
+          mod = importlib.import_module("app.scrapers.kleinanzeigen")
+          items = mod.KleinanzeigenScraper(SETTINGS).search("kinderwagen", max_results=3)
+          if items:
+              print(f"OK: {len(items)} Ergebnisse")
+          else:
+              print("FAIL: 0 Ergebnisse – Selektoren möglicherweise veraltet")
+              sys.exit(1)
+          PYEOF

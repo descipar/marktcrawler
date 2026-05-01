@@ -82,7 +82,7 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 - [x] **eBay: Bot-Detection-Umgehung** — `_warmup()` fetcht einmalig die eBay-Homepage, um Session-Cookies zu initialisieren (verhindert 403). Erweiterte `Sec-*` Browser-Headers + `Referer`-Header nach Warmup.
 - [x] **eBay: Rate-Limiting-Schutz** — `ebay_request_delay` (Default 10s) als Mindestabstand zwischen Suchanfragen. `_last_request`-Timestamp pro Scraper-Instanz; Delay wird am Anfang jedes `search()`-Aufrufs abgewartet.
 - [x] **Shpock: Radius=0 fix** — Bei `radius_km=0` wurde bisher `distance: {radius: 0}` an die GraphQL-API gesendet → 0 Meter Filter → keine Ergebnisse. Fix: `distance`-Feld komplett weglassen wenn `radius_km=0`.
-- [x] **Scraper Health Check** — `.github/workflows/scraper-health.yml`: täglich 03:00 UTC, importiert alle 6 Scraper direkt, sucht einmal `kinderwagen` pro Scraper (max 3 Ergebnisse), 3s Delay zwischen Plattformen. Schlägt fehl wenn ein Scraper 0 Ergebnisse oder Exception. Badge im README.
+- [x] **Scraper Health Check** — 6 separate GitHub-Action-Workflows (`scraper-health-{name}.yml`), gestaffelt ab 03:00 UTC (alle 5 Min.). Jeder importiert seinen Scraper direkt und ruft einmalig `search("kinderwagen", max_results=3)` auf. Schlägt fehl wenn 0 Ergebnisse oder Exception. 6 individuelle Badges im README — man sieht sofort welche Plattform defekt ist.
 - [x] 2 neue Tests (630 gesamt); `ebay_request_delay`-Setting dokumentiert
 
 ---

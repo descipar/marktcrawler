@@ -1,0 +1,35 @@
+name: Scraper Health – Willhaben
+
+on:
+  schedule:
+    - cron: '20 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: pip install requests beautifulsoup4 lxml
+      - name: Willhaben prüfen
+        env:
+          DATA_DIR: /tmp
+        run: |
+          python3 << 'PYEOF'
+          import sys, importlib
+          SETTINGS = {
+              "willhaben_max_price": "300",
+              "willhaben_paylivery_only": "1",
+          }
+          mod = importlib.import_module("app.scrapers.willhaben")
+          items = mod.WillhabenScraper(SETTINGS).search("kinderwagen", max_results=3)
+          if items:
+              print(f"OK: {len(items)} Ergebnisse")
+          else:
+              print("FAIL: 0 Ergebnisse – __NEXT_DATA__-Struktur möglicherweise geändert")
+              sys.exit(1)
+          PYEOF

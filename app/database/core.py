@@ -392,6 +392,40 @@ def _mig_cleanup_mismatched(conn: sqlite3.Connection):
     logger.info(f"Migration v9: {len(mismatches)} nicht passende Anzeigen bereinigt.")
 
 
+def _mig_recalc_is_free(conn: sqlite3.Connection):
+    """Berechnet is_free für alle Listings neu — korrigiert False-Positives
+    durch das Willhaben-Preisformat '€ 9' (€ vor Zahl), das der alte
+    _POSITIVE_PRICE_RE nicht erkannte."""
+    import re as _re
+
+    _free_price = _re.compile(
+        r"^\s*(0\s*€?|0,00\s*€?|€\s*0([.,]0+)?|kostenlos|gratis|umsonst|zu\s+verschenken|verschenken|free)\s*$",
+        _re.IGNORECASE,
+    )
+    _positive_price = _re.compile(r"\b[1-9]\d*([.,]\d+)?\s*€|€\s*[1-9]\d*([.,]\d+)?")
+    _free_text = _re.compile(
+        r"\b(zu\s+verschenken|verschenke|kostenlos|gratis|umsonst|zu\s+vergeben)\b",
+        _re.IGNORECASE,
+    )
+
+    def _calc(price: str, title: str, desc: str) -> int:
+        if _free_price.match(price):
+            return 1
+        if _positive_price.search(price):
+            return 0
+        if _free_text.search(title) or _free_text.search(desc):
+            return 1
+        return 0
+
+    rows = conn.execute("SELECT id, price, title, description FROM listings").fetchall()
+    updates = [
+        (_calc(r["price"] or "", r["title"] or "", r["description"] or ""), r["id"])
+        for r in rows
+    ]
+    conn.executemany("UPDATE listings SET is_free = ? WHERE id = ?", updates)
+    logger.info(f"Migration v13: is_free für {len(updates)} Anzeigen neu berechnet.")
+
+
 _MIGRATIONS = [
     ("v1_settings_rename",          _mig_settings_rename),
     ("v2_listings_columns",         _mig_listings_columns),
@@ -405,6 +439,7 @@ _MIGRATIONS = [
     ("v10_profile_notify_fields",   _mig_profile_notify_fields),
     ("v11_profile_alert_interval",  _mig_profile_alert_interval),
     ("v12_profile_quiet_hours",     _mig_profile_quiet_hours),
+    ("v13_recalc_is_free",          _mig_recalc_is_free),
 ]
 
 

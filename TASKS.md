@@ -84,7 +84,7 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 - [x] **Shpock: Radius=0 fix** — Bei `radius_km=0` wurde bisher `distance: {radius: 0}` an die GraphQL-API gesendet → 0 Meter Filter → keine Ergebnisse. Fix: `distance`-Feld komplett weglassen wenn `radius_km=0`.
 - [x] **Scraper Health Check** — 6 separate GitHub-Action-Workflows (`scraper-health-{name}.yml`), gestaffelt ab 03:00 UTC (alle 5 Min.). Jeder importiert seinen Scraper direkt und ruft einmalig `search("kinderwagen", max_results=3)` auf. Schlägt fehl wenn 0 Ergebnisse oder Exception. 6 individuelle Badges im README — man sieht sofort welche Plattform defekt ist.
 - [x] 2 neue Tests (630 gesamt); `ebay_request_delay`-Setting dokumentiert
-- [x] **Bugfix: Gratis-Badge bei Willhaben-Anzeigen mit Preis** — `_POSITIVE_PRICE_RE` erkannte nur `9 €` (Zahl vor €), nicht `€ 9` (Willhaben-Format). Damit griff der Price-Guard nicht, und `gratis` in der Beschreibung löste fälschlich das Badge aus. Fix: Regex um `€\s*[1-9]\d*...` erweitert; `_FREE_PRICE_RE` um `€\s*0` ergänzt. 4 neue Regressionstests — 634 Tests gesamt.
+- [x] **Bugfix: Gratis-Badge bei Willhaben-Anzeigen mit Preis** — `_POSITIVE_PRICE_RE` erkannte nur `9 €` (Zahl vor €), nicht `€ 9` (Willhaben-Format). Damit griff der Price-Guard nicht, und `gratis` in der Beschreibung löste fälschlich das Badge aus. Fix: Regex um `€\s*[1-9]\d*...` erweitert; `_FREE_PRICE_RE` um `€\s*0` ergänzt. DB-Migration v13 berechnet `is_free` für alle bestehenden Listings neu. 5 neue Tests — 639 Tests gesamt.
 
 ---
 

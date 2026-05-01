@@ -802,6 +802,59 @@ class TestMigrationFramework:
         assert "Marktcrawler" in alert
         assert "Marktcrawler" in digest
 
+    def test_v13_migration_korrigiert_is_free_willhaben_format(self, tmp_path, monkeypatch):
+        """v13-Migration setzt is_free=0 für Listings mit positivem Willhaben-Preis ('€ 9')."""
+        import sqlite3
+        import app.database as db
+
+        old_db = tmp_path / "mig_v13.db"
+        monkeypatch.setattr(db, "DB_PATH", old_db)
+        conn = sqlite3.connect(str(old_db))
+        conn.row_factory = sqlite3.Row
+        conn.executescript("""
+            CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+            CREATE TABLE search_terms (
+                id INTEGER PRIMARY KEY, term TEXT UNIQUE, enabled INTEGER DEFAULT 1
+            );
+            CREATE TABLE geocache (location_text TEXT PRIMARY KEY, lat REAL, lon REAL);
+            CREATE TABLE dismissed_listings (listing_id TEXT PRIMARY KEY, dismissed_at TEXT);
+            CREATE TABLE listings (
+                id INTEGER PRIMARY KEY, listing_id TEXT UNIQUE, platform TEXT,
+                title TEXT, price TEXT, location TEXT, url TEXT,
+                description TEXT, search_term TEXT, found_at TEXT,
+                is_favorite INTEGER DEFAULT 0, is_free INTEGER DEFAULT 0,
+                distance_km REAL, notes TEXT, potential_duplicate TEXT,
+                notified_at TEXT, image_url TEXT
+            );
+        """)
+        # Listing mit positivem Willhaben-Preis das fälschlich is_free=1 hat
+        conn.execute(
+            "INSERT INTO listings(listing_id, platform, title, price, url, is_free, description) "
+            "VALUES('wh_1','Willhaben','Hose','€ 9','http://x',1,'gratis Zubehör dabei')"
+        )
+        # Echtes Gratis-Listing soll is_free=1 behalten
+        conn.execute(
+            "INSERT INTO listings(listing_id, platform, title, price, url, is_free, description) "
+            "VALUES('wh_2','Willhaben','Babysachen','€ 0','http://y',1,'')"
+        )
+        # Normales Listing soll is_free=0 behalten
+        conn.execute(
+            "INSERT INTO listings(listing_id, platform, title, price, url, is_free, description) "
+            "VALUES('ka_1','Kleinanzeigen','Kinderwagen','50 €','http://z',0,'')"
+        )
+        conn.commit()
+        conn.close()
+
+        db.init_db()
+
+        conn = sqlite3.connect(str(old_db))
+        conn.row_factory = sqlite3.Row
+        rows = {r["listing_id"]: r["is_free"] for r in conn.execute("SELECT listing_id, is_free FROM listings")}
+        conn.close()
+        assert rows["wh_1"] == 0, "Willhaben '€ 9' mit gratis-Beschreibung darf nicht is_free=1 sein"
+        assert rows["wh_2"] == 1, "Willhaben '€ 0' muss is_free=1 bleiben"
+        assert rows["ka_1"] == 0, "Normales Listing muss is_free=0 bleiben"
+
     def test_v5_migration_ueberschreibt_keine_benutzerdefinierten_betreffs(self, tmp_path, monkeypatch):
         """v5-Migration lässt angepasste Betreffs unverändert."""
         import sqlite3

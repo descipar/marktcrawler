@@ -73,6 +73,29 @@ class TestDismissUI:
         page.reload()
         expect(page.locator(f".listing-card[data-id='{card_id}']")).to_have_count(0)
 
+    def test_mehr_laden_button_bleibt_nach_dismiss_sichtbar(self, page: Page, live_server: str):
+        """Regression: 'Mehr laden' darf nach Dismiss nicht verschwinden.
+
+        35 Listings in DB, 30 gerendert → Button sichtbar. Nach Dismiss einer
+        Karte müssen noch 5 weitere auf dem Server liegen → Button bleibt sichtbar.
+        """
+        page.goto(live_server)
+        expect(page.locator("#load-more-btn")).to_be_visible()
+        page.locator("[aria-label='Anzeige ausblenden']").first.click()
+        # Karte ist weg, aber Button muss weiterhin sichtbar sein
+        expect(page.locator("#load-more-btn")).to_be_visible()
+
+    def test_mehr_laden_button_bleibt_nach_modal_dismiss_sichtbar(self, page: Page, live_server: str):
+        """Regression: 'Mehr laden' darf auch nach Modal-Dismiss nicht verschwinden."""
+        page.goto(live_server)
+        expect(page.locator("#load-more-btn")).to_be_visible()
+        # Modal öffnen
+        page.locator(".listing-card").first.click()
+        expect(page.locator("#detail-modal")).to_be_visible()
+        # Dismiss im Modal (Button hat keine ID, Selektor über Text)
+        page.locator("#detail-modal button:has-text('Ausblenden')").click()
+        expect(page.locator("#load-more-btn")).to_be_visible()
+
 
 class TestSuchbegriffeUI:
 

@@ -53,7 +53,12 @@ def _mock_response(json_data=None, text="", status=200):
 
 
 def _ebay_page(items_html: str) -> str:
-    return f'<html><body><ul class="srp-results">{items_html}</ul></body></html>'
+    return (
+        f'<html><body>'
+        f'<div class="srp-river-results">'
+        f'<ul class="srp-results srp-list clearfix">{items_html}</ul>'
+        f'</div></body></html>'
+    )
 
 
 # ── Vinted ────────────────────────────────────────────────────────────────────
@@ -313,19 +318,20 @@ class TestShpockScraper:
 # ── eBay ──────────────────────────────────────────────────────────────────────
 
 EBAY_ITEM_HTML = """
-<li class="s-item">
-  <a class="s-item__link" href="https://www.ebay.de/itm/123456789?_trkparms=test">
-    <h3 class="s-item__title">Kinderwagen Bugaboo</h3>
+<li class="s-card s-card--horizontal" data-listingid="123456789">
+  <img alt="Kinderwagen Bugaboo" class="s-card__image" src="https://i.ebayimg.com/img/123.jpg" />
+  <a class="s-card__link" href="https://www.ebay.de/itm/123456789?_trkparms=test">
+    <div class="s-card__title">
+      <span class="su-styled-text primary default">Kinderwagen Bugaboo</span>
+    </div>
   </a>
-  <span class="s-item__price">80,00\xa0€</span>
-  <span class="s-item__location">Standort:\xa0Hamburg</span>
-  <img class="s-item__image-img" src="https://i.ebayimg.com/img/123.jpg" />
+  <span class="su-styled-text primary bold large-1 s-card__price">EUR 80,00</span>
 </li>
 """
 
-EBAY_PLACEHOLDER_HTML = """
-<li class="s-item s-item--placeholder">
-  <span class="s-item__title">Shop on eBay</span>
+EBAY_NO_TITLE_HTML = """
+<li class="s-card s-card--horizontal" data-listingid="999">
+  <span>kein Titel hier</span>
 </li>
 """
 
@@ -343,9 +349,9 @@ class TestEbayScraper:
         assert len(results) == 1
         assert results[0].title == "Kinderwagen Bugaboo"
 
-    def test_placeholder_wird_ignoriert(self):
+    def test_item_ohne_titel_wird_ignoriert(self):
         scraper = self._scraper()
-        with patch.object(scraper.session, "get", return_value=_mock_response(text=_ebay_page(EBAY_PLACEHOLDER_HTML))):
+        with patch.object(scraper.session, "get", return_value=_mock_response(text=_ebay_page(EBAY_NO_TITLE_HTML))):
             assert scraper.search("kinderwagen") == []
 
     def test_search_bei_exception(self):
@@ -356,12 +362,12 @@ class TestEbayScraper:
     def test_parse_felder(self):
         from bs4 import BeautifulSoup
         scraper = self._scraper()
-        item = BeautifulSoup(EBAY_ITEM_HTML, "lxml").select_one("li.s-item")
+        item = BeautifulSoup(EBAY_ITEM_HTML, "lxml").select_one("li.s-card")
         listing = scraper._parse(item, "kinderwagen")
         assert listing.platform == "eBay"
         assert listing.title == "Kinderwagen Bugaboo"
         assert listing.listing_id == "eb_123456789"
-        assert listing.location == "Hamburg"
+        assert listing.location == ""
         assert listing.image_url == "https://i.ebayimg.com/img/123.jpg"
         assert listing.search_term == "kinderwagen"
 
@@ -465,14 +471,7 @@ class TestEbayScraperCoverage:
     def test_parse_ohne_title_element_gibt_none(self):
         from bs4 import BeautifulSoup
         scraper = EbayScraper({})
-        item = BeautifulSoup('<li class="s-item"><span>kein Titel</span></li>', "lxml").select_one("li")
-        assert scraper._parse(item, "test") is None
-
-    def test_parse_shop_on_ebay_titel_gibt_none(self):
-        from bs4 import BeautifulSoup
-        html = '<li class="s-item"><h3 class="s-item__title">Shop on eBay</h3></li>'
-        scraper = EbayScraper({})
-        item = BeautifulSoup(html, "lxml").select_one("li")
+        item = BeautifulSoup('<li class="s-card"><span>kein Titel</span></li>', "lxml").select_one("li")
         assert scraper._parse(item, "test") is None
 
     def test_parse_exception_gibt_none(self):

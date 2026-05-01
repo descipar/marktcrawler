@@ -15,11 +15,25 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://www.ebay.de"
 HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/124.0.0.0 Safari/537.36"
     ),
-    "Accept-Language": "de-DE,de;q=0.9",
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;q=0.9,"
+        "image/avif,image/webp,*/*;q=0.8"
+    ),
+    "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"macOS"',
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
 }
 
 
@@ -31,8 +45,19 @@ class EbayScraper(BaseScraper):
         self.radius_km: int = _int(settings.get("ebay_radius", 30)) or 30
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
+        self._warmed_up = False
+
+    def _warmup(self):
+        """Homepage-Request zum Initialisieren der Session-Cookies (verhindert 403)."""
+        if not self._warmed_up:
+            try:
+                self.session.get(f"{BASE_URL}/", timeout=10)
+            except Exception:
+                pass
+            self._warmed_up = True
 
     def search(self, term: str, max_results: int = 20) -> List[Listing]:
+        self._warmup()
         url = self._build_url(term, max_results)
         logger.info(f"[eBay] '{term}' → {url}")
         try:
@@ -43,7 +68,7 @@ class EbayScraper(BaseScraper):
             return []
 
         soup = BeautifulSoup(r.text, "lxml")
-        items = soup.select("li.s-item:not(.s-item--placeholder)")
+        items = soup.select(".srp-river-results li.s-card")
         results = []
         for item in items[:max_results]:
             listing = self._parse(item, term)
@@ -61,37 +86,31 @@ class EbayScraper(BaseScraper):
 
     def _parse(self, item, term: str) -> Optional[Listing]:
         try:
-            title_el = item.select_one(".s-item__title")
-            if not title_el:
-                return None
-            title = title_el.get_text(strip=True)
-            if title.lower() == "shop on ebay":
+            # img alt ist sauber (ohne "Neues Angebot"-Prefix)
+            img_el = item.select_one("img.s-card__image")
+            title = img_el.get("alt", "").strip() if img_el else ""
+            if not title:
+                title_el = item.select_one(".s-card__title .su-styled-text.primary")
+                title = title_el.get_text(strip=True) if title_el else ""
+            if not title:
                 return None
 
-            link_el = item.select_one("a.s-item__link")
+            link_el = item.select_one("a.s-card__link")
             url = link_el.get("href", "") if link_el else ""
-            m = re.search(r"/itm/(\d+)", url)
-            lid = m.group(1) if m else url[-20:]
+            lid = item.get("data-listingid", "") or url[-20:]
 
-            price_el = item.select_one(".s-item__price")
+            price_el = item.select_one(".s-card__price")
             price = price_el.get_text(strip=True) if price_el else "k.A."
 
-            loc_el = (
-                item.select_one(".s-item__location")
-                or item.select_one(".s-item__itemLocation")
-            )
-            location = loc_el.get_text(strip=True).replace("Standort:\xa0", "").replace("Standort: ", "") if loc_el else ""
-
-            img_el = item.select_one(".s-item__image-img")
             image_url = ""
             if img_el:
-                image_url = img_el.get("src") or img_el.get("data-src") or ""
+                image_url = img_el.get("src") or img_el.get("data-defer-load") or ""
 
             return Listing(
                 platform="eBay",
                 title=title,
                 price=price,
-                location=location,
+                location="",
                 url=url,
                 listing_id=f"eb_{lid}",
                 search_term=term,

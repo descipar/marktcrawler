@@ -10,7 +10,61 @@ permissions:
   contents: write
 
 jobs:
+  scraper-check:
+    name: Scraper Health Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests beautifulsoup4 lxml
+      - name: Alle Scraper prüfen
+        env:
+          DATA_DIR: /tmp
+        run: |
+          python3 << 'PYEOF'
+          import sys, time, importlib
+
+          SCRAPERS = [
+              ("Kleinanzeigen", "app.scrapers.kleinanzeigen", "KleinanzeigenScraper",
+               {"kleinanzeigen_max_price": "300", "kleinanzeigen_location": "münchen", "kleinanzeigen_radius": "50"}),
+              ("eBay",          "app.scrapers.ebay",          "EbayScraper",
+               {"ebay_max_price": "300", "ebay_request_delay": "0"}),
+              ("Shpock",        "app.scrapers.shpock",        "ShpockScraper",
+               {"shpock_max_price": "300", "shpock_radius": "0"}),
+              ("Vinted",        "app.scrapers.vinted",        "VintedScraper",
+               {"vinted_max_price": "300", "vinted_radius": "0", "vinted_max_age_hours": "72"}),
+              ("Willhaben",     "app.scrapers.willhaben",     "WillhabenScraper",
+               {"willhaben_max_price": "300", "willhaben_paylivery_only": "1"}),
+              ("markt.de",      "app.scrapers.markt",         "MarktdeScraper",
+               {"marktde_max_price": "300", "marktde_location": "münchen", "marktde_radius": "100"}),
+          ]
+
+          failed = []
+          for i, (name, module, cls_name, settings) in enumerate(SCRAPERS):
+              if i > 0:
+                  time.sleep(3)
+              try:
+                  mod = importlib.import_module(module)
+                  items = getattr(mod, cls_name)(settings).search("kinderwagen", max_results=3)
+                  if items:
+                      print(f"  ok  {name}: {len(items)} Ergebnisse")
+                  else:
+                      print(f"  FAIL {name}: 0 Ergebnisse")
+                      failed.append(name)
+              except Exception as e:
+                  print(f"  FAIL {name}: {type(e).__name__}: {e}")
+                  failed.append(name)
+
+          if failed:
+              print(f"\nRelease blockiert – defekte Scraper: {', '.join(failed)}")
+              sys.exit(1)
+          print(f"\nAlle Scraper OK – Release wird gebaut.")
+          PYEOF
+
   build:
+    needs: scraper-check
     runs-on: windows-latest
 
     steps:

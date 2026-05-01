@@ -102,15 +102,10 @@ class KleinanzeigenScraper(BaseScraper):
             if self.max_price:
                 url += f"?maxPrice={self.max_price}"
         else:
-            # Fallback: bundesweite Suche (wenn kein Ort konfiguriert)
-            keyword_q = term.strip().replace(" ", "+")
-            url = f"{BASE_URL}/s-anzeigen/q-{keyword_q}/k0"
-            params = []
+            # Fallback: bundesweite Suche (kein Ort oder locationId-Lookup fehlgeschlagen)
+            url = f"{BASE_URL}/s-{keyword}/k0"
             if self.max_price:
-                params.append(f"maxPrice={self.max_price}")
-            if self.radius_km:
-                params.append(f"radius={self.radius_km}")
-            url += ("?" + "&".join(params) if params else "")
+                url += f"?maxPrice={self.max_price}"
         return url
 
     def _parse(self, item, term: str) -> Optional[Listing]:

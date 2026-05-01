@@ -28,7 +28,7 @@ jobs:
 
           SCRAPERS = [
               ("Kleinanzeigen", "app.scrapers.kleinanzeigen", "KleinanzeigenScraper",
-               {"kleinanzeigen_max_price": "300", "kleinanzeigen_location": "münchen", "kleinanzeigen_radius": "50"}),
+               {"kleinanzeigen_max_price": "300"}),
               ("eBay",          "app.scrapers.ebay",          "EbayScraper",
                {"ebay_max_price": "300", "ebay_request_delay": "0"}),
               ("Shpock",        "app.scrapers.shpock",        "ShpockScraper",

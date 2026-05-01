@@ -23,8 +23,7 @@ jobs:
           import sys, importlib
           SETTINGS = {
               "kleinanzeigen_max_price": "300",
-              "kleinanzeigen_location": "münchen",
-              "kleinanzeigen_radius": "50",
+              # kein Standort → kein locationId-Lookup, direkte bundesweite Suche
           }
           mod = importlib.import_module("app.scrapers.kleinanzeigen")
           items = mod.KleinanzeigenScraper(SETTINGS).search("kinderwagen", max_results=3)

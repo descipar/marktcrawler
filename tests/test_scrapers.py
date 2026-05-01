@@ -836,7 +836,7 @@ class TestKleinanzeigenScraper:
     def test_build_url_ohne_location_fallback(self):
         scraper = self._scraper()
         url = scraper._build_url("kinderwagen")
-        assert "q-kinderwagen" in url
+        assert "/s-kinderwagen/k0" in url
 
     def test_build_url_mit_max_price(self):
         with patch.object(KleinanzeigenScraper, "_resolve_location_id", return_value=7637):

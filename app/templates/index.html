@@ -503,9 +503,13 @@ async function loadMore() {
 }
 
 function updateLoadMore(fetchedCount) {
+  allLoaded = fetchedCount < PAGE_SIZE;
   const wrap=document.getElementById('load-more-wrap');
-  const hasMore = fetchedCount >= PAGE_SIZE;
-  wrap.classList.toggle('hidden', !hasMore);
+  wrap.classList.toggle('hidden', allLoaded);
+  document.getElementById('listing-count').textContent = currentOffset > 0 ? `(${currentOffset} geladen)` : '';
+}
+
+function updateCount() {
   document.getElementById('listing-count').textContent = currentOffset > 0 ? `(${currentOffset} geladen)` : '';
 }
 
@@ -604,7 +608,7 @@ async function dismissListing(id, btn) {
     await fetch(`/listings/${id}/dismiss`,{method:'POST'});
   } catch(e) { showToast('Ausblenden fehlgeschlagen.'); return; }
   const card=btn.closest('.listing-card');
-  if(card){ card.remove(); currentOffset=Math.max(0,currentOffset-1); updateLoadMore(0); }
+  if(card){ card.remove(); currentOffset=Math.max(0,currentOffset-1); updateCount(); }
 }
 
 async function toggleFav(id, btn) {
@@ -827,7 +831,7 @@ async function modalDismiss(id) {
   await fetch(`/listings/${id}/dismiss`, {method:'POST'});
   closeModal();
   const card = document.querySelector(`.listing-card[data-id="${id}"]`);
-  if (card) { card.remove(); currentOffset=Math.max(0,currentOffset-1); updateLoadMore(0); }
+  if (card) { card.remove(); currentOffset=Math.max(0,currentOffset-1); updateCount(); }
 }
 
 // Escape-Key schließt Modal

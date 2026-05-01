@@ -41,14 +41,14 @@ _running: set = set()  # Menge der gerade laufenden Plattform-Namen
 _lock = threading.Lock()
 
 _FREE_PRICE_RE = re.compile(
-    r"^\s*(0\s*€?|0,00\s*€?|kostenlos|gratis|umsonst|zu\s+verschenken|verschenken|free)\s*$",
+    r"^\s*(0\s*€?|0,00\s*€?|€\s*0([.,]0+)?|kostenlos|gratis|umsonst|zu\s+verschenken|verschenken|free)\s*$",
     re.IGNORECASE,
 )
 _FREE_TEXT_RE = re.compile(
     r"\b(zu\s+verschenken|verschenke|kostenlos|gratis|umsonst|zu\s+vergeben)\b",
     re.IGNORECASE,
 )
-_POSITIVE_PRICE_RE = re.compile(r"\b[1-9]\d*([.,]\d+)?\s*€")
+_POSITIVE_PRICE_RE = re.compile(r"\b[1-9]\d*([.,]\d+)?\s*€|€\s*[1-9]\d*([.,]\d+)?")
 
 
 def is_running(platform: str = None) -> bool:

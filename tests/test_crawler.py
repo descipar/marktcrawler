@@ -115,6 +115,25 @@ class TestIsFree:
     def test_keiner_angabe_preis(self):
         assert _is_free(make_listing(price="k.A.")) is False
 
+    # --- Willhaben-Format (€ vor Zahl) ---
+
+    def test_willhaben_preis_euro_vor_zahl_nicht_frei(self):
+        """'€ 9' (Willhaben-Format) darf nicht als gratis erkannt werden."""
+        assert _is_free(make_listing(price="€ 9")) is False
+
+    def test_willhaben_preis_euro_vor_zahl_mit_gratis_beschreibung_nicht_frei(self):
+        """'€ 15' + 'gratis' in Beschreibung → nicht gratis (Willhaben-Bug-Regression)."""
+        listing = make_listing(price="€ 15", description="gratis Zubehör dabei")
+        assert _is_free(listing) is False
+
+    def test_willhaben_preis_null_euro_vorne_ist_frei(self):
+        """'€ 0' (Willhaben Gratis-Format) → gratis."""
+        assert _is_free(make_listing(price="€ 0")) is True
+
+    def test_willhaben_preis_euro_ohne_space_nicht_frei(self):
+        """'€9' ohne Leerzeichen → nicht gratis."""
+        assert _is_free(make_listing(price="€9")) is False
+
 
 # ── _is_blacklisted ───────────────────────────────────────────
 

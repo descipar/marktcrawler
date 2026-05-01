@@ -76,6 +76,17 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 
 ---
 
+### Phase 31 – Scraper-Fixes & Health Check
+
+- [x] **eBay: CSS-Selektoren nach Layout-Update** — eBay hat die Suchergebnisseite auf neue Klassen umgestellt (`s-card` statt `s-item`). `_parse()` nutzt jetzt `li.s-card`, `data-listingid`, `img.s-card__image` alt, `.s-card__price`, `a.s-card__link`. Kein Standort mehr in Suchergebnissen.
+- [x] **eBay: Bot-Detection-Umgehung** — `_warmup()` fetcht einmalig die eBay-Homepage, um Session-Cookies zu initialisieren (verhindert 403). Erweiterte `Sec-*` Browser-Headers + `Referer`-Header nach Warmup.
+- [x] **eBay: Rate-Limiting-Schutz** — `ebay_request_delay` (Default 10s) als Mindestabstand zwischen Suchanfragen. `_last_request`-Timestamp pro Scraper-Instanz; Delay wird am Anfang jedes `search()`-Aufrufs abgewartet.
+- [x] **Shpock: Radius=0 fix** — Bei `radius_km=0` wurde bisher `distance: {radius: 0}` an die GraphQL-API gesendet → 0 Meter Filter → keine Ergebnisse. Fix: `distance`-Feld komplett weglassen wenn `radius_km=0`.
+- [x] **Scraper Health Check** — `.github/workflows/scraper-health.yml`: täglich 03:00 UTC, importiert alle 6 Scraper direkt, sucht einmal `kinderwagen` pro Scraper (max 3 Ergebnisse), 3s Delay zwischen Plattformen. Schlägt fehl wenn ein Scraper 0 Ergebnisse oder Exception. Badge im README.
+- [x] 2 neue Tests (630 gesamt); `ebay_request_delay`-Setting dokumentiert
+
+---
+
 ### Phase 26 – Crawl-Qualität
 
 - [x] **Wortgrenzen-Matching**: `_matches_all_words()` nutzt jetzt `\b`-Regex statt Substring-Suche — verhindert False-Positives wie „werder" → „Schwerder" oder „body" → „somebody". Cleanup-Script ebenfalls aktualisiert.

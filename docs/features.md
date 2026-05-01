@@ -125,6 +125,9 @@ Täglich zur konfigurierten Uhrzeit (z.B. `19:00`) eine Zusammenfassung aller he
 ### Pro-Plattform-Scheduler
 Jede Plattform hat ihr eigenes konfigurierbares Crawl-Intervall. Der Scheduler läuft im Hintergrund — kein manueller Cronjob nötig.
 
+### Scraper Health Check (GitHub Action)
+`.github/workflows/scraper-health.yml` läuft täglich um 03:00 UTC und prüft ob alle 6 Scraper (Kleinanzeigen, eBay, Shpock, Vinted, Willhaben, markt.de) noch Ergebnisse liefern. Jeder Scraper wird direkt aus dem Projekt importiert und mit einem einzigen Suchbegriff (`kinderwagen`, `max_results=3`) aufgerufen — keine Mocks, keine neuen Dateien. Geocoding wird deaktiviert (`radius=0` / `paylivery_only=1`). Facebook wird übersprungen (braucht interaktiven Login). Exit-Code 1 wenn irgendein Scraper 0 Ergebnisse oder eine Exception liefert. Das Ergebnis ist als Badge im README sichtbar.
+
 ---
 
 ## KI-Assistent
@@ -236,7 +239,10 @@ marktcrawler/
 ├── data/                   # Persistentes Volume (SQLite-DB, FB-Session)
 ├── docs/
 │   └── screenshots/        # UI-Vorschaubilder
-├── tests/                  # 618 Unit-Tests + 22 Playwright UI-Tests
+├── .github/workflows/
+│   ├── ci.yml              # Tests bei jedem Push/PR
+│   └── scraper-health.yml  # Täglicher Scraper-Health-Check (03:00 UTC)
+├── tests/                  # 630 Unit-Tests + 22 Playwright UI-Tests
 │   ├── conftest.py
 │   ├── test_crawler.py
 │   ├── test_crawl_run.py

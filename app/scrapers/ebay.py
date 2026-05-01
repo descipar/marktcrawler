@@ -2,6 +2,7 @@
 
 import logging
 import re
+import time
 from typing import List, Optional
 from urllib.parse import quote_plus
 
@@ -43,27 +44,38 @@ class EbayScraper(BaseScraper):
         self.max_price: Optional[float] = _float(settings.get("ebay_max_price"))
         self.location: str = settings.get("ebay_location", "").strip()
         self.radius_km: int = _int(settings.get("ebay_radius", 30)) or 30
+        # Mindestabstand zwischen Suchanfragen (eBay sperrt bei zu schnellen Folge-Requests)
+        self.request_delay: float = float(settings.get("ebay_request_delay", 10))
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
         self._warmed_up = False
+        self._last_request: float = 0.0
 
     def _warmup(self):
         """Homepage-Request zum Initialisieren der Session-Cookies (verhindert 403)."""
         if not self._warmed_up:
             try:
                 self.session.get(f"{BASE_URL}/", timeout=10)
+                # Referer setzen: Suchanfragen sehen aus wie Navigation von der Startseite
+                self.session.headers["Referer"] = f"{BASE_URL}/"
+                self.session.headers["Sec-Fetch-Site"] = "same-origin"
             except Exception:
                 pass
             self._warmed_up = True
 
     def search(self, term: str, max_results: int = 20) -> List[Listing]:
         self._warmup()
+        elapsed = time.monotonic() - self._last_request
+        if elapsed < self.request_delay:
+            time.sleep(self.request_delay - elapsed)
         url = self._build_url(term, max_results)
         logger.info(f"[eBay] '{term}' → {url}")
         try:
             r = self.session.get(url, timeout=15)
+            self._last_request = time.monotonic()
             r.raise_for_status()
         except Exception as e:
+            self._last_request = time.monotonic()
             logger.error(f"[eBay] Fehler bei '{term}': {e}")
             return []
 

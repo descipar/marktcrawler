@@ -63,14 +63,13 @@ class ShpockScraper(BaseScraper):
         self.session.headers.update(HEADERS)
 
     def search(self, term: str, max_results: int = 20) -> List[Listing]:
-        filters = {
-            "q": term,
-            "distance": {
+        filters: dict = {"q": term}
+        if self.radius_km > 0:
+            filters["distance"] = {
                 "lat": self.lat,
                 "lng": self.lon,
                 "radius": self.radius_km * 1000,
-            },
-        }
+            }
         if self.max_price:
             filters["price"] = {"max": self.max_price}
 

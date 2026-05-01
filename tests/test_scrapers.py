@@ -314,6 +314,18 @@ class TestShpockScraper:
                 scraper.search("babytrage")
         mock_geocode.assert_not_called()
 
+    def test_radius_null_kein_distance_feld_im_payload(self):
+        """Bei radius_km=0 enthält der API-Payload kein distance-Feld (verhindert 0-Meter-Filter)."""
+        import json as _json
+        scraper = self._scraper({"shpock_radius": "0"})
+        mock_post = MagicMock(return_value=_mock_response(self._api_response([])))
+        with patch.object(scraper.session, "post", mock_post):
+            scraper.search("test")
+        _, kwargs = mock_post.call_args
+        payload = kwargs.get("json", mock_post.call_args[0][1] if len(mock_post.call_args[0]) > 1 else {})
+        filters = _json.loads(payload["variables"]["serializedFilters"])
+        assert "distance" not in filters
+
 
 # ── eBay ──────────────────────────────────────────────────────────────────────
 

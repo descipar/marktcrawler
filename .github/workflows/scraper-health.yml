@@ -1,0 +1,86 @@
+name: Scraper Health Check
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # täglich 03:00 UTC (04:00/05:00 MEZ/MESZ)
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Abhängigkeiten installieren
+        run: pip install requests beautifulsoup4 lxml
+
+      - name: Scraper-Check ausführen
+        env:
+          DATA_DIR: /tmp
+        run: |
+          python3 << 'PYEOF'
+          import sys
+          import time
+          import logging
+          import importlib
+
+          logging.basicConfig(level=logging.WARNING)
+
+          # Minimale Settings – kein Login, kein Geocoding (radius=0 / paylivery_only=1)
+          SETTINGS = {
+              "kleinanzeigen_max_price": "300",
+              "kleinanzeigen_location": "münchen",
+              "kleinanzeigen_radius": "50",
+              "shpock_max_price": "300",
+              "shpock_radius": "0",
+              "vinted_max_price": "300",
+              "vinted_radius": "0",
+              "vinted_max_age_hours": "72",
+              "ebay_max_price": "300",
+              "willhaben_max_price": "300",
+              "willhaben_paylivery_only": "1",
+              "marktde_max_price": "300",
+              "marktde_location": "münchen",
+              "marktde_radius": "100",
+          }
+
+          # Facebook wird übersprungen (benötigt interaktiven Login + Playwright)
+          SCRAPERS = [
+              ("Kleinanzeigen", "app.scrapers.kleinanzeigen", "KleinanzeigenScraper"),
+              ("eBay",          "app.scrapers.ebay",          "EbayScraper"),
+              ("Shpock",        "app.scrapers.shpock",        "ShpockScraper"),
+              ("Vinted",        "app.scrapers.vinted",        "VintedScraper"),
+              ("Willhaben",     "app.scrapers.willhaben",     "WillhabenScraper"),
+              ("markt.de",      "app.scrapers.markt",         "MarktdeScraper"),
+          ]
+
+          ok, failed = [], []
+          for i, (name, module, cls_name) in enumerate(SCRAPERS):
+              if i > 0:
+                  time.sleep(3)  # Pause zwischen Scrapern – Rate-Limiting vermeiden
+              try:
+                  mod = importlib.import_module(module)
+                  items = getattr(mod, cls_name)(SETTINGS).search("kinderwagen", max_results=3)
+                  if items:
+                      print(f"  ok  {name}: {len(items)} Ergebnisse")
+                      ok.append(name)
+                  else:
+                      print(f"  FAIL {name}: 0 Ergebnisse – Selektoren moeglicherweise veraltet")
+                      failed.append(name)
+              except Exception as e:
+                  print(f"  FAIL {name}: {type(e).__name__}: {e}")
+                  failed.append(name)
+
+          print()
+          if failed:
+              print(f"Fehler bei: {', '.join(failed)}")
+              sys.exit(1)
+          print(f"Alle {len(ok)} Scraper liefern Ergebnisse.")
+          PYEOF

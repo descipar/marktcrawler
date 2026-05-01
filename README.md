@@ -8,8 +8,9 @@ Selbst gehostet und Docker-ready — läuft im Hintergrund auf einem Server, NAS
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-Installer-0078D4?logo=windows&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-629%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-630%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)
+[![Scraper Health](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health.yml/badge.svg)](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health.yml)
 
 ---
 

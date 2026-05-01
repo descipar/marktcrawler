@@ -127,6 +127,7 @@ profiles     (id INTEGER PRIMARY KEY, name TEXT NOT NULL, emoji TEXT DEFAULT '�
 | `ebay_location` | `München` | PLZ oder Stadtname (`_stpos`) |
 | `ebay_radius` | `30` | Radius km (`_sadis`) |
 | `ebay_max_age_hours` | `0` | Max. Anzeigedauer in Stunden (0 = kein Filter) |
+| `ebay_request_delay` | `10` | Pause in Sekunden zwischen eBay-Suchanfragen (Rate-Limiting-Schutz; bei mehreren Suchbegriffen gilt dieser Delay pro Aufruf) |
 | `willhaben_enabled` | `0` | Plattform aktiv |
 | `willhaben_max_price` | `100` | Max. Preis € |
 | `willhaben_location` | `München` | Stadtname (nur bei PayLivery deaktiviert) |
@@ -220,6 +221,8 @@ Alle Interval-Jobs (Plattform-Crawls, Availability-Check) berechnen beim Start i
 
 ### Radius 0 = kein Filter (Vinted & Shpock)
 Beide Scraper lesen `vinted_radius` / `shpock_radius` via `_int()`; ist der Wert `0`, wird der Entfernungsfilter vollständig deaktiviert (kein Geocoding-Aufruf). Muster: `raw = _int(settings.get(..., "30")); self.radius_km = 30 if raw is None else raw`, Filter-Block: `if self._home and self.radius_km > 0:`.
+
+**Shpock-Besonderheit**: Das `distance`-Objekt wird bei `radius_km=0` komplett aus dem GraphQL-Payload weggelassen. Ein Wert von `radius: 0` würde die Shpock-API als „0 Meter Radius" interpretieren (keine Ergebnisse), nicht als „kein Filter".
 
 ### Vinted: Altersfilter beim Crawlen
 `VintedScraper` liest `vinted_max_age_hours` aus den Settings (Default 48h). Items werden anhand des API-Felds `created_at_ts` (Unix-Timestamp) gefiltert — Items, die auf Vinted älter als der konfigurierte Wert sind, werden **vor dem Speichern** verworfen. `max_age_hours = 0` deaktiviert den Filter. Verhindert, dass wochenlang aktive Vinted-Anzeigen als „neu" gespeichert werden.
@@ -354,6 +357,12 @@ docker compose down               # Stoppen
 
 Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 
+## GitHub Actions
+
+`.github/workflows/ci.yml` — läuft bei jedem Push/PR: alle Unit- und Playwright-Tests.
+
+`.github/workflows/scraper-health.yml` — läuft täglich um 03:00 UTC: prüft ob alle 6 Scraper (Kleinanzeigen, eBay, Shpock, Vinted, Willhaben, markt.de) noch Ergebnisse liefern. Facebook wird übersprungen (braucht interaktiven Login). Die Scraper werden direkt aus dem Projekt importiert (`importlib`) und mit minimalen Settings (kein Geocoding: `radius=0` / `paylivery_only=1`) ausgeführt. Exit-Code 1 wenn irgendein Scraper 0 Ergebnisse oder eine Exception liefert → Workflow-Badge im README wird rot.
+
 ## API-Endpunkte
 
 | Method | URL | Beschreibung |
@@ -388,6 +397,7 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 ## Bekannte Einschränkungen
 
 - Kleinanzeigen.de ändert gelegentlich seine HTML-Selektoren → CSS-Selektoren in `kleinanzeigen.py._parse()` ggf. anpassen.
+- eBay.de ändert gelegentlich seine HTML-Struktur → Selektoren in `ebay.py._parse()` ggf. anpassen (aktuell: `li.s-card`, `.s-card__price`, `img.s-card__image`). eBay sperrt bei schnellen Folge-Anfragen (Rate-Limiting) → `ebay_request_delay` auf mind. 10s lassen, Intervall mind. 60 Min.
 - Facebook Marketplace benötigt interaktiven einmaligen Login und Playwright (`playwright install chromium`).
 - Shpock GraphQL-Schema kann sich ändern → Query in `shpock.py` ggf. anpassen. Shpock ignoriert den Location-Filter ohne Session – Radius-Filterung erfolgt client-seitig via Geocoding.
 - Vinted benötigt beim Start einen anonymen Session-Cookie (wird automatisch via `_authenticate()` geholt). Bei 401 erfolgt ein automatischer Retry.

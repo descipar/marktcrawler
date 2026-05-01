@@ -417,6 +417,9 @@ def _mig_recalc_is_free(conn: sqlite3.Connection):
             return 1
         return 0
 
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(listings)")}
+    if not {"is_free", "description", "price", "title"}.issubset(cols):
+        return  # Spalten noch nicht vorhanden — v2-Migration ergänzt sie mit Default 0
     rows = conn.execute("SELECT id, price, title, description FROM listings").fetchall()
     updates = [
         (_calc(r["price"] or "", r["title"] or "", r["description"] or ""), r["id"])

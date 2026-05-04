@@ -142,13 +142,14 @@ Bei Anzeigen mit „Verhandlungsbasis" schlägt die KI automatisch einen Preis v
 Eigene Instruktionen für alle generierten Texte, z.B. „Wir sind eine Familie mit zwei Kindern" oder „Keine Besichtigung bei Kleidung nötig". Werden an jeden Prompt angehängt.
 
 ### Modell-Selector
-Dropdown mit vordefinierten Modellen nach Anbieter (Anthropic / OpenAI / Ollama). „🔄 Laden"-Button holt die aktuelle Modellliste direkt vom Anbieter. Provider wird automatisch am API-Key-Prefix erkannt (`sk-ant-` → Anthropic, `sk-` → OpenAI) — unabhängig vom eingetragenen Modellnamen.
+Dropdown mit vordefinierten Modellen nach Anbieter (Anthropic / OpenAI / Groq / Ollama). „🔄 Laden"-Button holt die aktuelle Modellliste direkt vom Anbieter. Provider wird automatisch erkannt: API-Key-Prefix `sk-ant-` → Anthropic, `sk-` → OpenAI; bei gesetzter Base-URL → Hostname `localhost`/`ollama` → Ollama (`/api/tags`), sonst → OpenAI-kompatibler Anbieter (`/v1/models` mit Bearer-Auth, z.B. Groq).
 
 ### Betriebsmodi
 | Modus | Konfiguration |
 |-------|--------------|
 | Anthropic (Cloud) | API-Key `sk-ant-…`, Modell wählen, Base-URL leer |
 | OpenAI (Cloud) | API-Key `sk-…`, Modell wählen, Base-URL leer |
+| Groq (Cloud, kostenlos) | API-Key `gsk_…`, Base-URL `https://api.groq.com/openai/v1`, Modell z.B. `llama-3.3-70b-versatile` |
 | Ollama (lokal) | Base-URL `http://ollama:11434/v1`, kein API-Key nötig |
 
 ---

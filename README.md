@@ -65,6 +65,16 @@ Günstig und ohne lokale Ressourcen. Ein Anfragetext kostet ca. **0,00005 €** 
 **OpenAI:**
 - API-Key: `sk-…` · Modell: `gpt-4o-mini` · Base-URL: *(leer lassen)*
 
+**Groq (kostenlos, sehr schnell):**
+
+Kostenloser Tier, ~1–3s Antwortzeit mit leistungsstarken Modellen wie `llama-3.3-70b`.
+
+1. API-Key erstellen: [console.groq.com](https://console.groq.com)
+2. In **Einstellungen → KI-Assistent** eintragen:
+   - API-Key: `gsk_…`
+   - Base-URL: `https://api.groq.com/openai/v1`
+   - Modell: `llama-3.3-70b-versatile` oder „🔄 Laden" für aktuelle Liste
+
 ### Option 2: Lokal via Ollama
 
 Vollständig offline, kein API-Key nötig.

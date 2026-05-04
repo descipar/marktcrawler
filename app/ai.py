@@ -33,7 +33,7 @@ def generate_contact_text(listing: dict, price_stats: list, settings: dict) -> s
     base_url = settings.get("ai_base_url", "").strip()
     provider = _detect_provider(model, base_url)
 
-    if not api_key and provider != "ollama":
+    if not api_key and provider == "anthropic":
         return "⚠️ Kein API-Key hinterlegt. Bitte in den Einstellungen unter KI-Assistent eintragen."
 
     title = listing.get("title", "")
@@ -78,10 +78,10 @@ Anforderungen:
     try:
         if provider == "anthropic":
             return _call_anthropic(api_key, model, prompt)
-        elif provider in ("openai", "ollama"):
+        elif provider in ("openai", "ollama", "openai_compat"):
             return _call_openai_compat(api_key, model, prompt, base_url)
         else:
-            return f"⚠️ Unbekannter Provider für Modell '{model}'. Unterstützt: claude-*, gpt-*, oder Ollama via Base-URL."
+            return f"⚠️ Unbekannter Provider für Modell '{model}'. Unterstützt: claude-*, gpt-*, oder OpenAI-kompatible API via Base-URL."
     except Exception as e:
         logger.error(f"[KI] Fehler bei Textgenerierung: {e}")
         return f"⚠️ Fehler bei der Textgenerierung: {e}"
@@ -89,7 +89,11 @@ Anforderungen:
 
 def _detect_provider(model: str, base_url: str = "") -> str:
     if base_url:
-        return "ollama"
+        from urllib.parse import urlparse
+        host = (urlparse(base_url).hostname or "").lower()
+        if any(x in host for x in ("localhost", "127.0.0.1", "ollama")):
+            return "ollama"
+        return "openai_compat"
     if model.startswith("claude"):
         return "anthropic"
     if model.startswith(("gpt-", "o1", "o3")):

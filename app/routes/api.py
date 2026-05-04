@@ -148,14 +148,12 @@ def api_ai_models():
     base_url = settings.get("ai_base_url", "").strip()
     model    = settings.get("ai_model",    "").strip()
 
-    if base_url:
-        provider = "ollama"
-    elif api_key.startswith("sk-ant-"):
-        provider = "anthropic"
-    elif api_key.startswith("sk-"):
-        provider = "openai"
-    else:
-        provider = _detect_provider(model, base_url)
+    provider = _detect_provider(model, base_url)
+    if not base_url:
+        if api_key.startswith("sk-ant-"):
+            provider = "anthropic"
+        elif api_key.startswith("sk-"):
+            provider = "openai"
 
     try:
         if provider == "anthropic":
@@ -190,6 +188,15 @@ def api_ai_models():
             resp = _req.get(f"{ollama_root}/api/tags", timeout=6)
             resp.raise_for_status()
             models = [m["name"] for m in resp.json().get("models", [])]
+
+        elif provider == "openai_compat":
+            resp = _req.get(
+                f"{base_url.rstrip('/')}/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=6,
+            )
+            resp.raise_for_status()
+            models = sorted(m["id"] for m in resp.json().get("data", []))
 
         else:
             models = []

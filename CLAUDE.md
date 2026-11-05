@@ -279,6 +279,12 @@ Die Einstellungsseite ist in vier Tabs unterteilt: **Plattformen**, **Benachrich
 - **Inline-Validierung**: `showFieldError()` zeigt Fehler direkt am Feld, wechselt zum richtigen Tab.
 - **Test-Buttons**: Pro Plattform ein „Verbindung testen"-Button ruft `POST /api/test-scraper` auf und zeigt Ergebnis inline.
 
+### Anzeigen-Export (CSV/JSON)
+Dropdown „⬇ Export" in der Dashboard-Filterleiste → `GET /api/listings/export?format=csv|json` mit denselben Filter-Parametern wie `/api/listings` (gemeinsamer Parser `_parse_listing_filters()` in `routes/api.py`; JS-Gegenstück `filterQuery()` in `index.html`). Ignoriert Pagination (max. 100.000 Zeilen). CSV: `;`-getrennt + UTF-8-BOM (Excel), `_csv_safe()` entschärft Formel-Injection (`=`, `+`, `-`, `@` → `'`-Präfix). Feldauswahl in `_EXPORT_FIELDS`.
+
+### Settings-Backup (Export/Import)
+`GET /api/settings/export[?secrets=1]` liefert `{"format": "marktcrawler-settings", "version": 1, "settings": {...}, "search_terms": [...]}`. Whitelist ist `SETTINGS_FORM_KEYS` aus `routes/_helpers.py` (dieselbe Liste wie das Settings-Formular — **neue Formular-Keys dort eintragen**, dann funktionieren Formular und Backup automatisch). `SETTINGS_SECRET_KEYS` (`email_password`, `ai_api_key`) nur mit `?secrets=1`. `POST /api/settings/import` übernimmt nur Whitelist-Keys, normalisiert `SETTINGS_BOOL_KEYS` auf `0`/`1`, leere Secrets überschreiben nicht; Suchbegriffe via `db.import_search_terms()` (`INSERT OR IGNORE`, nur ergänzen). Danach werden alle Schedules neu geplant. UI im Daten-Tab; Elemente mit `data-no-dirty` setzen `_formDirty` nicht.
+
 ### Daten-Tab: Datenverwaltung
 Alle datenbezogenen Operationen sind im Tab „🗑️ Daten" gebündelt: Verfügbarkeits-Check, Nicht passende Anzeigen bereinigen, Anzeigen per Plattform löschen, Alle Anzeigen löschen, **Alte Anzeigen löschen** (nach Alter in Stunden), **Geocache löschen** (`POST /api/clear-geocache`). Ein gemeinsames **Aktivitäts-Log-Terminal** (`#data-log-output`) am unteren Kartenrand zeigt Logs aller Operationen in Echtzeit. Alle Buttons rufen nach Abschluss `_refreshDataLog()` auf; lang laufende Operationen (deleteOldListings, availabilityCheck) verwenden `_startDataLog()` / `_stopDataLog()` zum Polling (Intervall 1,5s, maximal 30s beim Availability-Check).
 
@@ -335,7 +341,7 @@ python run.py                     # startet auf http://localhost:5000
 ## Tests
 
 ```bash
-pytest tests/                     # alle Tests (579 Unit/Integration + 19 Playwright UI)
+pytest tests/                     # alle Tests (~685 Unit/Integration + 24 Playwright UI)
 pytest tests/test_ui.py           # nur UI-Tests (Playwright, ~30s)
 pytest tests/test_ui.py --headed  # UI-Tests mit sichtbarem Browser
 pytest tests/ --ignore=tests/test_ui.py  # nur Unit/Integration-Tests
@@ -345,6 +351,7 @@ pytest tests/ --ignore=tests/test_ui.py  # nur Unit/Integration-Tests
 - `tests/test_ui.py` — Playwright End-to-End-Tests für kritische Frontend-Features (Prio 1–3): Dashboard, Pagination/„Mehr laden"-Button, Crawl-Feedback, Dismiss, Suchbegriffe, Filter, API-Schema, Favoriten, Settings-Tabs, Profil-Flow
 - `tests/test_routes.py` — Flask-Routen und REST-API (pytest)
 - `tests/test_database.py` — DB-Operationen (pytest)
+- `tests/test_export_backup.py` — Anzeigen-Export (CSV/JSON) und Settings-Backup (Export/Import)
 - `tests/conftest.py` — Shared Fixtures: `temp_db` (leere Test-DB), `live_server` (Flask-Server mit 35 Test-Listings für Playwright)
 
 ## Docker
@@ -392,6 +399,9 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 | POST | `/profiles` | Neues Profil anlegen (form: `name`, `emoji`) |
 | POST | `/profiles/<id>/update` | Profil umbenennen/Emoji ändern (JSON: `{"name": "...", "emoji": "..."}`) |
 | POST | `/profiles/<id>/delete` | Profil löschen (JSON response) |
+| GET | `/api/listings/export` | Gefilterte Anzeigen als CSV/JSON-Download (`?format=csv\|json` + Filter wie `/api/listings`) |
+| GET | `/api/settings/export` | Settings + Suchbegriffe als JSON-Download (`?secrets=1` inkl. Zugangsdaten) |
+| POST | `/api/settings/import` | Settings-Backup einspielen (JSON-Body = exportierte Datei) |
 | POST | `/api/cleanup-mismatched` | Nicht passende Anzeigen bereinigen (JSON: `{"deleted": N}`) |
 
 ## Bekannte Einschränkungen

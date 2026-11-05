@@ -96,6 +96,12 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 - [x] **Verfügbarkeits-Timestamp auf Karte**: Zeitpunkt der letzten Verfügbarkeitsprüfung als Klartext direkt auf der Anzeigenkarte (kein Badge) — „Verfügbarkeit geprüft: vor 2h" oder „Verfügbarkeit noch nicht geprüft". Mit relativem Zeitformat via `initRelativeTimes()`.
 - [x] 32 neue Tests (462 gesamt)
 
+### Phase 27 – Daten & Export
+
+- [x] **13 – CSV/JSON-Export**: Dropdown „⬇ Export" im Dashboard lädt alle Anzeigen herunter, die zu den aktuellen Filtern passen (ohne Pagination). CSV mit `;` + BOM für Excel, Schutz gegen Formel-Injection. Endpoint `GET /api/listings/export`; Filter-Parsing in `_parse_listing_filters()` zusammengeführt.
+- [x] **23 – Settings-Backup**: Export/Import von Settings + Suchbegriffen als JSON im Daten-Tab. Zugangsdaten nur optional, Import mit Whitelist (`SETTINGS_FORM_KEYS`, jetzt gemeinsam mit dem Settings-Formular), Suchbegriffe werden nur ergänzt. Endpoints `GET /api/settings/export`, `POST /api/settings/import`.
+- [x] 35 neue Tests (`tests/test_export_backup.py`), 685 Unit/Integration gesamt
+
 ---
 
 ## 🔜 Offene Aufgaben
@@ -140,8 +146,7 @@ Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Tastaturkürzel") o
 
 ### Features – Daten & Export
 
-- [ ] **13** – CSV/JSON-Export der aktuell gefilterten Anzeigen (clientseitiger Download)
-- [ ] **23** – Settings-Backup: Import/Export als JSON-Datei
+_(13 und 23 erledigt – siehe Phase 27)_
 
 ---
 

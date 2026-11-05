@@ -173,6 +173,12 @@
             class="flex-shrink-0 text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 hover:bg-slate-50 transition-colors">
             Filter <span id="filter-toggle-count" class="hidden text-brand-600 font-bold"></span> <span id="filter-toggle-arrow">▼</span>
           </button>
+          <select id="export-select" onchange="exportListings(this)" title="Gefilterte Anzeigen herunterladen"
+            class="flex-shrink-0 ml-auto text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none bg-white">
+            <option value="">⬇ Export</option>
+            <option value="csv">CSV (Excel)</option>
+            <option value="json">JSON</option>
+          </select>
         </div>
         <!-- Ausklappbarer Filter-Bereich -->
         <div id="extended-filter-panel" class="hidden mt-2">
@@ -513,16 +519,28 @@ function updateCount() {
   document.getElementById('listing-count').textContent = currentOffset > 0 ? `(${currentOffset} geladen)` : '';
 }
 
+function filterQuery() {
+  let q=`sort=${sortBy}`;
+  activeTerms.forEach(t => q+='&term='+encodeURIComponent(t));
+  if(platformFilter) q+='&platform='+encodeURIComponent(platformFilter);
+  if(ageFilter)      q+='&max_age='+ageFilter;
+  if(freeFilter)     q+='&free=1';
+  if(favFilter)      q+='&favorites=1';
+  if(distanceFilter) q+='&max_distance='+distanceFilter;
+  if(excludeText)    q+='&exclude='+encodeURIComponent(excludeText);
+  if(newFilter)      q+='&new=1';
+  return q;
+}
+
+function exportListings(sel) {
+  const fmt = sel.value;
+  sel.value = '';
+  if (!fmt) return;
+  window.location.href = `/api/listings/export?format=${fmt}&${filterQuery()}`;
+}
+
 async function fetchListings(offset) {
-  let url=`/api/listings?limit=${PAGE_SIZE}&offset=${offset}&sort=${sortBy}`;
-  activeTerms.forEach(t => url+='&term='+encodeURIComponent(t));
-  if(platformFilter) url+='&platform='+encodeURIComponent(platformFilter);
-  if(ageFilter)      url+='&max_age='+ageFilter;
-  if(freeFilter)     url+='&free=1';
-  if(favFilter)      url+='&favorites=1';
-  if(distanceFilter) url+='&max_distance='+distanceFilter;
-  if(excludeText)    url+='&exclude='+encodeURIComponent(excludeText);
-  if(newFilter)      url+='&new=1';
+  const url=`/api/listings?limit=${PAGE_SIZE}&offset=${offset}&${filterQuery()}`;
   try {
     const resp = await fetch(url);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);

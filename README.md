@@ -199,6 +199,8 @@ cp ./data/baby_crawler.db ./backup_$(date +%Y%m%d).db
 
 Anzeigen älter als 30 Tage werden automatisch bereinigt. **Favoriten werden dabei nie gelöscht.**
 
+Nur Einstellungen und Suchbegriffe sichern (z.B. für einen Umzug auf einen neuen Rechner): **Einstellungen → 🗑️ Daten → 💾 Einstellungen sichern** → Exportieren / Importieren (JSON). Anzeigen lassen sich im Dashboard über **⬇ Export** als CSV oder JSON herunterladen.
+
 ---
 
 ## 🧹 Datenpflege

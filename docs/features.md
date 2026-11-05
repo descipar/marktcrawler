@@ -106,6 +106,20 @@ Prüft periodisch per HEAD-Request ob Anzeigen noch online sind. HTTP 404/410 �
 ### Auto-Cleanup nicht passender Anzeigen
 `db.cleanup_mismatched_listings()` durchsucht alle gespeicherten Anzeigen und entfernt solche, deren Titel + Beschreibung nicht alle Wörter des zugehörigen Suchbegriffs enthalten (gleiche `\b`-Regex wie der Crawler). Entfernte Anzeigen werden als dismissed eingetragen und tauchen beim nächsten Crawl nicht erneut auf. Läuft einmalig automatisch als DB-Migration v9 beim ersten Start nach Update. Manuell auslösbar über `POST /api/cleanup-mismatched` + Button im Daten-Tab der Einstellungen.
 
+### Export (CSV / JSON)
+Dropdown „⬇ Export" in der Filter-Leiste des Dashboards. Lädt **alle** Anzeigen herunter, die zu den aktuell gesetzten Filtern passen (Suchbegriffe, Plattform, Alter, Entfernung, Gratis, Favoriten, Neu, Ausblend-Text, Sortierung) – unabhängig davon, wie viele Seiten im Dashboard geladen sind. Spalten: Plattform, Titel, Preis, Gratis, Ort, Entfernung, Suchbegriff, Gefunden am, Favorit, Notiz, URL, Beschreibung.
+- **CSV**: Semikolon-getrennt mit UTF-8-BOM, öffnet sich direkt korrekt in deutschem Excel/LibreOffice. Zellen, die mit `=`, `+`, `-` oder `@` beginnen, bekommen ein `'` vorangestellt (Schutz vor Formel-Injection durch fremde Anzeigentitel).
+- **JSON**: Array von Objekten mit denselben Feldern, Werte unverändert.
+
+Endpoint: `GET /api/listings/export?format=csv|json` + dieselben Filter-Parameter wie `/api/listings` (`limit`/`offset` werden ignoriert, max. 100.000 Zeilen).
+
+### Settings-Backup (Export / Import)
+Im Daten-Tab der Einstellungen unter „💾 Einstellungen sichern".
+- **Export** lädt eine JSON-Datei mit allen über das Formular einstellbaren Settings und allen Suchbegriffen (inkl. aktiviert/deaktiviert und Preis-Schwelle). Status-Werte (letzter Crawl etc.), Profile und Anzeigen sind nicht enthalten. Zugangsdaten (`email_password`, `ai_api_key`) werden nur mitexportiert, wenn die Checkbox „Zugangsdaten mitexportieren" gesetzt ist.
+- **Import** übernimmt die Werte nach Bestätigung. Nur bekannte Settings-Keys werden übernommen (unbekannte werden ignoriert und gemeldet), Checkbox-Werte werden auf `0`/`1` normalisiert. Leere Zugangsdaten überschreiben vorhandene nicht. Fehlende Suchbegriffe werden ergänzt, vorhandene bleiben unverändert (nichts wird gelöscht). Scheduler-Intervalle und Digest-Zeit werden sofort neu geplant.
+
+Dateiformat: `{"format": "marktcrawler-settings", "version": 1, "exported_at": ..., "includes_secrets": false, "settings": {...}, "search_terms": [{"term", "enabled", "max_price"}]}`. Endpoints: `GET /api/settings/export[?secrets=1]`, `POST /api/settings/import` (JSON-Body = Dateiinhalt).
+
 ### Anzeigen einer Plattform löschen
 Im Daten-Tab der Einstellungen: Plattform aus Dropdown wählen → Löschen. `db.clear_listings_by_platform(platform)` löscht alle Nicht-Favoriten der gewählten Plattform und trägt sie in `dismissed_listings` ein — beim nächsten Crawl werden sie frisch eingelesen. Favoriten bleiben erhalten. Endpoint: `POST /api/clear-listings-by-platform` (`{"platform": "Willhaben"}`).
 
@@ -185,7 +199,7 @@ Die Einstellungsseite ist in fünf Tabs gegliedert. Deaktivierte Plattformen wer
 | E-Mail | Benachrichtigungen | SMTP-Server/-Port, Absender, App-Passwort, Alert-Betreff, Digest-Betreff |
 | Tages-Digest | Benachrichtigungen | Aktiviert (global), Digest-Betreff |
 | Crawler | Crawler | Max. Ergebnisse pro Suche, Pause zwischen Anfragen (s), Blacklist, Sprachfilter, Heimstandort, Verfügbarkeits-Check |
-| Datenverwaltung | 🗑️ Daten | Verfügbarkeits-Check starten, Bereinigen, Plattform löschen, Alle löschen, Alte Anzeigen löschen (Stunden), Geocache löschen, Aktivitäts-Log-Terminal |
+| Datenverwaltung | 🗑️ Daten | Settings-Backup (Export/Import), Verfügbarkeits-Check starten, Bereinigen, Plattform löschen, Alle löschen, Alte Anzeigen löschen (Stunden), Geocache löschen, Aktivitäts-Log-Terminal |
 | KI-Assistent | KI-Assistent | Aktiviert, API-Key, Modell (Selector + Live-Fetch), Persönliche Hinweise, Base-URL |
 | Profile | Profile | Anlegen (Name + Emoji), umbenennen, löschen; pro Profil: E-Mail-Adresse, Modus, Alert-Intervall, Digest-Uhrzeit, Ruhezeit (Von/Bis) |
 
@@ -206,6 +220,9 @@ Die Einstellungsseite ist in fünf Tabs gegliedert. Deaktivierte Plattformen wer
 | POST | `/listings/<id>/dismiss` | Anzeige dauerhaft ausblenden |
 | POST | `/listings/<id>/note` | Notiz setzen/löschen (`{"note": "..."}`) |
 | GET | `/api/listings` | Anzeigen als JSON (`?term=`, `?platform=`, `?limit=`, `?offset=`, `?favorites=`, `?free=`, `?max_age=`, `?max_distance=`, `?sort=`, `?exclude=`) |
+| GET | `/api/listings/export` | Gefilterte Anzeigen als Download (`?format=csv\|json` + Filter wie `/api/listings`) |
+| GET | `/api/settings/export` | Settings + Suchbegriffe als JSON-Download (`?secrets=1` inkl. Zugangsdaten) |
+| POST | `/api/settings/import` | Settings-Backup einspielen (JSON-Body = exportierte Datei) |
 | GET | `/api/status` | Crawler-Status inkl. `platforms`-Array (Status, letzter/nächster Lauf, neue Anzeigen) |
 | GET | `/api/stats` | Preisstatistik pro Suchbegriff (Avg/Min/Max/Gratis) |
 | GET | `/api/platforms` | Distinct Plattformen der gespeicherten Anzeigen |

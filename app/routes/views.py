@@ -5,7 +5,7 @@ import logging
 from flask import render_template, request, jsonify, redirect, url_for, flash, session
 
 from . import bp
-from ._helpers import PLATFORMS, _PLATFORM_DISPLAY, build_platform_max_ages, build_platform_stats, is_running
+from ._helpers import PLATFORMS, _PLATFORM_DISPLAY, SETTINGS_FORM_KEYS, SETTINGS_BOOL_KEYS, build_platform_max_ages, build_platform_stats, is_running
 from .. import database as db
 from ..scheduler import get_next_run, get_next_runs, update_platform_schedules, update_digest_schedule, update_availability_schedule
 
@@ -136,36 +136,9 @@ def settings_page():
 
 @bp.route("/settings", methods=["POST"])
 def save_settings():
-    allowed_keys = {
-        "kleinanzeigen_enabled", "kleinanzeigen_max_price",
-        "kleinanzeigen_location", "kleinanzeigen_radius", "kleinanzeigen_interval", "kleinanzeigen_max_age_hours",
-        "shpock_enabled", "shpock_max_price",
-        "shpock_location", "shpock_radius", "shpock_interval", "shpock_max_age_hours",
-        "facebook_enabled", "facebook_max_price", "facebook_location", "facebook_interval", "facebook_max_age_hours",
-        "vinted_enabled", "vinted_max_price", "vinted_location", "vinted_radius", "vinted_interval", "vinted_max_age_hours",
-        "ebay_enabled", "ebay_max_price", "ebay_location", "ebay_radius", "ebay_interval", "ebay_max_age_hours",
-        "willhaben_enabled", "willhaben_max_price", "willhaben_location", "willhaben_radius",
-        "willhaben_paylivery_only", "willhaben_interval", "willhaben_max_age_hours",
-        "marktde_enabled", "marktde_max_price", "marktde_location", "marktde_radius",
-        "marktde_interval", "marktde_max_age_hours",
-        "email_enabled", "email_subject_alert", "email_subject_digest",
-        "email_smtp_server", "email_smtp_port",
-        "email_sender", "email_password",
-        "crawler_interval", "crawler_max_results", "crawler_delay",
-        "crawler_blacklist", "crawler_lang_filter_enabled", "crawler_lang_filter_langs",
-        "display_max_age_hours",
-        "digest_enabled", "digest_time",
-        "home_location",
-        "availability_check_enabled", "availability_check_interval_hours",
-        "availability_check_workers", "availability_recheck_hours",
-        "ai_enabled", "ai_api_key", "ai_model", "ai_base_url", "ai_prompt_hints",
-        "server_url",
-    }
-    # Checkbox-Keys die nicht auf _enabled enden
-    _extra_bool_keys = {"willhaben_paylivery_only", "crawler_lang_filter_enabled"}
     data = {}
-    for key in allowed_keys:
-        if key.endswith("_enabled") or key in _extra_bool_keys:
+    for key in SETTINGS_FORM_KEYS:
+        if key in SETTINGS_BOOL_KEYS:
             data[key] = "1" if request.form.get(key) else "0"
         else:
             val = request.form.get(key, "")

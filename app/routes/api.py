@@ -1,15 +1,25 @@
 """REST-API-Routen (/api/*)."""
 
+import csv
+import io
+import json
 import logging
 import threading
+from datetime import datetime
 
-from flask import request, jsonify, session
+from flask import Response, request, jsonify, session
 
 from . import bp
-from ._helpers import PLATFORMS, build_platform_max_ages, build_platform_stats, is_running
+from ._helpers import (
+    PLATFORMS, SETTINGS_BOOL_KEYS, SETTINGS_FORM_KEYS, SETTINGS_SECRET_KEYS,
+    build_platform_max_ages, build_platform_stats, is_running,
+)
 from .. import database as db
 from ..crawler import run_crawl_async
-from ..scheduler import get_next_run, get_next_runs
+from ..scheduler import (
+    get_next_run, get_next_runs,
+    update_availability_schedule, update_digest_schedule, update_platform_schedules,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,43 +70,175 @@ def api_platforms():
     return jsonify(db.get_distinct_platforms())
 
 
-@bp.route("/api/listings")
-def api_listings():
+def _parse_listing_filters() -> dict:
+    """Liest die Dashboard-Filter aus der Query und baut kwargs für db.get_listings().
+
+    Wirft ValueError bei ungültigen Zahlenwerten.
+    """
     terms = request.args.getlist("term") or None
-    platform = request.args.get("platform")
     sort_by = request.args.get("sort", "date_desc")
     if sort_by not in _VALID_SORTS:
         sort_by = "date_desc"
-    exclude_text = request.args.get("exclude", "").strip() or None
+    max_age = int(request.args.get("max_age", 0) or 0)
+    max_dist_raw = request.args.get("max_distance", "")
+    only_new = request.args.get("new") == "1"
+    return {
+        "search_terms": terms,
+        "platform": request.args.get("platform") or None,
+        "only_favorites": request.args.get("favorites") == "1",
+        "only_free": request.args.get("free") == "1",
+        "max_age_hours": max_age,
+        "platform_max_ages": None if max_age else build_platform_max_ages(db.get_settings()),
+        "max_distance_km": float(max_dist_raw) if max_dist_raw else None,
+        "sort_by": sort_by,
+        "exclude_text": request.args.get("exclude", "").strip() or None,
+        "since_datetime": session.get("profile_last_seen") if only_new else None,
+    }
+
+
+@bp.route("/api/listings")
+def api_listings():
     try:
         limit = int(request.args.get("limit", 30))
         offset = int(request.args.get("offset", 0))
-        max_age = int(request.args.get("max_age", 0) or 0)
-        max_dist_raw = request.args.get("max_distance", "")
-        max_distance = float(max_dist_raw) if max_dist_raw else None
+        filters = _parse_listing_filters()
     except ValueError:
         return jsonify({"error": "Ungültiger Parameter."}), 400
-    only_fav = request.args.get("favorites") == "1"
-    only_free = request.args.get("free") == "1"
-    only_new = request.args.get("new") == "1"
-    last_seen_at = session.get("profile_last_seen") if only_new else None
 
-    platform_max_ages = None
-    if not max_age:
-        settings = db.get_settings()
-        platform_max_ages = build_platform_max_ages(settings)
-
-    listings = db.get_listings(
-        limit=limit, offset=offset, search_terms=terms, platform=platform,
-        only_favorites=only_fav, only_free=only_free, max_age_hours=max_age,
-        platform_max_ages=platform_max_ages,
-        max_distance_km=max_distance, sort_by=sort_by, exclude_text=exclude_text,
-        since_datetime=last_seen_at,
-    )
+    listings = db.get_listings(limit=limit, offset=offset, **filters)
     last_seen_at = session.get("profile_last_seen")
     for l in listings:
         l["is_new"] = bool(last_seen_at and l.get("found_at", "") > last_seen_at)
     return jsonify(listings)
+
+
+_EXPORT_FIELDS = [
+    "platform", "title", "price", "is_free", "location", "distance_km",
+    "search_term", "found_at", "is_favorite", "notes", "url", "description",
+]
+_EXPORT_MAX_ROWS = 100_000
+
+
+def _csv_safe(value) -> str:
+    """Verhindert Formel-Injection in Excel/LibreOffice (Titel stammen von Dritten)."""
+    if value is None:
+        return ""
+    text = str(value)
+    if text and text[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + text
+    return text
+
+
+@bp.route("/api/listings/export")
+def api_listings_export():
+    """Exportiert alle Anzeigen, die zu den aktuellen Dashboard-Filtern passen (ohne Pagination)."""
+    fmt = request.args.get("format", "csv").lower()
+    if fmt not in ("csv", "json"):
+        return jsonify({"error": "Ungültiges Format (csv oder json)."}), 400
+    try:
+        filters = _parse_listing_filters()
+    except ValueError:
+        return jsonify({"error": "Ungültiger Parameter."}), 400
+
+    listings = db.get_listings(limit=_EXPORT_MAX_ROWS, offset=0, **filters)
+    rows = [{f: l.get(f) for f in _EXPORT_FIELDS} for l in listings]
+    stamp = datetime.now().strftime("%Y%m%d-%H%M")
+    logger.info(f"📤 Export: {len(rows)} Anzeige(n) als {fmt.upper()}")
+
+    if fmt == "json":
+        body = json.dumps(rows, ensure_ascii=False, indent=2)
+        mimetype = "application/json"
+    else:
+        buf = io.StringIO()
+        # Semikolon + BOM: öffnet sich in deutschem Excel direkt korrekt
+        writer = csv.writer(buf, delimiter=";", quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(_EXPORT_FIELDS)
+        for r in rows:
+            writer.writerow([_csv_safe(r[f]) for f in _EXPORT_FIELDS])
+        body = "\ufeff" + buf.getvalue()
+        mimetype = "text/csv"
+
+    return Response(
+        body, mimetype=f"{mimetype}; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="marktcrawler-anzeigen-{stamp}.{fmt}"'},
+    )
+
+
+# ── Settings-Backup ──────────────────────────────────────────
+
+_BACKUP_FORMAT = "marktcrawler-settings"
+_BACKUP_VERSION = 1
+
+
+@bp.route("/api/settings/export")
+def api_settings_export():
+    include_secrets = request.args.get("secrets") == "1"
+    settings = db.get_settings()
+    exported = {
+        k: settings[k] for k in sorted(SETTINGS_FORM_KEYS)
+        if k in settings and (include_secrets or k not in SETTINGS_SECRET_KEYS)
+    }
+    terms = [
+        {"term": t["term"], "enabled": bool(t["enabled"]), "max_price": t.get("max_price")}
+        for t in db.get_search_terms()
+    ]
+    payload = {
+        "format": _BACKUP_FORMAT,
+        "version": _BACKUP_VERSION,
+        "exported_at": db.utcnow().isoformat(timespec="seconds"),
+        "includes_secrets": include_secrets,
+        "settings": exported,
+        "search_terms": terms,
+    }
+    stamp = datetime.now().strftime("%Y%m%d-%H%M")
+    logger.info(f"📤 Settings-Export: {len(exported)} Einstellungen, {len(terms)} Suchbegriffe"
+                + (" (inkl. Zugangsdaten)" if include_secrets else ""))
+    return Response(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        mimetype="application/json; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="marktcrawler-settings-{stamp}.json"'},
+    )
+
+
+@bp.route("/api/settings/import", methods=["POST"])
+def api_settings_import():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or payload.get("format") != _BACKUP_FORMAT:
+        return jsonify({"error": "Keine gültige Marktcrawler-Settings-Datei."}), 400
+    if not isinstance(payload.get("version"), int) or payload["version"] > _BACKUP_VERSION:
+        return jsonify({"error": "Backup-Version wird nicht unterstützt."}), 400
+
+    raw_settings = payload.get("settings") or {}
+    raw_terms = payload.get("search_terms") or []
+    if not isinstance(raw_settings, dict) or not isinstance(raw_terms, list):
+        return jsonify({"error": "Ungültige Dateistruktur."}), 400
+
+    data, skipped = {}, []
+    for key, value in raw_settings.items():
+        if key not in SETTINGS_FORM_KEYS or isinstance(value, (dict, list)):
+            skipped.append(key)
+            continue
+        if key in SETTINGS_SECRET_KEYS and not value:
+            continue  # leere Zugangsdaten überschreiben vorhandene nicht
+        if key in SETTINGS_BOOL_KEYS:
+            value = "1" if value in (True, 1, "1") else "0"
+        data[key] = "" if value is None else str(value)
+
+    db.save_settings(data)
+    terms_added = db.import_search_terms([t for t in raw_terms if isinstance(t, dict)])
+    update_platform_schedules()
+    update_digest_schedule()
+    update_availability_schedule()
+
+    logger.info(f"📥 Settings-Import: {len(data)} Einstellungen übernommen, "
+                f"{terms_added} Suchbegriff(e) neu, {len(skipped)} unbekannte Keys ignoriert")
+    return jsonify({
+        "status": "ok",
+        "settings_imported": len(data),
+        "terms_added": terms_added,
+        "skipped": skipped,
+        "message": f"{len(data)} Einstellungen übernommen, {terms_added} Suchbegriff(e) hinzugefügt.",
+    })
 
 
 @bp.route("/api/stats")

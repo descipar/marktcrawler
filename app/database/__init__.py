@@ -22,6 +22,7 @@ from .search_terms import (
     delete_search_term,
     toggle_search_term,
     update_term_max_price,
+    import_search_terms,
 )
 
 from .listings import (
@@ -83,7 +84,7 @@ __all__ = [
     "get_settings", "get_setting", "set_setting", "save_settings",
     # search_terms
     "get_search_terms", "add_search_term", "delete_search_term",
-    "toggle_search_term", "update_term_max_price",
+    "toggle_search_term", "update_term_max_price", "import_search_terms",
     # listings
     "is_dismissed", "is_known_listing", "dismiss_listing", "save_listing", "update_listing_distance",
     "toggle_favorite", "update_listing_note", "find_duplicate_platform",

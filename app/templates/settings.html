@@ -558,6 +558,39 @@
 
   <!-- ── Tab: Daten ─────────────────────────────────────── -->
   <div id="tab-data" class="tab-panel hidden space-y-4 pt-4">
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3 bg-slate-50 border-b border-slate-200">
+        <h2 class="font-semibold text-slate-800">💾 Einstellungen sichern</h2>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-sm text-slate-700 font-medium">Exportieren</p>
+            <p class="text-xs text-slate-400 mt-0.5">Lädt alle Einstellungen und Suchbegriffe als JSON-Datei herunter. Profile und Anzeigen sind nicht enthalten.</p>
+            <label class="mt-2 inline-flex items-center gap-2 text-xs text-slate-600">
+              <input type="checkbox" id="exportSecrets" data-no-dirty class="rounded border-slate-300">
+              Zugangsdaten mitexportieren (E-Mail-Passwort, KI-API-Key) – Datei dann sicher aufbewahren
+            </label>
+          </div>
+          <button type="button" id="exportSettingsBtn" onclick="exportSettings()"
+            class="shrink-0 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
+            Exportieren
+          </button>
+        </div>
+        <div class="border-t border-slate-100 pt-4 flex items-start justify-between gap-4">
+          <div>
+            <p class="text-sm text-slate-700 font-medium">Importieren</p>
+            <p class="text-xs text-slate-400 mt-0.5">Übernimmt die Einstellungen aus einer exportierten Datei. Fehlende Suchbegriffe werden ergänzt, vorhandene bleiben unverändert. Leere Zugangsdaten überschreiben vorhandene nicht.</p>
+          </div>
+          <input type="file" id="importSettingsFile" accept="application/json,.json" data-no-dirty class="hidden"
+            onchange="importSettings(this)">
+          <button type="button" id="importSettingsBtn" onclick="document.getElementById('importSettingsFile').click()"
+            class="shrink-0 bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
+            Datei wählen…
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="bg-white rounded-xl border border-red-200 overflow-hidden">
       <div class="px-5 py-3 bg-red-50 border-b border-red-200">
         <h2 class="font-semibold text-red-800">🗑️ Datenverwaltung</h2>
@@ -687,7 +720,9 @@ initPlatformDimming();
 
 // ── Task 3: Unsaved-Changes-Warnung ─────────────────────
 let _formDirty = false;
-document.getElementById('settings-form').addEventListener('change', () => _formDirty = true);
+document.getElementById('settings-form').addEventListener('change', e => {
+  if (!e.target.hasAttribute('data-no-dirty')) _formDirty = true;
+});
 document.getElementById('settings-form').addEventListener('submit', () => _formDirty = false);
 window.addEventListener('beforeunload', e => {
   if (_formDirty) { e.preventDefault(); e.returnValue = ''; }
@@ -851,6 +886,46 @@ function clearAllListings() {
       })
       .catch(() => { btn.disabled = false; btn.textContent = 'Fehler'; });
   }, 'Löschen');
+}
+
+function exportSettings() {
+  const secrets = document.getElementById('exportSecrets').checked;
+  window.location.href = '/api/settings/export' + (secrets ? '?secrets=1' : '');
+  setTimeout(_refreshDataLog, 800);
+}
+
+async function importSettings(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  let payload;
+  try {
+    payload = JSON.parse(await file.text());
+  } catch {
+    showToast('Datei ist kein gültiges JSON.');
+    return;
+  }
+  if (_formDirty) {
+    showToast('Bitte zuerst ungespeicherte Änderungen speichern oder verwerfen.');
+    return;
+  }
+  showConfirm('Einstellungen aus „' + file.name + '" übernehmen? Aktuelle Werte werden überschrieben.', async () => {
+    const btn = document.getElementById('importSettingsBtn');
+    btn.disabled = true; btn.textContent = 'Importiere…';
+    try {
+      const r = await fetch('/api/settings/import', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Import fehlgeschlagen.');
+      showToast(d.message, 'success');
+      localStorage.setItem('settingsTab', 'data');
+      setTimeout(() => window.location.reload(), 1200);
+    } catch (e) {
+      showToast(e.message || 'Import fehlgeschlagen.');
+      btn.disabled = false; btn.textContent = 'Datei wählen…';
+    }
+  }, 'Importieren');
 }
 
 async function clearGeoCache() {

@@ -47,3 +47,30 @@ def update_term_max_price(term_id: int, max_price: Optional[int]):
     with _db() as conn:
         conn.execute("UPDATE search_terms SET max_price=? WHERE id=?", (max_price, term_id))
         conn.commit()
+
+
+def import_search_terms(terms: List[Dict]) -> int:
+    """Legt fehlende Suchbegriffe an (Settings-Import). Bestehende bleiben unverändert.
+
+    Jeder Eintrag: {"term": str, "enabled": bool/int (optional), "max_price": int|None (optional)}.
+    Gibt die Anzahl neu angelegter Begriffe zurück.
+    """
+    added = 0
+    with _db() as conn:
+        for entry in terms:
+            term = str(entry.get("term", "")).strip()
+            if not term:
+                continue
+            enabled = 0 if entry.get("enabled") in (0, False, "0") else 1
+            max_price = entry.get("max_price")
+            try:
+                max_price = int(max_price) if max_price not in (None, "") else None
+            except (TypeError, ValueError):
+                max_price = None
+            cur = conn.execute(
+                "INSERT OR IGNORE INTO search_terms(term, enabled, max_price) VALUES (?,?,?)",
+                (term, enabled, max_price),
+            )
+            added += cur.rowcount
+        conn.commit()
+    return added

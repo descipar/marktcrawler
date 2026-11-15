@@ -299,7 +299,7 @@ marktcrawler/
     ├── geo.py              # Nominatim-Geocoding + Haversine + DB-Cache
     ├── scrapers/
     │   ├── base.py         # Listing-Dataclass, BaseScraper ABC, Hilfsfunktionen
-    │   ├── kleinanzeigen.py  # requests + BeautifulSoup
+    │   ├── kleinanzeigen.py  # requests + BeautifulSoup (Tailwind-Layout + ld+json)
     │   ├── shpock.py         # GraphQL-API
     │   ├── vinted.py         # Katalogseite /catalog, Treffer aus Next.js-RSC-Payload
     │   ├── ebay.py           # curl_cffi (Browser-Fingerprint gegen Akamai) + BeautifulSoup

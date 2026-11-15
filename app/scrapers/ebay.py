@@ -1,41 +1,31 @@
-"""Scraper für eBay.de (requests + BeautifulSoup)."""
+"""Scraper für eBay.de (curl_cffi + BeautifulSoup).
+
+eBay schützt die Suche mit Akamai Bot Manager, der Clients am TLS-/HTTP2-
+Fingerprint erkennt. ``requests`` wird dort pauschal mit 403 abgewiesen –
+unabhängig von Headern oder IP. ``curl_cffi`` imitiert den Fingerprint eines
+echten Browsers. Firefox und Safari kommen durch, Chrome/Edge-Profile werden
+(Stand 11/2026) ebenfalls geblockt – daher die Profil-Reihenfolge unten.
+"""
 
 import logging
-import re
 import time
 from typing import List, Optional
 from urllib.parse import quote_plus
 
-import requests
 from bs4 import BeautifulSoup
+from curl_cffi import requests as cffi_requests
 
 from .base import BaseScraper, Listing, _float, _int, price_within_limit, _large_image_url
 
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://www.ebay.de"
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept": (
-        "text/html,application/xhtml+xml,application/xml;q=0.9,"
-        "image/avif,image/webp,*/*;q=0.8"
-    ),
-    "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-    "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"macOS"',
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1",
-}
+# Browser-Profile für curl_cffi, in Reihenfolge der Präferenz. Bei 403 wird
+# auf das nächste Profil gewechselt.
+IMPERSONATE_PROFILES = ("firefox", "safari")
+# Nur Sprache setzen – User-Agent & Co. liefert das Impersonate-Profil passend
+# zum Fingerprint. Ein abweichender User-Agent würde Akamai erst recht auffallen.
+HEADERS = {"Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7"}
 
 
 class EbayScraper(BaseScraper):
@@ -46,34 +36,56 @@ class EbayScraper(BaseScraper):
         self.radius_km: int = _int(settings.get("ebay_radius", 30)) or 30
         # Mindestabstand zwischen Suchanfragen (eBay sperrt bei zu schnellen Folge-Requests)
         self.request_delay: float = float(settings.get("ebay_request_delay", 10))
-        self.session = requests.Session()
-        self.session.headers.update(HEADERS)
+        self._profile_idx = 0
+        self.session = self._new_session()
         self._warmed_up = False
         self._last_request: float = 0.0
 
+    def _new_session(self):
+        session = cffi_requests.Session(impersonate=IMPERSONATE_PROFILES[self._profile_idx])
+        session.headers.update(HEADERS)
+        return session
+
+    def _switch_profile(self) -> bool:
+        """Wechselt auf das nächste Browser-Profil. False, wenn keins mehr übrig ist."""
+        if self._profile_idx + 1 >= len(IMPERSONATE_PROFILES):
+            return False
+        self._profile_idx += 1
+        logger.info(f"[eBay] 403 – wechsle auf Browser-Profil '{IMPERSONATE_PROFILES[self._profile_idx]}'.")
+        self.session = self._new_session()
+        self._warmed_up = False
+        return True
+
     def _warmup(self):
-        """Homepage-Request zum Initialisieren der Session-Cookies (verhindert 403)."""
+        """Homepage-Request zum Initialisieren der Session-Cookies (Akamai bm_*)."""
         if not self._warmed_up:
             try:
-                self.session.get(f"{BASE_URL}/", timeout=10)
+                self.session.get(f"{BASE_URL}/", timeout=15)
                 # Referer setzen: Suchanfragen sehen aus wie Navigation von der Startseite
                 self.session.headers["Referer"] = f"{BASE_URL}/"
-                self.session.headers["Sec-Fetch-Site"] = "same-origin"
             except Exception:
                 pass
             self._warmed_up = True
 
+    def _fetch(self, url: str):
+        """GET mit Warmup; bei 403 einmal pro verbleibendem Browser-Profil neu versuchen."""
+        while True:
+            self._warmup()
+            r = self.session.get(url, timeout=20)
+            if r.status_code == 403 and self._switch_profile():
+                continue
+            r.raise_for_status()
+            return r
+
     def search(self, term: str, max_results: int = 20) -> List[Listing]:
-        self._warmup()
         elapsed = time.monotonic() - self._last_request
         if elapsed < self.request_delay:
             time.sleep(self.request_delay - elapsed)
         url = self._build_url(term, max_results)
         logger.info(f"[eBay] '{term}' → {url}")
         try:
-            r = self.session.get(url, timeout=15)
+            r = self._fetch(url)
             self._last_request = time.monotonic()
-            r.raise_for_status()
         except Exception as e:
             self._last_request = time.monotonic()
             logger.error(f"[eBay] Fehler bei '{term}': {e}")

@@ -104,6 +104,14 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 
 ---
 
+### Phase 32 – Vinted- & eBay-Scraper repariert (11/2026)
+
+- [x] **Vinted: Katalogseite statt API** — `/api/v2/catalog/items` liefert nur noch 404. Suche läuft jetzt über `/catalog?search_text=…` (HTML); Treffer werden aus dem Next.js-RSC-Payload (`self.__next_f.push`) extrahiert (`_extract_catalog_items()`, `_normalize()`). Detailbeschreibungen für den Sprachfilter funktionieren unverändert. Einschränkung: kein `created_at_ts` und keine Verkäufer-Stadt mehr → Altersfilter und Radius greifen derzeit nicht.
+- [x] **eBay: Akamai-Botschutz** — `requests` wird per TLS-Fingerprint mit 403 abgewiesen (auch Startseite, IP-unabhängig). Umstieg auf `curl_cffi` mit Firefox-Profil, Fallback Safari bei 403. Neue Abhängigkeit in `requirements.txt`, Windows-Spec und eBay-Health-Check.
+- [x] 9 neue Tests (Katalog-Parsing, Formatänderung, max_results, Profilwechsel bei 403) — Vinted-Suchtests auf HTML-Mocks umgestellt
+
+---
+
 ## 🔜 Offene Aufgaben
 
 Zum Umsetzen einfach den Kategorienamen nennen (z.B. „mach Tastaturkürzel") oder einzelne Tasks per Nummer (z.B. „mach 11 und 21").

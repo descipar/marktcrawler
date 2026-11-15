@@ -61,6 +61,42 @@ def _ebay_page(items_html: str) -> str:
     )
 
 
+def _vinted_catalog_entry(item: dict) -> dict:
+    """Wandelt ein (normalisiertes) Test-Item ins Format der Vinted-Katalogseite."""
+    photo = item.get("photo") or {}
+    url = item.get("url", "")
+    return {
+        "id": item.get("id"),
+        "productItem": {
+            "id": item.get("id"),
+            "title": item.get("title"),
+            "url": url.replace("https://www.vinted.de", ""),
+            "price": item.get("price"),
+            "totalItemPrice": item.get("total_item_price"),
+            "user": item.get("user") or {},
+            "thumbnailUrl": photo.get("url"),
+            "photos": [{"url": photo.get("url")}] if photo.get("url") else [],
+            **({"created_at_ts": item["created_at_ts"]} if "created_at_ts" in item else {}),
+        },
+    }
+
+
+def _vinted_page(items: list) -> str:
+    """Baut eine Vinted-Katalogseite mit RSC-Payload (self.__next_f.push)."""
+    payload = json.dumps({"items": {"items": [_vinted_catalog_entry(i) for i in items], "pagination": {}}}, separators=(",", ":"))
+    # Wie bei Next.js: Payload auf mehrere push()-Aufrufe verteilt
+    half = len(payload) // 2
+    chunks = ['5:["$","div",null,' + payload[:half], payload[half:] + "]"]
+    scripts = "".join(
+        f"<script>self.__next_f.push([1,{json.dumps(c)}])</script>" for c in chunks
+    )
+    return f"<html><body><div>Grid</div>{scripts}</body></html>"
+
+
+def _vinted_response(items: list, status: int = 200):
+    return _mock_response(text=_vinted_page(items), status=status)
+
+
 # ── Vinted ────────────────────────────────────────────────────────────────────
 
 VINTED_ITEM = {
@@ -81,14 +117,14 @@ class TestVintedScraper:
 
     def test_search_gibt_listings_zurueck(self):
         scraper = self._scraper()
-        with patch.object(scraper.session, "get", return_value=_mock_response({"items": [VINTED_ITEM]})):
+        with patch.object(scraper.session, "get", return_value=_vinted_response([VINTED_ITEM])):
             results = scraper.search("babywanne", max_results=5)
         assert len(results) == 1
         assert results[0].title == "Babywanne Hauck"
 
     def test_search_leere_antwort(self):
         scraper = self._scraper()
-        with patch.object(scraper.session, "get", return_value=_mock_response({"items": []})):
+        with patch.object(scraper.session, "get", return_value=_vinted_response([])):
             assert scraper.search("babywanne") == []
 
     def test_search_bei_exception(self):
@@ -140,7 +176,7 @@ class TestVintedScraper:
 
     def test_search_sendet_max_price_parameter(self):
         scraper = VintedScraper({"vinted_max_price": "25"})
-        with patch.object(scraper.session, "get", return_value=_mock_response({"items": []})) as mock_get:
+        with patch.object(scraper.session, "get", return_value=_vinted_response([])) as mock_get:
             scraper.search("babywanne")
         params = mock_get.call_args[1]["params"]
         assert params["price_to"] == 25.0
@@ -154,7 +190,7 @@ class TestVintedScraper:
         scraper = VintedScraper({})
         response_401 = _mock_response(status=401)
         response_401.raise_for_status.side_effect = Exception("401")
-        response_ok = _mock_response({"items": []})
+        response_ok = _vinted_response([])
         with patch.object(scraper.session, "get", side_effect=[response_401, response_ok, response_ok]) as mock_get:
             scraper.search("babywanne")
         # Erster Call: API (401), zweiter: _authenticate (Homepage), dritter: API-Retry
@@ -172,7 +208,7 @@ class TestVintedScraper:
         with patch("app.scrapers.vinted.geocode", return_value=(48.1351, 11.5820)):
             scraper = VintedScraper(settings)
         far_item = {**VINTED_ITEM, "user": {"city": "Hamburg"}}
-        response = _mock_response({"items": [far_item]})
+        response = _vinted_response([far_item])
         with patch.object(scraper.session, "get", return_value=response):
             with patch("app.scrapers.vinted.geocode", return_value=(53.5753, 10.0153)):
                 results = scraper.search("babywanne")
@@ -182,7 +218,7 @@ class TestVintedScraper:
         """Bei radius_km=0 wird geocode() für die Artikel-Standorte nicht aufgerufen."""
         settings = {"vinted_radius": "0", "vinted_location": ""}
         scraper = VintedScraper(settings)
-        response = _mock_response({"items": [VINTED_ITEM]})
+        response = _vinted_response([VINTED_ITEM])
         with patch.object(scraper.session, "get", return_value=response):
             with patch("app.scrapers.vinted.geocode") as mock_geocode:
                 scraper.search("babywanne")
@@ -534,7 +570,7 @@ class TestVintedScraperStandort:
     def test_search_filtert_nach_radius(self):
         scraper = self._scraper()
         item_hamburg = {**VINTED_ITEM, "user": {"city": "Hamburg"}}
-        mock_resp = _mock_response({"items": [item_hamburg]})
+        mock_resp = _vinted_response([item_hamburg])
         with patch.object(scraper.session, "get", return_value=mock_resp):
             # Hamburg liegt ~610 km von München
             with patch("app.scrapers.vinted.geocode", return_value=(53.5511, 10.0)):
@@ -544,7 +580,7 @@ class TestVintedScraperStandort:
     def test_search_gibt_treffer_im_radius_zurueck(self):
         scraper = self._scraper()
         item_nahe = {**VINTED_ITEM, "user": {"city": "Dachau"}}
-        mock_resp = _mock_response({"items": [item_nahe]})
+        mock_resp = _vinted_response([item_nahe])
         with patch.object(scraper.session, "get", return_value=mock_resp):
             # Dachau liegt ~20 km von München
             with patch("app.scrapers.vinted.geocode", return_value=(48.2601, 11.4338)):
@@ -653,14 +689,14 @@ class TestVintedScraperCoverage:
         scraper = VintedScraper({"vinted_max_age_hours": "24"})
         old_ts = str(int(time.time()) - 48 * 3600)
         old_item = {**VINTED_ITEM, "created_at_ts": old_ts}
-        with patch.object(scraper.session, "get", return_value=_mock_response({"items": [old_item]})):
+        with patch.object(scraper.session, "get", return_value=_vinted_response([old_item])):
             assert scraper.search("babywanne") == []
 
     def test_search_ueberspringt_none_listings(self):
         """_parse gibt None zurück → Item wird übersprungen."""
         scraper = VintedScraper({})
         with patch.object(scraper, "_parse", return_value=None):
-            with patch.object(scraper.session, "get", return_value=_mock_response({"items": [VINTED_ITEM]})):
+            with patch.object(scraper.session, "get", return_value=_vinted_response([VINTED_ITEM])):
                 assert scraper.search("test") == []
 
     def test_parse_preis_nicht_konvertierbar_ergibt_ka(self):
@@ -1218,3 +1254,84 @@ class TestMarktdeScraper:
             scraper.search("baby stuhl")
         url = mock_get.call_args[0][0]
         assert "baby" in url.lower()
+
+
+# ── Vinted: Katalogseite (RSC-Payload) ────────────────────────────────────────
+
+class TestVintedCatalogPage:
+
+    def test_extract_normalisiert_katalog_eintrag(self):
+        items = VintedScraper._extract_catalog_items(_vinted_page([VINTED_ITEM]))
+        assert len(items) == 1
+        item = items[0]
+        assert item["id"] == 99
+        assert item["url"] == "https://www.vinted.de/items/99-babywanne"
+        assert item["price"] == {"amount": "15.0", "currency_code": "EUR"}
+        assert item["photo"]["url"] == "https://cdn.vinted.de/img/99.jpg"
+
+    def test_extract_ohne_payload_wirft_value_error(self):
+        with pytest.raises(ValueError):
+            VintedScraper._extract_catalog_items("<html><body>Wartungsarbeiten</body></html>")
+
+    def test_geaendertes_seitenformat_gibt_leere_liste(self):
+        scraper = VintedScraper({})
+        with patch.object(scraper.session, "get", return_value=_mock_response(text="<html></html>")):
+            assert scraper.search("babywanne") == []
+
+    def test_search_kappt_auf_max_results(self):
+        scraper = VintedScraper({})
+        items = [{**VINTED_ITEM, "id": i, "url": f"https://www.vinted.de/items/{i}-x"} for i in range(1, 6)]
+        with patch.object(scraper.session, "get", return_value=_vinted_response(items)):
+            results = scraper.search("babywanne", max_results=3)
+        assert [r.listing_id for r in results] == ["vt_1", "vt_2", "vt_3"]
+
+    def test_search_ruft_katalogseite_mit_newest_first_auf(self):
+        scraper = VintedScraper({})
+        with patch.object(scraper.session, "get", return_value=_vinted_response([])) as mock_get:
+            scraper.search("cybex priam")
+        args, kwargs = mock_get.call_args
+        assert args[0] == "https://www.vinted.de/catalog"
+        assert kwargs["params"]["search_text"] == "cybex priam"
+        assert kwargs["params"]["order"] == "newest_first"
+        assert "text/html" in kwargs["headers"]["Accept"]
+
+    def test_search_ohne_stadt_ueberspringt_radiusfilter(self):
+        """Die Katalogseite liefert keine Verkäufer-Stadt → Treffer bleibt erhalten."""
+        with patch("app.scrapers.vinted.geocode", return_value=(48.1351, 11.5820)):
+            scraper = VintedScraper({"vinted_location": "München", "vinted_radius": "30"})
+        item = {**VINTED_ITEM, "user": {"id": 1}}
+        with patch.object(scraper.session, "get", return_value=_vinted_response([item])):
+            assert len(scraper.search("babywanne")) == 1
+
+
+# ── eBay: Browser-Profil-Wechsel bei 403 ──────────────────────────────────────
+
+class TestEbayImpersonation:
+
+    def test_session_nutzt_curl_cffi_mit_firefox_profil(self):
+        from curl_cffi import requests as cffi_requests
+        scraper = EbayScraper({})
+        assert isinstance(scraper.session, cffi_requests.Session)
+        assert scraper._profile_idx == 0
+
+    def test_403_wechselt_auf_naechstes_profil(self):
+        scraper = EbayScraper({"ebay_request_delay": "0"})
+        blocked = _mock_response(text="Error Page", status=403)
+        ok = _mock_response(text=_ebay_page(EBAY_ITEM_HTML))
+        with patch("app.scrapers.ebay.cffi_requests.Session") as session_cls:
+            second = MagicMock()
+            second.headers = {}
+            second.get.side_effect = [_mock_response(), ok]  # Warmup, Suche
+            session_cls.return_value = second
+            with patch.object(scraper.session, "get", side_effect=[_mock_response(), blocked]):
+                results = scraper.search("kinderwagen")
+        session_cls.assert_called_once_with(impersonate="safari")
+        assert len(results) == 1
+
+    def test_403_bei_allen_profilen_gibt_leere_liste(self):
+        scraper = EbayScraper({"ebay_request_delay": "0"})
+        blocked = _mock_response(text="Error Page", status=403)
+        blocked.raise_for_status.side_effect = Exception("403 Forbidden")
+        scraper._profile_idx = 1  # letztes Profil bereits aktiv
+        with patch.object(scraper.session, "get", side_effect=[_mock_response(), blocked]):
+            assert scraper.search("kinderwagen") == []

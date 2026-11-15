@@ -10,7 +10,7 @@ Web-App zum automatisierten Durchsuchen von Kleinanzeigen-Plattformen (Kleinanze
 
 - **Backend**: Python 3.12, Flask 3, APScheduler 3
 - **Datenbank**: SQLite (via `sqlite3` Standardbibliothek, kein ORM)
-- **Scraping**: `requests` + `BeautifulSoup`/`lxml` (Kleinanzeigen, markt.de), GraphQL-API (Shpock), JSON-API (Vinted, Willhaben `__NEXT_DATA__`), Playwright (Facebook)
+- **Scraping**: `requests` + `BeautifulSoup`/`lxml` (Kleinanzeigen, markt.de), `curl_cffi` mit Browser-Fingerprint (eBay), GraphQL-API (Shpock), Next.js-Seitendaten (Vinted RSC-Payload, Willhaben `__NEXT_DATA__`), Playwright (Facebook)
 - **Geocoding**: Nominatim (OpenStreetMap), Ergebnisse in `geocache`-Tabelle gecacht, 1 req/s Rate-Limit
 - **Frontend**: Jinja2-Templates, Tailwind CSS (CDN), Vanilla JS (kein Build-Step)
 - **Deployment**: Docker + docker-compose, Gunicorn 1 Worker
@@ -51,8 +51,8 @@ baby-crawler-v2/
     │   ├── base.py             # Listing-Dataclass (gemeinsame Datenstruktur)
     │   ├── kleinanzeigen.py    # requests + BeautifulSoup
     │   ├── shpock.py           # GraphQL-API POST
-    │   ├── vinted.py           # REST-API mit Session-Cookie; Altersfilter via created_at_ts
-    │   ├── ebay.py             # requests + BeautifulSoup; URL-Encoding mit quote_plus
+    │   ├── vinted.py           # Katalogseite /catalog, Treffer aus RSC-Payload (self.__next_f); Session-Cookie
+    │   ├── ebay.py             # curl_cffi (Firefox/Safari-Fingerprint gegen Akamai) + BeautifulSoup
     │   ├── willhaben.py        # __NEXT_DATA__ JSON-Parsing; PayLivery-Filter; Haversine-Radius
     │   ├── markt.py            # requests + BeautifulSoup; Umlaut-Slug für Stadt-URL
     │   └── facebook.py         # Playwright headless (optional)
@@ -121,7 +121,7 @@ profiles     (id INTEGER PRIMARY KEY, name TEXT NOT NULL, emoji TEXT DEFAULT '�
 | `vinted_max_price` | `80` | Max. Preis € |
 | `vinted_location` | `München` | Stadtname für Geocoding |
 | `vinted_radius` | `30` | Radius km (client-seitig gefiltert) |
-| `vinted_max_age_hours` | `48` | Max. Anzeigedauer in Stunden (Vinted-Default 48h) |
+| `vinted_max_age_hours` | `48` | Max. Anzeigedauer in Stunden – derzeit wirkungslos, da die Katalogseite kein Erstellungsdatum liefert |
 | `ebay_enabled` | `0` | Plattform aktiv |
 | `ebay_max_price` | `80` | Max. Preis € |
 | `ebay_location` | `München` | PLZ oder Stadtname (`_stpos`) |
@@ -224,8 +224,13 @@ Beide Scraper lesen `vinted_radius` / `shpock_radius` via `_int()`; ist der Wert
 
 **Shpock-Besonderheit**: Das `distance`-Objekt wird bei `radius_km=0` komplett aus dem GraphQL-Payload weggelassen. Ein Wert von `radius: 0` würde die Shpock-API als „0 Meter Radius" interpretieren (keine Ergebnisse), nicht als „kein Filter".
 
-### Vinted: Altersfilter beim Crawlen
-`VintedScraper` liest `vinted_max_age_hours` aus den Settings (Default 48h). Items werden anhand des API-Felds `created_at_ts` (Unix-Timestamp) gefiltert — Items, die auf Vinted älter als der konfigurierte Wert sind, werden **vor dem Speichern** verworfen. `max_age_hours = 0` deaktiviert den Filter. Verhindert, dass wochenlang aktive Vinted-Anzeigen als „neu" gespeichert werden.
+### Vinted: Suche über die Katalogseite
+Die JSON-API `/api/v2/catalog/items` liefert seit 11/2026 nur noch 404. `VintedScraper` ruft stattdessen `https://www.vinted.de/catalog?search_text=…&order=newest_first[&price_to=…]` als HTML ab. Die Seite ist eine Next.js-App; die Treffer stecken im React-Server-Components-Payload (`self.__next_f.push([1, "…"])`). `_extract_catalog_items()` setzt die Push-Chunks zusammen, sucht das Objekt `"items":{"items":[…]}` und dekodiert es mit `json.JSONDecoder.raw_decode`; `_normalize()` bringt jeden `productItem` in die Form, die `_parse()` erwartet. Findet sich kein Ergebnis-Objekt, wird `ValueError` geloggt (→ Seitenformat geändert). Ergebnisse werden auf `max_results` gekappt.
+
+**Einschränkungen**: Die Katalogseite enthält weder `created_at_ts` noch die Stadt des Verkäufers. `vinted_max_age_hours` greift daher nur, falls das Feld wieder geliefert wird; der Radius-Filter wird bei fehlender Stadt übersprungen. Durch `newest_first`, Dedup und Dismiss-Liste landen trotzdem nur neue Treffer als neu in der DB.
+
+### eBay: Akamai-Botschutz
+eBay weist `requests` per TLS-Fingerprint (Akamai Bot Manager, Cookies `bm_s`/`bm_so`) pauschal mit 403 ab – unabhängig von Headern und IP. `EbayScraper` nutzt daher `curl_cffi.requests.Session(impersonate=…)` mit den Profilen aus `IMPERSONATE_PROFILES` (`firefox`, Fallback `safari`; Chrome/Edge-Profile werden ebenfalls geblockt). Bei 403 wechselt `_switch_profile()` auf das nächste Profil (neue Session + Warmup). Nur `Accept-Language` wird manuell gesetzt – User-Agent & Co. kommen passend zum Fingerprint vom Profil.
 
 ### Willhaben.at: PayLivery-Filter & Radius
 `WillhabenScraper` parsed `__NEXT_DATA__` JSON aus dem HTML (Next.js SSR). Attribute werden aus einer `attributes.attribute[]`-Liste extrahiert (`_attr()`-Hilfsfunktion). Mit `willhaben_paylivery_only = "1"` (Default) wird `paylivery=true` als URL-Parameter gesetzt — nur Versand-Angebote werden zurückgegeben, und der Radius-Filter wird komplett deaktiviert (Versand nach Deutschland macht Standort irrelevant). Mit `paylivery_only = "0"` wird der Radius via Haversine auf den COORDINATES-Attribut angewendet. Pagination über `page`-Parameter (1-indexed), 30 Items pro Seite.
@@ -407,10 +412,10 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 ## Bekannte Einschränkungen
 
 - Kleinanzeigen.de ändert gelegentlich seine HTML-Selektoren → CSS-Selektoren in `kleinanzeigen.py._parse()` ggf. anpassen.
-- eBay.de ändert gelegentlich seine HTML-Struktur → Selektoren in `ebay.py._parse()` ggf. anpassen (aktuell: `li.s-card`, `.s-card__price`, `img.s-card__image`). eBay sperrt bei schnellen Folge-Anfragen (Rate-Limiting) → `ebay_request_delay` auf mind. 10s lassen, Intervall mind. 60 Min.
+- eBay.de ändert gelegentlich seine HTML-Struktur → Selektoren in `ebay.py._parse()` ggf. anpassen (aktuell: `li.s-card`, `.s-card__price`, `img.s-card__image`). eBay sperrt bei schnellen Folge-Anfragen (Rate-Limiting) → `ebay_request_delay` auf mind. 10s lassen, Intervall mind. 60 Min. Bei erneuten 403 zuerst andere `curl_cffi`-Profile in `IMPERSONATE_PROFILES` testen.
 - Facebook Marketplace benötigt interaktiven einmaligen Login und Playwright (`playwright install chromium`).
 - Shpock GraphQL-Schema kann sich ändern → Query in `shpock.py` ggf. anpassen. Shpock ignoriert den Location-Filter ohne Session – Radius-Filterung erfolgt client-seitig via Geocoding.
-- Vinted benötigt beim Start einen anonymen Session-Cookie (wird automatisch via `_authenticate()` geholt). Bei 401 erfolgt ein automatischer Retry.
+- Vinted benötigt beim Start einen anonymen Session-Cookie (wird automatisch via `_authenticate()` geholt). Bei 401/403 erfolgt ein automatischer Retry. Das RSC-Format der Katalogseite kann sich bei Next.js-Updates ändern → `_extract_catalog_items()` / `_normalize()` anpassen.
 - Willhaben.at: `__NEXT_DATA__`-Struktur kann sich bei Next.js-Updates ändern → JSON-Pfad in `_extract_adverts()` ggf. anpassen. Willhaben erlaubt nur Suche in Österreich; PayLivery-Filter empfohlen für Versand nach Deutschland.
 - markt.de: CSS-Selektoren (`.clsy-c-result-list-item*`) können sich bei Layout-Updates ändern. Stadt-Slug muss existieren; bei unbekannten Städten gibt markt.de ggf. eine 404-Seite zurück.
 - Nominatim-Geocoding funktioniert nur wenn der Standorttext in der Anzeige eindeutig genug ist. Bei unklaren Ortsangaben wird kein Treffer zurückgegeben.

@@ -32,7 +32,7 @@ hiddenimports = [
     "apscheduler.triggers.date", "apscheduler.jobstores.memory",
     "apscheduler.executors.pool",
     # HTTP / Scraping
-    "requests", "urllib3", "charset_normalizer",
+    "requests", "urllib3", "charset_normalizer", "curl_cffi",
     "bs4", "lxml", "lxml.etree", "lxml._elementpath",
     # KI
     "anthropic", "openai", "httpx", "httpcore",

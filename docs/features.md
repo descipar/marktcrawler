@@ -34,7 +34,7 @@ Alle Suchbegriffe — auch einwörtige — werden mit `\b`-Wortgrenzen (Regex) g
 Stichworte wie „defekt" oder „bastler" können zeilenweise in die Blacklist eingetragen werden. Groß-/Kleinschreibung wird ignoriert. Blacklistete Anzeigen werden still übersprungen — kein Speichern, keine Benachrichtigung.
 
 ### Sprachfilter
-Optionaler Filter, der Anzeigen in unerwünschten Sprachen herausfiltert (Settings → Crawler & Daten). Aktiviert: `crawler_lang_filter_enabled = 1`, erlaubte Sprachen kommagetrennt in `crawler_lang_filter_langs` (Default: `de`). Analysiert werden ausschließlich natürliche Beschreibungstexte mit mindestens 12 Buchstaben; Produkttitel werden wegen der hohen Fehlerrate bei Marken- und Modellnamen nie allein klassifiziert. Da die Vinted-Katalog-API keine Beschreibung liefert, liest der Scraper bei neuen, noch unbekannten Treffern den HTML-Kopf der Detailseite und übernimmt deren Meta-Beschreibung. Detailbeschreibungen werden prozessweit gecacht, bereits gespeicherte oder ausgeblendete Anzeigen nicht erneut geladen; fehlgeschlagene Abrufe werden einmal wiederholt. Nur eine fremde Sprache mit mindestens 95 % Erkennungssicherheit wird abgelehnt. Kürzere oder fehlende Beschreibungen, unsichere Erkennungen und technische Fehler werden durchgelassen. Spracherkennung via `langdetect`-Bibliothek (lazy import — kein Fehler wenn nicht installiert).
+Optionaler Filter, der Anzeigen in unerwünschten Sprachen herausfiltert (Settings → Crawler & Daten). Aktiviert: `crawler_lang_filter_enabled = 1`, erlaubte Sprachen kommagetrennt in `crawler_lang_filter_langs` (Default: `de`). Analysiert werden ausschließlich natürliche Beschreibungstexte mit mindestens 12 Buchstaben; Produkttitel werden wegen der hohen Fehlerrate bei Marken- und Modellnamen nie allein klassifiziert. Da die Vinted-Suchergebnisse keine Beschreibung enthalten, liest der Scraper bei neuen, noch unbekannten Treffern den HTML-Kopf der Detailseite und übernimmt deren Meta-Beschreibung. Detailbeschreibungen werden prozessweit gecacht, bereits gespeicherte oder ausgeblendete Anzeigen nicht erneut geladen; fehlgeschlagene Abrufe werden einmal wiederholt. Nur eine fremde Sprache mit mindestens 95 % Erkennungssicherheit wird abgelehnt. Kürzere oder fehlende Beschreibungen, unsichere Erkennungen und technische Fehler werden durchgelassen. Spracherkennung via `langdetect`-Bibliothek (lazy import — kein Fehler wenn nicht installiert).
 
 ### Radius-Filter
 Radius pro Plattform konfigurierbar in km. Geocoding über OpenStreetMap/Nominatim, Distanzberechnung via Haversine-Formel. Ergebnisse werden gecacht (kein doppelter API-Aufruf). **Radius 0 = kein Filter** (kein Geocoding-Aufruf).
@@ -191,7 +191,7 @@ Die Einstellungsseite ist in fünf Tabs gegliedert. Deaktivierte Plattformen wer
 |---------|-----|---------------|
 | Kleinanzeigen.de | Plattformen | Aktiviert, Max. Preis, Standort-Slug, Radius, Crawl-Intervall, Test-Button |
 | Shpock | Plattformen | Aktiviert, Max. Preis, Standort, Radius (0 = kein Filter), Crawl-Intervall, Test-Button |
-| Vinted | Plattformen | Aktiviert, Max. Preis, Standort, Radius (0 = kein Filter), Crawl-Intervall, Test-Button |
+| Vinted | Plattformen | Aktiviert, Max. Preis, Standort, Radius (0 = kein Filter; greift nur bei bekannter Verkäufer-Stadt), Crawl-Intervall, Test-Button |
 | eBay | Plattformen | Aktiviert, Max. Preis, Standort (PLZ oder Stadt), Radius, Crawl-Intervall, Test-Button |
 | Willhaben.at | Plattformen | Aktiviert, Max. Preis, Standort, Radius, PayLivery-Only, Crawl-Intervall, Test-Button |
 | markt.de | Plattformen | Aktiviert, Max. Preis, Standort, Radius, Crawl-Intervall, Test-Button |
@@ -301,8 +301,8 @@ marktcrawler/
     │   ├── base.py         # Listing-Dataclass, BaseScraper ABC, Hilfsfunktionen
     │   ├── kleinanzeigen.py  # requests + BeautifulSoup
     │   ├── shpock.py         # GraphQL-API
-    │   ├── vinted.py         # REST-API mit Session-Cookie; Altersfilter via created_at_ts
-    │   ├── ebay.py           # requests + BeautifulSoup; URL-Encoding mit quote_plus
+    │   ├── vinted.py         # Katalogseite /catalog, Treffer aus Next.js-RSC-Payload
+    │   ├── ebay.py           # curl_cffi (Browser-Fingerprint gegen Akamai) + BeautifulSoup
     │   ├── willhaben.py      # __NEXT_DATA__ JSON-Parsing; PayLivery-Filter; Haversine-Radius
     │   ├── markt.py          # requests + BeautifulSoup; Umlaut-Slug für Stadt-URL
     │   └── facebook.py       # Playwright headless

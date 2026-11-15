@@ -2,9 +2,12 @@
 
 Die korrekte URL für ortsbasierte Suche lautet:
   /s-{city-slug}/{keyword}/k0l{locationId}r{radius}?maxPrice=N
-Die locationId wird einmalig pro Crawl-Lauf via Formular-Submit ermittelt.
+Die locationId wird einmalig pro Crawl-Lauf über den Orts-Vorschlags-Endpunkt
+``/s-ort-empfehlungen.json?query=…`` ermittelt (der frühere Formular-Submit
+``/s-suchanfrage.html`` liefert seit 11/2026 nur noch 403).
 """
 
+import json
 import logging
 import re
 import time
@@ -36,36 +39,38 @@ class KleinanzeigenScraper(BaseScraper):
         self.radius_km: int = _int(settings.get("kleinanzeigen_radius", 30)) or 30
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
-        # Einmalig beim Start: locationId via Formular-Submit ermitteln
+        # Einmalig beim Start: locationId über den Orts-Vorschlags-Endpunkt ermitteln
         self._location_id: Optional[int] = self._resolve_location_id()
 
     def _resolve_location_id(self) -> Optional[int]:
         """Ermittelt Kleinanzeigen-interne locationId für den konfigurierten Ort.
 
         Kleinanzeigen verwendet interne IDs statt Orts-Slugs für echte
-        Umkreissuche. Diese werden über einen Formular-Submit abgefragt,
-        der die korrekte URL mit l{id}r{radius} zurückliefert.
+        Umkreissuche. ``/s-ort-empfehlungen.json?query=München`` liefert
+        ``{"_0": "Deutschland", "_6411": "München - Bayern", …}`` – der erste
+        Eintrag außer ``_0`` (ganz Deutschland) ist der beste Treffer.
         """
         if not self.location:
             return None
         try:
             r = self.session.get(
-                f"{BASE_URL}/s-suchanfrage.html",
-                params={
-                    "categoryId": "", "locationId": "",
-                    "keywords": "test", "locationStr": self.location,
-                    "radius": str(self.radius_km),
-                },
-                timeout=15, allow_redirects=True,
+                f"{BASE_URL}/s-ort-empfehlungen.json",
+                params={"query": self.location},
+                timeout=15,
             )
-            m = re.search(r"/k0l(\d+)r", r.url)
-            if m:
-                lid = int(m.group(1))
-                logger.info(f"[Kleinanzeigen] locationId für '{self.location}': {lid}")
-                return lid
-            logger.warning(f"[Kleinanzeigen] locationId für '{self.location}' nicht gefunden (URL: {r.url})")
+            r.raise_for_status()
+            for key, name in r.json().items():
+                m = re.fullmatch(r"_(\d+)", key)
+                if m and m.group(1) != "0":
+                    lid = int(m.group(1))
+                    logger.info(f"[Kleinanzeigen] locationId für '{self.location}': {lid} ({name})")
+                    return lid
+            logger.warning(
+                f"[Kleinanzeigen] locationId für '{self.location}' nicht gefunden – "
+                f"Suche läuft bundesweit."
+            )
         except Exception as e:
-            logger.warning(f"[Kleinanzeigen] locationId-Lookup fehlgeschlagen: {e}")
+            logger.warning(f"[Kleinanzeigen] locationId-Lookup fehlgeschlagen: {e} – Suche läuft bundesweit.")
         return None
 
     def search(self, term: str, max_results: int = 20) -> List[Listing]:
@@ -79,7 +84,13 @@ class KleinanzeigenScraper(BaseScraper):
             return []
 
         soup = BeautifulSoup(r.text, "lxml")
-        items = soup.select("article.aditem") or soup.select("li[data-adid]")
+        # Neues Layout (Tailwind, seit 11/2026): <article data-adid=… data-href=…>
+        # Altes Layout: article.aditem / li[data-adid]
+        items = (
+            soup.select("article[data-adid]")
+            or soup.select("article.aditem")
+            or soup.select("li[data-adid]")
+        )
         results = []
         for item in items[:max_results]:
             listing = self._parse(item, term)
@@ -109,6 +120,66 @@ class KleinanzeigenScraper(BaseScraper):
         return url
 
     def _parse(self, item, term: str) -> Optional[Listing]:
+        if item is not None and item.get("data-href") and item.get("data-adid"):
+            return self._parse_tailwind(item, term)
+        return self._parse_legacy(item, term)
+
+    def _parse_tailwind(self, item, term: str) -> Optional[Listing]:
+        """Parst eine Anzeige im Tailwind-Layout (seit 11/2026).
+
+        Struktur: ``<article data-adid data-href>`` mit eingebettetem
+        ``application/ld+json`` (Titel, Beschreibung, großes Bild), Ort im
+        ersten ``span`` der Kopfzeile, Titel in ``h3`` (Link oder span),
+        Preis in ``p.text-title3``.
+        """
+        try:
+            lid = item["data-adid"]
+            href = item["data-href"]
+            if not href.startswith("http"):
+                href = BASE_URL + href
+
+            ld = {}
+            ld_el = item.select_one("script[type='application/ld+json']")
+            if ld_el and ld_el.string:
+                try:
+                    ld = json.loads(ld_el.string)
+                except ValueError:
+                    ld = {}
+
+            title_el = item.select_one("h3")
+            title = title_el.get_text(" ", strip=True) if title_el else ""
+            title = title or (ld.get("title") or "").strip()
+            if not title:
+                return None
+
+            price_el = item.select_one("p.text-title3")
+            price = " ".join(price_el.get_text().split()) if price_el else "k.A."
+
+            loc_el = item.select_one(".text-onSurfaceNonessential span")
+            location = " ".join(loc_el.get_text().split()) if loc_el else ""
+
+            desc_el = item.select_one("p.text-onSurfaceSubdued")
+            description = desc_el.get_text(strip=True) if desc_el else (ld.get("description") or "")
+
+            image_url = ""
+            img_el = item.select_one("img")
+            if img_el:
+                srcset = (img_el.get("srcset") or "").split(",")[0].strip().split(" ")[0]
+                image_url = srcset or img_el.get("src") or ""
+            image_url_large = ld.get("contentUrl") or _large_image_url(image_url)
+
+            return Listing(
+                platform="Kleinanzeigen",
+                title=title, price=price, location=location,
+                url=href, listing_id=f"ka_{lid}",
+                search_term=term, description=description,
+                image_url=image_url, image_url_large=image_url_large,
+            )
+        except Exception as e:
+            logger.debug(f"[Kleinanzeigen] Parse-Fehler (Tailwind-Layout): {e}")
+            return None
+
+    def _parse_legacy(self, item, term: str) -> Optional[Listing]:
         try:
             title_el = (
                 item.select_one("h2.text-module-begin a")

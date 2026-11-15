@@ -49,7 +49,7 @@ baby-crawler-v2/
     ├── geo.py                  # Haversine-Formel + Nominatim-Geocoding mit DB-Cache
     ├── scrapers/
     │   ├── base.py             # Listing-Dataclass (gemeinsame Datenstruktur)
-    │   ├── kleinanzeigen.py    # requests + BeautifulSoup
+    │   ├── kleinanzeigen.py    # requests + BeautifulSoup; article[data-adid] + ld+json; locationId via s-ort-empfehlungen.json
     │   ├── shpock.py           # GraphQL-API POST
     │   ├── vinted.py           # Katalogseite /catalog, Treffer aus RSC-Payload (self.__next_f); Session-Cookie
     │   ├── ebay.py             # curl_cffi (Firefox/Safari-Fingerprint gegen Akamai) + BeautifulSoup
@@ -103,7 +103,7 @@ profiles     (id INTEGER PRIMARY KEY, name TEXT NOT NULL, emoji TEXT DEFAULT '�
 |-----|---------|-------------|
 | `kleinanzeigen_enabled` | `1` | Plattform aktiv |
 | `kleinanzeigen_max_price` | `100` | Max. Preis € |
-| `kleinanzeigen_location` | `dortmund` | Standort-Slug |
+| `kleinanzeigen_location` | `dortmund` | Ort oder PLZ (locationId-Lookup via `/s-ort-empfehlungen.json`; nicht gefunden → bundesweite Suche) |
 | `kleinanzeigen_radius` | `30` | Radius km |
 | `kleinanzeigen_max_age_hours` | `0` | Max. Anzeigedauer in Stunden (0 = kein Filter) |
 | `shpock_enabled` | `1` | Plattform aktiv |
@@ -411,7 +411,7 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 
 ## Bekannte Einschränkungen
 
-- Kleinanzeigen.de ändert gelegentlich seine HTML-Selektoren → CSS-Selektoren in `kleinanzeigen.py._parse()` ggf. anpassen.
+- Kleinanzeigen.de ändert gelegentlich sein HTML. Seit 11/2026 Tailwind-Layout: jede Anzeige ist `<article data-adid data-href>` mit eingebettetem `application/ld+json` (Titel, Beschreibung, großes Bild `$_59`); geparst in `_parse_tailwind()`, das alte Layout weiter in `_parse_legacy()`. Die locationId kommt aus `/s-ort-empfehlungen.json?query=<Ort>` (erster Key außer `_0`); der frühere Formular-Submit `/s-suchanfrage.html` liefert 403.
 - eBay.de ändert gelegentlich seine HTML-Struktur → Selektoren in `ebay.py._parse()` ggf. anpassen (aktuell: `li.s-card`, `.s-card__price`, `img.s-card__image`). eBay sperrt bei schnellen Folge-Anfragen (Rate-Limiting) → `ebay_request_delay` auf mind. 10s lassen, Intervall mind. 60 Min. Bei erneuten 403 zuerst andere `curl_cffi`-Profile in `IMPERSONATE_PROFILES` testen.
 - Facebook Marketplace benötigt interaktiven einmaligen Login und Playwright (`playwright install chromium`).
 - Shpock GraphQL-Schema kann sich ändern → Query in `shpock.py` ggf. anpassen. Shpock ignoriert den Location-Filter ohne Session – Radius-Filterung erfolgt client-seitig via Geocoding.

@@ -876,20 +876,30 @@ class TestKleinanzeigenScraper:
         assert scraper._location_id is None
 
     def test_resolve_location_id_findet_id(self):
-        """Redirect-URL enthält locationId → wird korrekt extrahiert."""
+        """Erster Vorschlag außer „Deutschland" (_0) liefert die locationId."""
         scraper = self._scraper({"kleinanzeigen_location": "Dortmund", "kleinanzeigen_radius": "30"})
-        mock_resp = _mock_response()
-        mock_resp.url = "https://www.kleinanzeigen.de/s-dortmund/kinderwagen/k0l7637r30"
-        with patch.object(scraper.session, "get", return_value=mock_resp):
+        mock_resp = _mock_response({
+            "_0": "Deutschland",
+            "_1085": "Dortmund - Nordrhein-Westfalen",
+            "_16799": "Innenstadt-West - Dortmund",
+        })
+        with patch.object(scraper.session, "get", return_value=mock_resp) as mock_get:
             lid = scraper._resolve_location_id()
-        assert lid == 7637
+        assert lid == 1085
+        assert mock_get.call_args[0][0] == "https://www.kleinanzeigen.de/s-ort-empfehlungen.json"
+        assert mock_get.call_args[1]["params"] == {"query": "Dortmund"}
 
     def test_resolve_location_id_keine_id_in_url(self):
-        """Redirect-URL ohne locationId → None."""
+        """Nur „Deutschland" als Vorschlag (unbekannter Ort) → None."""
+        scraper = self._scraper({"kleinanzeigen_location": "Xyzabc"})
+        with patch.object(scraper.session, "get", return_value=_mock_response({"_0": "Deutschland"})):
+            assert scraper._resolve_location_id() is None
+
+    def test_resolve_location_id_http_fehler_gibt_none(self):
         scraper = self._scraper({"kleinanzeigen_location": "Dortmund"})
-        mock_resp = _mock_response()
-        mock_resp.url = "https://www.kleinanzeigen.de/s-anzeigen/kinderwagen/k0"
-        with patch.object(scraper.session, "get", return_value=mock_resp):
+        resp = _mock_response(status=403)
+        resp.raise_for_status.side_effect = Exception("403 Forbidden")
+        with patch.object(scraper.session, "get", return_value=resp):
             assert scraper._resolve_location_id() is None
 
     def test_resolve_location_id_exception_gibt_none(self):
@@ -1335,3 +1345,106 @@ class TestEbayImpersonation:
         scraper._profile_idx = 1  # letztes Profil bereits aktiv
         with patch.object(scraper.session, "get", side_effect=[_mock_response(), blocked]):
             assert scraper.search("kinderwagen") == []
+
+
+# ── Kleinanzeigen: Tailwind-Layout (seit 11/2026) ─────────────────────────────
+
+def _ka_tailwind_item(adid, slug, title, price, location, *, title_as_link=True, desc="Top Zustand"):
+    img = f"https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/{adid}"
+    ld = json.dumps({
+        "creditText": "Kleinanzeigen", "title": title, "description": desc,
+        "contentUrl": f"{img}?rule=$_59.AUTO", "@type": "ImageObject",
+    })
+    href = f"/s-anzeige/{slug}/{adid}-25-4103"
+    title_html = (
+        f'<a class="text-onSurface hover:underline" href="{href}">{title}</a>'
+        if title_as_link else
+        f'<span class="cursor-pointer" data-url="{href}" name="{adid}">{title}</span>'
+    )
+    return f"""
+<article class="flex justify-between p-medium" data-adid="{adid}" data-href="{href}">
+ <div class="relative z-raised basis-[200px]">
+  <script type="application/ld+json">{ld}</script>
+  <a href="{href}"><div data-image-container="">
+   <img alt="{title} Vorschau" class="size-full object-cover" src="{img}?rule=$_2.AUTO" srcset="{img}?rule=$_35.AUTO"/>
+   <div>4</div>
+  </div></a>
+ </div>
+ <div class="z-raised flex grow basis-[398px] flex-col overflow-hidden pl-medium">
+  <div class="mb-xsmall flex items-start justify-between text-bodyRegular">
+   <div class="flex items-center gap-xxsmall text-onSurfaceNonessential"><svg></svg><span>{location}</span></div>
+   <div class="flex items-center gap-xxsmall text-onSurfaceNonessential"><span>Heute, 22:31</span></div>
+  </div>
+  <div class="flex flex-col">
+   <h3 class="text-title3 font-strong">{title_html}</h3>
+   <p class="mb-xsmall text-bodyRegular text-onSurfaceSubdued">{desc}</p>
+   <div class="flex"><p class="my-xsmall text-title3 font-strong text-secondary">{price}</p></div>
+  </div>
+  <div><p class="flex"><span data-dhl-promotion="">Versand möglich</span></p></div>
+ </div>
+</article>"""
+
+
+KA_TAILWIND_PAGE = _ka_page(
+    _ka_tailwind_item("3568271870", "kinderwagen-hartan", "Kinderwagen Hartan VIP", "180 €", "01809 Heidenau")
+    + _ka_tailwind_item("3573128878", "kinderwagen", "Kinderwagen", "30 € VB", "93413 Cham", title_as_link=False)
+    + _ka_tailwind_item("3573129243", "britax-go-next", "Britax Römer Go Next", "Zu verschenken", "24235 Laboe")
+)
+
+
+class TestKleinanzeigenTailwindLayout:
+
+    def _scraper(self, settings=None):
+        with patch.object(KleinanzeigenScraper, "_resolve_location_id", return_value=None):
+            return KleinanzeigenScraper(settings or {})
+
+    def _search(self, settings=None, html=KA_TAILWIND_PAGE, max_results=20):
+        scraper = self._scraper(settings)
+        with patch.object(scraper.session, "get", return_value=_mock_response(text=html)):
+            return scraper.search("kinderwagen", max_results=max_results)
+
+    def test_findet_alle_anzeigen(self):
+        assert [r.listing_id for r in self._search()] == ["ka_3568271870", "ka_3573128878", "ka_3573129243"]
+
+    def test_felder_aus_neuem_layout(self):
+        listing = self._search()[0]
+        assert listing.platform == "Kleinanzeigen"
+        assert listing.title == "Kinderwagen Hartan VIP"
+        assert listing.price == "180 €"
+        assert listing.location == "01809 Heidenau"
+        assert listing.url == "https://www.kleinanzeigen.de/s-anzeige/kinderwagen-hartan/3568271870-25-4103"
+        assert listing.description == "Top Zustand"
+        assert listing.image_url.endswith("rule=$_35.AUTO")
+        assert listing.image_url_large.endswith("rule=$_59.AUTO")
+
+    def test_titel_als_span_ohne_link(self):
+        listing = self._search()[1]
+        assert listing.title == "Kinderwagen"
+        assert listing.price == "30 € VB"
+        assert listing.location == "93413 Cham"
+
+    def test_zu_verschenken_als_preis(self):
+        assert self._search()[2].price == "Zu verschenken"
+
+    def test_max_price_filtert(self):
+        results = self._search({"kleinanzeigen_max_price": "100"})
+        assert [r.listing_id for r in results] == ["ka_3573128878", "ka_3573129243"]
+
+    def test_titel_fallback_aus_ld_json(self):
+        html = _ka_page(_ka_tailwind_item("1", "x", "Babyschale", "10 €", "Ort").replace(
+            '<h3 class="text-title3 font-strong"><a class="text-onSurface hover:underline" href="/s-anzeige/x/1-25-4103">Babyschale</a></h3>',
+            "",
+        ))
+        assert self._search(html=html)[0].title == "Babyschale"
+
+    def test_kaputtes_ld_json_wird_ignoriert(self):
+        html = KA_TAILWIND_PAGE.replace('"creditText"', 'kaputt', 1)
+        results = self._search(html=html)
+        assert len(results) == 3
+        assert results[0].title == "Kinderwagen Hartan VIP"
+
+    def test_neues_layout_hat_vorrang_vor_altem(self):
+        """Seiten mit article[data-adid] werden nicht mehr über die alten Selektoren geparst."""
+        legacy = '<article class="aditem"><h2 class="text-module-begin"><a href="/s-anzeige/alt/9-1">Alt</a></h2></article>'
+        results = self._search(html=_ka_page(legacy + _ka_tailwind_item("2", "neu", "Neu", "5 €", "Ort")))
+        assert [r.title for r in results] == ["Neu"]

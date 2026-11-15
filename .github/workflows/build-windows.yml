@@ -18,13 +18,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install flask requests beautifulsoup4 lxml
+      - run: pip install flask requests curl_cffi beautifulsoup4 lxml
       - name: Alle Scraper prüfen
         env:
           DATA_DIR: /tmp
         run: |
           python3 << 'PYEOF'
           import sys, time, importlib
+
+          # eBay wird von GitHub-Runnern (Rechenzentrums-IPs) durch Akamai
+          # zuverlässig mit 403 geblockt – unabhängig vom Code-Zustand.
+          # Ein eBay-Fehler blockiert den Release daher nicht, sondern wird
+          # nur als Warnung ausgegeben.
+          WARN_ONLY = {"eBay"}
 
           SCRAPERS = [
               ("Kleinanzeigen", "app.scrapers.kleinanzeigen", "KleinanzeigenScraper",
@@ -42,6 +48,7 @@ jobs:
           ]
 
           failed = []
+          warned = []
           for i, (name, module, cls_name, settings) in enumerate(SCRAPERS):
               if i > 0:
                   time.sleep(3)
@@ -50,17 +57,23 @@ jobs:
                   items = getattr(mod, cls_name)(settings).search("kinderwagen", max_results=3)
                   if items:
                       print(f"  ok  {name}: {len(items)} Ergebnisse")
-                  else:
-                      print(f"  FAIL {name}: 0 Ergebnisse")
-                      failed.append(name)
+                      continue
+                  reason = "0 Ergebnisse"
               except Exception as e:
-                  print(f"  FAIL {name}: {type(e).__name__}: {e}")
+                  reason = f"{type(e).__name__}: {e}"
+              if name in WARN_ONLY:
+                  print(f"::warning title=Scraper {name}::{reason} (blockiert Release nicht)")
+                  warned.append(name)
+              else:
+                  print(f"  FAIL {name}: {reason}")
                   failed.append(name)
 
           if failed:
               print(f"\nRelease blockiert – defekte Scraper: {', '.join(failed)}")
               sys.exit(1)
-          print(f"\nAlle Scraper OK – Release wird gebaut.")
+          if warned:
+              print(f"\nWarnung (kein Blocker): {', '.join(warned)}")
+          print(f"\nScraper-Check bestanden – Release wird gebaut.")
           PYEOF
 
   build:

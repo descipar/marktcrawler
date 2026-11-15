@@ -373,7 +373,7 @@ Die SQLite-DB liegt im Volume `./data/` und überlebt Container-Neustarts.
 
 `.github/workflows/ci.yml` — läuft bei jedem Push/PR: alle Unit- und Playwright-Tests.
 
-**6 separate Health-Check-Workflows** (je `scraper-health-{name}.yml`), gestaffelt ab 03:00 UTC (alle 5 Min.): Kleinanzeigen, eBay, Shpock, Vinted, Willhaben, markt.de. Jeder Workflow importiert seinen Scraper direkt aus dem Projekt (`importlib`) und ruft einmalig `search("kinderwagen", max_results=3)` auf — keine Mocks, keine neuen Dateien. Geocoding deaktiviert (`radius=0` / `paylivery_only=1`). Facebook übersprungen (braucht interaktiven Login). Exit-Code 1 bei 0 Ergebnissen oder Exception → jeweiliger Badge im README wird rot. Pro-Scraper-Badges erlauben es auf einen Blick zu sehen welche Plattform defekt ist.
+**6 separate Health-Check-Workflows** (je `scraper-health-{name}.yml`), gestaffelt ab 03:00 UTC (alle 5 Min.): Kleinanzeigen, eBay, Shpock, Vinted, Willhaben, markt.de. Jeder Workflow importiert seinen Scraper direkt aus dem Projekt (`importlib`) und ruft einmalig `search("kinderwagen", max_results=3)` auf — keine Mocks, keine neuen Dateien. Geocoding deaktiviert (`radius=0` / `paylivery_only=1`). Facebook übersprungen (braucht interaktiven Login). Exit-Code 1 bei 0 Ergebnissen oder Exception → jeweiliger Badge im README wird rot. Pro-Scraper-Badges erlauben es auf einen Blick zu sehen welche Plattform defekt ist. **Ausnahme eBay:** GitHub-Runner werden von eBays Akamai-Botschutz grundsätzlich mit 403 geblockt – der eBay-Workflow ist daher in GitHub deaktiviert (nur noch manuell per `workflow_dispatch` nutzbar) und hat kein README-Badge.
 
 ## API-Endpunkte
 

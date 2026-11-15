@@ -1448,3 +1448,22 @@ class TestKleinanzeigenTailwindLayout:
         legacy = '<article class="aditem"><h2 class="text-module-begin"><a href="/s-anzeige/alt/9-1">Alt</a></h2></article>'
         results = self._search(html=_ka_page(legacy + _ka_tailwind_item("2", "neu", "Neu", "5 €", "Ort")))
         assert [r.title for r in results] == ["Neu"]
+
+    def test_fremdtreffer_aus_anderen_orten_werden_verworfen(self):
+        """„Weitere Ergebnisse in anderen Orten" (altads) liegen außerhalb des Radius."""
+        own = _ka_tailwind_item("1", "a", "Babyschale", "10 €", "80637 Neuhausen")
+        foreign = _ka_tailwind_item("2", "b", "Babyschale", "12 €", "38442 Wolfsburg")
+        html = _ka_page(
+            f'<ul id="srchrslt-adtable">{own}</ul>'
+            f'<div class="alternative-search-ads-zsrp"><h2>Weitere Ergebnisse in anderen Orten</h2>'
+            f'<ul id="srchrslt-adtable-altads">{foreign}</ul></div>'
+        )
+        assert [r.listing_id for r in self._search(html=html)] == ["ka_1"]
+
+    def test_nur_fremdtreffer_ergibt_keine_treffer(self):
+        foreign = _ka_tailwind_item("2", "b", "Babyschale", "12 €", "38442 Wolfsburg")
+        html = _ka_page(
+            '<ul id="srchrslt-adtable"></ul>'
+            f'<div class="alternative-search-ads-zsrp"><ul id="srchrslt-adtable-altads">{foreign}</ul></div>'
+        )
+        assert self._search(html=html) == []

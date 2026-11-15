@@ -3,7 +3,7 @@
 ; Manuell bauen: iscc windows\installer.iss  (aus Projekt-Root)
 
 #define AppName      "Marktcrawler"
-#define AppVersion   "1.2.0"
+#define AppVersion   "1.3.1"
 #define AppPublisher "Marktcrawler"
 #define AppExeName   "Marktcrawler.exe"
 #define AppURL       "https://github.com/descipar/marktcrawler"

@@ -346,7 +346,7 @@ python run.py                     # startet auf http://localhost:5000
 ## Tests
 
 ```bash
-pytest tests/                     # alle Tests (~685 Unit/Integration + 24 Playwright UI)
+pytest tests/                     # alle Tests (705 Unit/Integration + 24 Playwright UI)
 pytest tests/test_ui.py           # nur UI-Tests (Playwright, ~30s)
 pytest tests/test_ui.py --headed  # UI-Tests mit sichtbarem Browser
 pytest tests/ --ignore=tests/test_ui.py  # nur Unit/Integration-Tests

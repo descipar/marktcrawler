@@ -140,7 +140,7 @@ Täglich zur konfigurierten Uhrzeit (z.B. `19:00`) eine Zusammenfassung aller he
 Jede Plattform hat ihr eigenes konfigurierbares Crawl-Intervall. Der Scheduler läuft im Hintergrund — kein manueller Cronjob nötig.
 
 ### Scraper Health Check (GitHub Action)
-6 separate GitHub-Action-Workflows (`scraper-health-{name}.yml`), gestaffelt ab 03:00 UTC (alle 5 Min.): Kleinanzeigen, eBay, Shpock, Vinted, Willhaben, markt.de. Jeder importiert seinen Scraper direkt aus dem Projekt (`importlib`) und ruft einmalig `search("kinderwagen", max_results=3)` auf — keine Mocks, keine neuen Dateien. Geocoding deaktiviert (`radius=0` / `paylivery_only=1`). Facebook übersprungen (braucht interaktiven Login). Exit-Code 1 bei 0 Ergebnissen oder Exception. 6 individuelle Badges im README — man sieht sofort welche Plattform defekt ist (z.B. eBay oft instabiler als Kleinanzeigen).
+6 separate GitHub-Action-Workflows (`scraper-health-{name}.yml`), gestaffelt ab 03:00 UTC (alle 5 Min.): Kleinanzeigen, eBay, Shpock, Vinted, Willhaben, markt.de. Jeder importiert seinen Scraper direkt aus dem Projekt (`importlib`) und ruft einmalig `search("kinderwagen", max_results=3)` auf — keine Mocks, keine neuen Dateien. Geocoding deaktiviert (`radius=0` / `paylivery_only=1`). Facebook übersprungen (braucht interaktiven Login). Exit-Code 1 bei 0 Ergebnissen oder Exception. Individuelle Badges im README — man sieht sofort welche Plattform defekt ist. Ausnahme eBay: GitHub-Server werden von eBays Botschutz grundsätzlich geblockt, der eBay-Workflow ist deshalb deaktiviert (nur manuell startbar) und hat kein Badge.
 
 ---
 

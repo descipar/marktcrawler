@@ -87,7 +87,7 @@ class KleinanzeigenScraper(BaseScraper):
         # Neues Layout (Tailwind, seit 11/2026): <article data-adid=… data-href=…>
         # Altes Layout: article.aditem / li[data-adid]
         items = (
-            soup.select("article[data-adid]")
+            _own_results(soup.select("article[data-adid]"))
             or soup.select("article.aditem")
             or soup.select("li[data-adid]")
         )
@@ -233,6 +233,21 @@ class KleinanzeigenScraper(BaseScraper):
 
     def _price_ok(self, l: Listing) -> bool:
         return price_within_limit(l.price, self.max_price)
+
+
+def _own_results(articles: list) -> list:
+    """Entfernt die angehängten Fremdtreffer aus anderen Orten.
+
+    Bei wenigen Treffern im Umkreis hängt Kleinanzeigen unter „Weitere
+    Ergebnisse in anderen Orten" bundesweite Anzeigen an
+    (``ul#srchrslt-adtable-altads`` im Block ``.alternative-search-ads-zsrp``).
+    Die liegen außerhalb des eingestellten Radius und werden verworfen.
+    """
+    return [
+        a for a in articles
+        if not a.find_parent(id="srchrslt-adtable-altads")
+        and not a.find_parent(class_="alternative-search-ads-zsrp")
+    ]
 
 
 def _ascii_slug(text: str) -> str:

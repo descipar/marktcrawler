@@ -110,7 +110,7 @@ Die vollständige Geschichte aller abgeschlossenen Phasen (1–24) findet sich i
 - [x] **eBay: Akamai-Botschutz** — `requests` wird per TLS-Fingerprint mit 403 abgewiesen (auch Startseite, IP-unabhängig). Umstieg auf `curl_cffi` mit Firefox-Profil, Fallback Safari bei 403. Neue Abhängigkeit in `requirements.txt`, Windows-Spec und eBay-Health-Check.
 - [x] 9 neue Tests (Katalog-Parsing, Formatänderung, max_results, Profilwechsel bei 403) — Vinted-Suchtests auf HTML-Mocks umgestellt
 - [x] **Kleinanzeigen: neues Tailwind-Layout** — Suchergebnisse sind jetzt `<article data-adid data-href>` ohne die alten `aditem`-Klassen → 0 Treffer. `_parse_tailwind()` liest ID/URL aus den Data-Attributen, Titel/Beschreibung/großes Bild aus dem eingebetteten `ld+json`, Preis aus `p.text-title3`, Ort aus der Kopfzeile. Altes Layout bleibt als `_parse_legacy()`.
-- [x] **Kleinanzeigen: Umkreissuche** — der locationId-Lookup per Formular (`/s-suchanfrage.html`) liefert 403, die Suche fiel still auf bundesweit zurück. Neu über `/s-ort-empfehlungen.json?query=<Ort>`. 9 neue Tests.
+- [x] **Kleinanzeigen: Umkreissuche** — der locationId-Lookup per Formular (`/s-suchanfrage.html`) liefert 403, die Suche fiel still auf bundesweit zurück. Neu über `/s-ort-empfehlungen.json?query=<Ort>`. Angehängte Fremdtreffer „Weitere Ergebnisse in anderen Orten“ (außerhalb des Radius) werden verworfen. 11 neue Tests.
 
 ---
 

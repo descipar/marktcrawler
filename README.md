@@ -8,7 +8,7 @@ Selbst gehostet und Docker-ready — läuft im Hintergrund auf einem Server, NAS
 ![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey?logo=flask)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-Installer-0078D4?logo=windows&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-674%20passed-brightgreen?logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-729%20passed-brightgreen?logo=pytest)
 ![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)
 [![Kleinanzeigen](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-kleinanzeigen.yml/badge.svg)](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-kleinanzeigen.yml)
 [![Shpock](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-shpock.yml/badge.svg)](https://github.com/descipar/marktcrawler/actions/workflows/scraper-health-shpock.yml)
@@ -179,7 +179,7 @@ docker exec -it marktcrawler python -c \
 ## 🔧 Entwicklung & Tests
 
 ```bash
-python -m pytest tests/ -v                       # alle 640 Tests (inkl. Playwright UI-Tests)
+python -m pytest tests/ -v                       # alle 729 Tests (inkl. 24 Playwright UI-Tests)
 python -m pytest tests/ --ignore=tests/test_ui.py  # nur Unit/Integration-Tests
 python -m pytest tests/test_database.py -v          # einzelne Datei
 ```

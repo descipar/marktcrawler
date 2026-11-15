@@ -1,7 +1,20 @@
-"""Scraper für Vinted via öffentliche API."""
+"""Scraper für Vinted via Katalog-Suchseite.
+
+Die frühere JSON-API ``/api/v2/catalog/items`` liefert seit 11/2026 nur noch
+404. Die Suchseite ``/catalog?search_text=…`` ist eine Next.js-App, die die
+Suchergebnisse serverseitig als React-Server-Components-Payload
+(``self.__next_f.push([1, "…"])``) mitliefert. Darin steckt ein
+``"items":{"items":[…]}``-Objekt mit Titel, Preis, URL und Fotos je Artikel.
+
+Nicht mehr enthalten sind ``created_at_ts`` (→ ``vinted_max_age_hours`` greift
+nur noch, falls Vinted das Feld wieder liefert) und die Stadt des Verkäufers
+(→ der Radius-Filter wird übersprungen, wenn keine Stadt bekannt ist).
+"""
 
 from collections import OrderedDict
+import json
 import logging
+import re
 import time
 from typing import List, Optional
 
@@ -13,8 +26,10 @@ from ..geo import geocode, haversine
 
 logger = logging.getLogger(__name__)
 
-API_URL = "https://www.vinted.de/api/v2/catalog/items"
+CATALOG_URL = "https://www.vinted.de/catalog"
 BASE_URL = "https://www.vinted.de"
+_RSC_PUSH_RE = re.compile(r'self\.__next_f\.push\(\[1,"(.*?)"\]\)</script>', re.S)
+_ITEMS_MARKER_RE = re.compile(r'"items":\s*(?=\{\s*"items":)')
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -135,23 +150,71 @@ class VintedScraper(BaseScraper):
             listing.description = description
         return listing
 
+    @staticmethod
+    def _extract_catalog_items(html: str) -> List[dict]:
+        """Liest die Suchergebnisse aus dem RSC-Payload der Katalogseite.
+
+        Wirft ``ValueError``, wenn kein Ergebnis-Objekt gefunden wird – dann hat
+        Vinted vermutlich das Seitenformat geändert.
+        """
+        parts = []
+        for raw in _RSC_PUSH_RE.findall(html):
+            try:
+                parts.append(json.loads(f'"{raw}"'))
+            except ValueError:
+                continue
+        blob = "".join(parts)
+        match = _ITEMS_MARKER_RE.search(blob)
+        if not match:
+            raise ValueError("Keine Suchergebnisse im Seiten-Payload gefunden (Format geändert?)")
+        container, _ = json.JSONDecoder().raw_decode(blob, match.end())
+        return [VintedScraper._normalize(entry) for entry in container.get("items") or []]
+
+    @staticmethod
+    def _normalize(entry: dict) -> dict:
+        """Bringt einen Katalog-Eintrag in die Form, die ``_parse`` erwartet."""
+        item = entry.get("productItem") or entry
+        url = item.get("url") or ""
+        if url.startswith("/"):
+            url = BASE_URL + url
+        photos = item.get("photos") or []
+        full_size = photos[0].get("url", "") if photos else ""
+        thumb = item.get("thumbnailUrl") or full_size
+        return {
+            "id": item.get("id", entry.get("id", "")),
+            "title": item.get("title", "Unbekannt"),
+            "price": item.get("price"),
+            "total_item_price": item.get("totalItemPrice"),
+            "url": url,
+            "user": item.get("user") or {},
+            "photo": {"url": thumb, "full_size_url": full_size or thumb} if thumb else None,
+            "created_at_ts": item.get("created_at_ts"),
+        }
+
+    def _get_catalog(self, params: dict):
+        return self.session.get(
+            CATALOG_URL,
+            params=params,
+            headers={"Accept": "text/html,application/xhtml+xml"},
+            timeout=20,
+        )
+
     def search(self, term: str, max_results: int = 20) -> List[Listing]:
         logger.info(f"[Vinted] '{term}'")
         params: dict = {
             "search_text": term,
-            "per_page": max_results,
             "order": "newest_first",
         }
         if self.max_price is not None:
             params["price_to"] = self.max_price
         try:
-            r = self.session.get(API_URL, params=params, timeout=15)
-            if r.status_code == 401:
-                logger.info("[Vinted] 401 – hole neuen Session-Cookie...")
+            r = self._get_catalog(params)
+            if r.status_code in (401, 403):
+                logger.info(f"[Vinted] {r.status_code} – hole neuen Session-Cookie...")
                 self._authenticate()
-                r = self.session.get(API_URL, params=params, timeout=15)
+                r = self._get_catalog(params)
             r.raise_for_status()
-            items = r.json().get("items", [])
+            items = self._extract_catalog_items(r.text)[:max_results]
         except Exception as e:
             logger.error(f"[Vinted] Fehler bei '{term}': {e}")
             return []
